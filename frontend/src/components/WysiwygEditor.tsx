@@ -77,48 +77,34 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
   };
 
-  const wrapSelectionWithHtml = (before: string, after: string) => {
+  const wrapSelectionWithClass = (className: string) => {
     if (disabled || isSourceMode) return;
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
-    const selectedText = range.toString();
-
     const span = document.createElement('span');
-    span.innerHTML = `${before}${selectedText || 'Texte'}${after}`;
+    span.className = className;
 
-    range.deleteContents();
+    if (!range.collapsed) {
+      const fragment = range.extractContents();
+      span.appendChild(fragment);
+    } else {
+      span.innerHTML = '&nbsp;';
+    }
+
     range.insertNode(span);
 
-    // Repositionne le curseur après
+    // Repositionne le curseur après le span
     range.setStartAfter(span);
     range.collapse(true);
     selection.removeAllRanges();
     selection.addRange(range);
 
     handleInput();
-  };
-
-  const insertDialogue = () => {
-    wrapSelectionWithHtml(
-      '<span style="color: #2563eb; font-weight: 500;">« ',
-      ' »</span>'
-    );
-  };
-
-  const insertThought = () => {
-    wrapSelectionWithHtml(
-      '<span style="color: #7c3aed; font-style: italic;">* ',
-      ' *</span>'
-    );
-  };
-
-  const insertOoc = () => {
-    wrapSelectionWithHtml(
-      '<span style="color: #64748b; font-size: 0.9em;">[HRP : ',
-      ']</span>'
-    );
   };
 
   return (
@@ -227,32 +213,70 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         <div className="flex items-center gap-1 px-1 border-r border-slate-200">
           <button
             type="button"
-            onClick={insertDialogue}
+            onClick={() => wrapSelectionWithClass('dialogue')}
             disabled={disabled || isSourceMode}
-            title="Dialogue de personnage (« Paroles »)"
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-blue-100 text-blue-700 text-xs font-semibold disabled:opacity-40 transition"
+            title="Dialogue (<span class='dialogue'>)"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-200 text-slate-700 text-xs font-semibold disabled:opacity-40 transition"
           >
-            <MessageCircle className="w-3.5 h-3.5" />
+            <span
+              className="w-2 h-2 rounded-full inline-block"
+              style={{ backgroundColor: 'var(--dialogue-color, #4488CC)' }}
+            />
+            <MessageCircle className="w-3.5 h-3.5" style={{ color: 'var(--dialogue-color, #4488CC)' }} />
             <span className="hidden sm:inline">Dialogue</span>
           </button>
           <button
             type="button"
-            onClick={insertThought}
+            onClick={() => wrapSelectionWithClass('pensee')}
             disabled={disabled || isSourceMode}
-            title="Pensée de personnage (* Pensée *)"
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-purple-100 text-purple-700 text-xs font-semibold disabled:opacity-40 transition"
+            title="Pensée (<span class='pensee'>)"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-200 text-slate-700 text-xs font-semibold disabled:opacity-40 transition"
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <span
+              className="w-2 h-2 rounded-full inline-block"
+              style={{ backgroundColor: 'var(--pensee-color, #8844CC)' }}
+            />
+            <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--pensee-color, #8844CC)' }} />
             <span className="hidden sm:inline">Pensée</span>
           </button>
           <button
             type="button"
-            onClick={insertOoc}
+            onClick={() => wrapSelectionWithClass('rp1')}
             disabled={disabled || isSourceMode}
-            title="Commentaire Hors-Roleplay ([HRP : ...])"
+            title="RP 1 (<span class='rp1'>)"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-200 text-slate-700 text-xs font-semibold disabled:opacity-40 transition"
+          >
+            <span
+              className="w-2 h-2 rounded-full inline-block"
+              style={{ backgroundColor: 'var(--rp1-color, #ff6600)' }}
+            />
+            <span className="font-bold text-xs" style={{ color: 'var(--rp1-color, #ff6600)' }}>
+              RP1
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => wrapSelectionWithClass('rp2')}
+            disabled={disabled || isSourceMode}
+            title="RP 2 / RPG 2 (<span class='rp2'>)"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-200 text-slate-700 text-xs font-semibold disabled:opacity-40 transition"
+          >
+            <span
+              className="w-2 h-2 rounded-full inline-block"
+              style={{ backgroundColor: 'var(--rp2-color, #5EFF6C)' }}
+            />
+            <span className="font-bold text-xs" style={{ color: 'var(--rp2-color, #5EFF6C)' }}>
+              RP2
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => wrapSelectionWithClass('hrp')}
+            disabled={disabled || isSourceMode}
+            title="Commentaire Hors-Roleplay (<span class='hrp'>)"
             className="inline-flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-200 text-slate-600 text-xs font-medium disabled:opacity-40 transition"
           >
-            <HelpCircle className="w-3.5 h-3.5" />
+            <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
             <span className="hidden sm:inline">HRP</span>
           </button>
         </div>

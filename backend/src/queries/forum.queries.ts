@@ -142,6 +142,17 @@ export class ForumQueries {
       userRole,
       availableCharacters,
       posts: mappedPosts,
+      dialogueColor: topic.dialogueColor || null,
+      penseeColor: topic.penseeColor || null,
+      rp1Color: topic.rp1Color || null,
+      rp2Color: topic.rp2Color || null,
+      quoteColor: topic.quoteColor || null,
+      sidebarColor: topic.sidebarColor || null,
+      oddLineColor: topic.oddLineColor || null,
+      evenLineColor: topic.evenLineColor || null,
+      textColor: topic.textColor || null,
+      linkColor: topic.linkColor || null,
+      linkSidebarColor: topic.linkSidebarColor || null,
     };
   }
 }

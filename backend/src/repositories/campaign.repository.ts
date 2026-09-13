@@ -27,9 +27,21 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.statut,
         c.is_recrutement_open AS isRecrutementOpen,
         c.rythme,
-        c.rp
+        c.rp,
+        cc.dialogue_color AS dialogueColor,
+        cc.pensee_color AS penseeColor,
+        cc.rp1_color AS rp1Color,
+        cc.rp2_color AS rp2Color,
+        cc.quote_color AS quoteColor,
+        cc.sidebar_color AS sidebarColor,
+        cc.odd_line_color AS oddLineColor,
+        cc.even_line_color AS evenLineColor,
+        cc.text_color AS textColor,
+        cc.link_color AS linkColor,
+        cc.link_sidebar_color AS linkSidebarColor
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
+      LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
       WHERE c.mj_id = ?
         ${archiveCondition}
       ORDER BY c.id DESC
@@ -51,6 +63,17 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: number;
       rythme: number | null;
       rp: number | null;
+      dialogueColor: string | null;
+      penseeColor: string | null;
+      rp1Color: string | null;
+      rp2Color: string | null;
+      quoteColor: string | null;
+      sidebarColor: string | null;
+      oddLineColor: string | null;
+      evenLineColor: string | null;
+      textColor: string | null;
+      linkColor: string | null;
+      linkSidebarColor: string | null;
     }
 
     const rows = await query<RawCampaignRow>(sql, [userId]);
@@ -72,6 +95,17 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: Boolean(row.isRecrutementOpen),
       rythme: row.rythme ?? undefined,
       rp: row.rp ?? undefined,
+      dialogueColor: row.dialogueColor || null,
+      penseeColor: row.penseeColor || null,
+      rp1Color: row.rp1Color || null,
+      rp2Color: row.rp2Color || null,
+      quoteColor: row.quoteColor || null,
+      sidebarColor: row.sidebarColor || null,
+      oddLineColor: row.oddLineColor || null,
+      evenLineColor: row.evenLineColor || null,
+      textColor: row.textColor || null,
+      linkColor: row.linkColor || null,
+      linkSidebarColor: row.linkSidebarColor || null,
       userRole: 'mj',
     }));
   }
@@ -95,11 +129,23 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.is_recrutement_open AS isRecrutementOpen,
         c.rythme,
         c.rp,
+        cc.dialogue_color AS dialogueColor,
+        cc.pensee_color AS penseeColor,
+        cc.rp1_color AS rp1Color,
+        cc.rp2_color AS rp2Color,
+        cc.quote_color AS quoteColor,
+        cc.sidebar_color AS sidebarColor,
+        cc.odd_line_color AS oddLineColor,
+        cc.even_line_color AS evenLineColor,
+        cc.text_color AS textColor,
+        cc.link_color AS linkColor,
+        cc.link_sidebar_color AS linkSidebarColor,
         p.name AS characterName,
         p.avatar AS characterAvatar
       FROM campagne_participant cp
       JOIN campagne c ON cp.campagne_id = c.id
       JOIN user u ON c.mj_id = u.id
+      LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
       LEFT JOIN personnages p ON p.campagne_id = c.id AND p.user_id = cp.user_id
       WHERE cp.user_id = ?
         ${archiveCondition}
@@ -122,6 +168,17 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: number;
       rythme: number | null;
       rp: number | null;
+      dialogueColor: string | null;
+      penseeColor: string | null;
+      rp1Color: string | null;
+      rp2Color: string | null;
+      quoteColor: string | null;
+      sidebarColor: string | null;
+      oddLineColor: string | null;
+      evenLineColor: string | null;
+      textColor: string | null;
+      linkColor: string | null;
+      linkSidebarColor: string | null;
       characterName: string | null;
       characterAvatar: string | null;
     }
@@ -145,6 +202,17 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: Boolean(row.isRecrutementOpen),
       rythme: row.rythme ?? undefined,
       rp: row.rp ?? undefined,
+      dialogueColor: row.dialogueColor || null,
+      penseeColor: row.penseeColor || null,
+      rp1Color: row.rp1Color || null,
+      rp2Color: row.rp2Color || null,
+      quoteColor: row.quoteColor || null,
+      sidebarColor: row.sidebarColor || null,
+      oddLineColor: row.oddLineColor || null,
+      evenLineColor: row.evenLineColor || null,
+      textColor: row.textColor || null,
+      linkColor: row.linkColor || null,
+      linkSidebarColor: row.linkSidebarColor || null,
       userRole: 'player',
       characterName: row.characterName || null,
       characterAvatar: row.characterAvatar || null,
@@ -184,9 +252,21 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.statut,
         c.is_recrutement_open AS isRecrutementOpen,
         c.rythme,
-        c.rp
+        c.rp,
+        cc.dialogue_color AS dialogueColor,
+        cc.pensee_color AS penseeColor,
+        cc.rp1_color AS rp1Color,
+        cc.rp2_color AS rp2Color,
+        cc.quote_color AS quoteColor,
+        cc.sidebar_color AS sidebarColor,
+        cc.odd_line_color AS oddLineColor,
+        cc.even_line_color AS evenLineColor,
+        cc.text_color AS textColor,
+        cc.link_color AS linkColor,
+        cc.link_sidebar_color AS linkSidebarColor
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
+      LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
       ${whereClause}
       ORDER BY c.id DESC
     `;
@@ -207,6 +287,17 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: number;
       rythme: number | null;
       rp: number | null;
+      dialogueColor: string | null;
+      penseeColor: string | null;
+      rp1Color: string | null;
+      rp2Color: string | null;
+      quoteColor: string | null;
+      sidebarColor: string | null;
+      oddLineColor: string | null;
+      evenLineColor: string | null;
+      textColor: string | null;
+      linkColor: string | null;
+      linkSidebarColor: string | null;
     }
 
     const rows = await query<RawCampaignRow>(sql, params);
@@ -228,6 +319,17 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: Boolean(row.isRecrutementOpen),
       rythme: row.rythme ?? undefined,
       rp: row.rp ?? undefined,
+      dialogueColor: row.dialogueColor || null,
+      penseeColor: row.penseeColor || null,
+      rp1Color: row.rp1Color || null,
+      rp2Color: row.rp2Color || null,
+      quoteColor: row.quoteColor || null,
+      sidebarColor: row.sidebarColor || null,
+      oddLineColor: row.oddLineColor || null,
+      evenLineColor: row.evenLineColor || null,
+      textColor: row.textColor || null,
+      linkColor: row.linkColor || null,
+      linkSidebarColor: row.linkSidebarColor || null,
     }));
   }
 
@@ -248,9 +350,21 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.statut,
         c.is_recrutement_open AS isRecrutementOpen,
         c.rythme,
-        c.rp
+        c.rp,
+        cc.dialogue_color AS dialogueColor,
+        cc.pensee_color AS penseeColor,
+        cc.rp1_color AS rp1Color,
+        cc.rp2_color AS rp2Color,
+        cc.quote_color AS quoteColor,
+        cc.sidebar_color AS sidebarColor,
+        cc.odd_line_color AS oddLineColor,
+        cc.even_line_color AS evenLineColor,
+        cc.text_color AS textColor,
+        cc.link_color AS linkColor,
+        cc.link_sidebar_color AS linkSidebarColor
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
+      LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
       WHERE c.id = ?
       LIMIT 1
     `;
@@ -271,6 +385,17 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: number;
       rythme: number | null;
       rp: number | null;
+      dialogueColor: string | null;
+      penseeColor: string | null;
+      rp1Color: string | null;
+      rp2Color: string | null;
+      quoteColor: string | null;
+      sidebarColor: string | null;
+      oddLineColor: string | null;
+      evenLineColor: string | null;
+      textColor: string | null;
+      linkColor: string | null;
+      linkSidebarColor: string | null;
     }
 
     const rows = await query<RawCampaignRow>(sql, [id]);
@@ -296,6 +421,17 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: Boolean(row.isRecrutementOpen),
       rythme: row.rythme ?? undefined,
       rp: row.rp ?? undefined,
+      dialogueColor: row.dialogueColor || null,
+      penseeColor: row.penseeColor || null,
+      rp1Color: row.rp1Color || null,
+      rp2Color: row.rp2Color || null,
+      quoteColor: row.quoteColor || null,
+      sidebarColor: row.sidebarColor || null,
+      oddLineColor: row.oddLineColor || null,
+      evenLineColor: row.evenLineColor || null,
+      textColor: row.textColor || null,
+      linkColor: row.linkColor || null,
+      linkSidebarColor: row.linkSidebarColor || null,
     };
   }
 }

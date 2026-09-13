@@ -146,8 +146,19 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
 
   const { campaign, sections } = forumData;
 
+  const campaignStyles = {
+    '--pensee-color': campaign.penseeColor || '#8844CC',
+    '--dialogue-color': campaign.dialogueColor || '#4488CC',
+    '--rp1-color': campaign.rp1Color || '#ff6600',
+    '--rp2-color': campaign.rp2Color || '#5EFF6C',
+    '--color-pensee': campaign.penseeColor || '#8844CC',
+    '--color-dialogue': campaign.dialogueColor || '#4488CC',
+    '--color-rp1': campaign.rp1Color || '#ff6600',
+    '--color-rp2': campaign.rp2Color || '#5EFF6C',
+  } as React.CSSProperties;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={campaignStyles}>
       {/* Navigation Breadcrumb & Back button */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -271,19 +282,38 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                 {/* Section Header */}
                 <button
                   onClick={() => toggleSection(section.id)}
-                  className="w-full px-5 py-3.5 bg-slate-100/80 hover:bg-slate-100 border-b border-slate-200 flex items-center justify-between transition group text-left"
+                  style={{
+                    backgroundColor: campaign.sidebarColor || undefined,
+                    color: campaign.linkSidebarColor || undefined,
+                  }}
+                  className="w-full px-5 py-3.5 bg-slate-100/80 hover:brightness-95 border-b border-slate-200 flex items-center justify-between transition group text-left"
                 >
                   <div className="flex items-center gap-2.5">
-                    <FolderOpen className="w-5 h-5 text-indigo-600 group-hover:scale-105 transition-transform" />
-                    <h2 className="font-bold text-sm sm:text-base text-slate-900 tracking-tight">
+                    <FolderOpen
+                      className="w-5 h-5 transition-transform group-hover:scale-105"
+                      style={{ color: campaign.linkSidebarColor || undefined }}
+                    />
+                    <h2
+                      className="font-bold text-sm sm:text-base tracking-tight"
+                      style={{ color: campaign.linkSidebarColor || undefined }}
+                    >
                       {section.title}
                     </h2>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-200/80 text-slate-600 text-xs font-medium">
+                    <span
+                      className="px-2 py-0.5 rounded-full text-xs font-medium"
+                      style={{
+                        backgroundColor: campaign.sidebarColor ? 'rgba(255, 255, 255, 0.2)' : undefined,
+                        color: campaign.linkSidebarColor || undefined,
+                      }}
+                    >
                       {section.topics.length} sujet{section.topics.length > 1 ? 's' : ''}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-1 text-slate-400 group-hover:text-slate-600 transition">
+                  <div
+                    className="flex items-center gap-1 transition"
+                    style={{ color: campaign.linkSidebarColor || undefined }}
+                  >
                     {isCollapsed ? (
                       <ChevronDown className="w-4 h-4" />
                     ) : (
@@ -302,112 +332,148 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                     ) : (
                       <div className="divide-y divide-slate-100">
                         {/* Desktop Table Header */}
-                        <div className="hidden md:grid md:grid-cols-12 gap-4 px-5 py-2.5 bg-slate-50/60 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                        <div
+                          className="hidden md:grid md:grid-cols-12 gap-4 px-5 py-2.5 bg-slate-50/60 text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
+                          style={{
+                            backgroundColor: campaign.sidebarColor || undefined,
+                            color: campaign.linkSidebarColor || undefined,
+                          }}
+                        >
                           <div className="col-span-7 flex items-center gap-2">Sujet</div>
                           <div className="col-span-2 text-center">Messages</div>
                           <div className="col-span-3 text-right">Dernier message</div>
                         </div>
 
                         {/* Topic Rows */}
-                        {section.topics.map((topic) => (
-                          <div
-                            key={topic.id}
-                            onClick={() => handleSelectTopic(topic.id)}
-                            className={`p-4 sm:px-5 sm:py-3.5 hover:bg-slate-50/80 transition flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:items-center cursor-pointer ${
-                              !topic.isRead ? 'bg-indigo-50/30' : ''
-                            }`}
-                          >
-                            {/* Topic Title & Badges */}
-                            <div className="md:col-span-7 flex items-start gap-3">
-                              {/* Read/Unread Icon Indicator */}
-                              <div className="pt-0.5 flex-shrink-0">
-                                {!topic.isRead ? (
-                                  <div
-                                    className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shadow-xs border border-indigo-200"
-                                    title="Nouveaux messages non lus"
-                                  >
-                                    <MessageSquare className="w-4 h-4 fill-indigo-600 text-indigo-600" />
+                        {section.topics.map((topic, topicIdx) => {
+                          const isOdd = topicIdx % 2 === 0;
+                          const rowBg = isOdd
+                            ? campaign.oddLineColor
+                            : campaign.evenLineColor;
+                          const rowTextColor = campaign.textColor;
+                          const rowLinkColor = campaign.linkColor;
+
+                          return (
+                            <div
+                              key={topic.id}
+                              onClick={() => handleSelectTopic(topic.id)}
+                              style={{
+                                backgroundColor: rowBg || undefined,
+                                color: rowTextColor || undefined,
+                              }}
+                              className={`p-4 sm:px-5 sm:py-3.5 hover:brightness-95 transition flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:items-center cursor-pointer ${
+                                !topic.isRead && !rowBg ? 'bg-indigo-50/30' : ''
+                              }`}
+                            >
+                              {/* Topic Title & Badges */}
+                              <div className="md:col-span-7 flex items-start gap-3">
+                                {/* Read/Unread Icon Indicator */}
+                                <div className="pt-0.5 flex-shrink-0">
+                                  {!topic.isRead ? (
+                                    <div
+                                      className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shadow-xs border border-indigo-200"
+                                      title="Nouveaux messages non lus"
+                                    >
+                                      <MessageSquare className="w-4 h-4 fill-indigo-600 text-indigo-600" />
+                                    </div>
+                                  ) : (
+                                    <div
+                                      className="w-8 h-8 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-200"
+                                      title="Tous les messages sont lus"
+                                    >
+                                      <MessageSquare className="w-4 h-4 text-slate-400" />
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="space-y-1 min-w-0">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    {topic.stickable && (
+                                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
+                                        <Pin className="w-3 h-3 fill-amber-500 text-amber-500" />
+                                        Épinglé
+                                      </span>
+                                    )}
+                                    {topic.isClosed && (
+                                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold">
+                                        <Lock className="w-3 h-3" />
+                                        Fermé
+                                      </span>
+                                    )}
+                                    {topic.isPrivate && (
+                                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-purple-700 text-[10px] font-semibold">
+                                        <EyeOff className="w-3 h-3" />
+                                        Privé
+                                      </span>
+                                    )}
+                                    {!topic.isRead && (
+                                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-indigo-600 text-white animate-pulse">
+                                        NOUVEAU
+                                      </span>
+                                    )}
+
+                                    <h3
+                                      className={`text-sm sm:text-base leading-snug transition-colors ${
+                                        !topic.isRead
+                                          ? 'font-bold text-slate-900'
+                                          : 'font-medium text-slate-700'
+                                      }`}
+                                      style={{ color: rowLinkColor || undefined }}
+                                    >
+                                      {topic.title}
+                                    </h3>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Posts Count */}
+                              <div
+                                className="md:col-span-2 flex items-center md:justify-center text-xs text-slate-500 pl-11 md:pl-0"
+                                style={{ color: rowTextColor || undefined }}
+                              >
+                                <span
+                                  className="font-semibold text-slate-700 mr-1 md:mr-0"
+                                  style={{ color: rowTextColor || undefined }}
+                                >
+                                  {topic.postsCount}
+                                </span>
+                                <span className="md:hidden ml-1 opacity-80" style={{ color: rowTextColor || undefined }}>
+                                  message(s)
+                                </span>
+                              </div>
+
+                              {/* Last Post Info */}
+                              <div
+                                className="md:col-span-3 text-xs text-slate-500 md:text-right pl-11 md:pl-0"
+                                style={{ color: rowTextColor || undefined }}
+                              >
+                                {topic.lastPost ? (
+                                  <div className="space-y-0.5">
+                                    <div className="flex items-center md:justify-end gap-1.5">
+                                      <Clock className="w-3 h-3 opacity-70" style={{ color: rowTextColor || undefined }} />
+                                      <span className="font-medium" style={{ color: rowTextColor || undefined }}>
+                                        {formatDate(topic.lastPost.createDate)}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center md:justify-end gap-1.5">
+                                      <span className="opacity-70" style={{ color: rowTextColor || undefined }}>Par :</span>
+                                      <span
+                                        className="font-semibold hover:underline transition"
+                                        style={{ color: rowLinkColor || undefined }}
+                                      >
+                                        {topic.lastPost.username}
+                                      </span>
+                                    </div>
                                   </div>
                                 ) : (
-                                  <div
-                                    className="w-8 h-8 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-200"
-                                    title="Tous les messages sont lus"
-                                  >
-                                    <MessageSquare className="w-4 h-4 text-slate-400" />
-                                  </div>
+                                  <span className="italic opacity-60" style={{ color: rowTextColor || undefined }}>
+                                    Aucun message
+                                  </span>
                                 )}
                               </div>
-
-                              <div className="space-y-1 min-w-0">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  {topic.stickable && (
-                                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
-                                      <Pin className="w-3 h-3 fill-amber-500 text-amber-500" />
-                                      Épinglé
-                                    </span>
-                                  )}
-                                  {topic.isClosed && (
-                                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold">
-                                      <Lock className="w-3 h-3" />
-                                      Fermé
-                                    </span>
-                                  )}
-                                  {topic.isPrivate && (
-                                    <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-purple-700 text-[10px] font-semibold">
-                                      <EyeOff className="w-3 h-3" />
-                                      Privé
-                                    </span>
-                                  )}
-                                  {!topic.isRead && (
-                                    <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-indigo-600 text-white animate-pulse">
-                                      NOUVEAU
-                                    </span>
-                                  )}
-
-                                  <h3
-                                    className={`text-sm sm:text-base leading-snug transition-colors group-hover:text-indigo-600 ${
-                                      !topic.isRead
-                                        ? 'font-bold text-slate-900'
-                                        : 'font-medium text-slate-700'
-                                    }`}
-                                  >
-                                    {topic.title}
-                                  </h3>
-                                </div>
-                              </div>
                             </div>
-
-                            {/* Posts Count */}
-                            <div className="md:col-span-2 flex items-center md:justify-center text-xs text-slate-500 pl-11 md:pl-0">
-                              <span className="font-semibold text-slate-700 mr-1 md:mr-0">
-                                {topic.postsCount}
-                              </span>
-                              <span className="md:hidden ml-1 text-slate-400">message(s)</span>
-                            </div>
-
-                            {/* Last Post Info */}
-                            <div className="md:col-span-3 text-xs text-slate-500 md:text-right pl-11 md:pl-0">
-                              {topic.lastPost ? (
-                                <div className="space-y-0.5">
-                                  <div className="flex items-center md:justify-end gap-1.5">
-                                    <Clock className="w-3 h-3 text-slate-400" />
-                                    <span className="text-slate-600 font-medium">
-                                      {formatDate(topic.lastPost.createDate)}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center md:justify-end gap-1.5 text-slate-600">
-                                    <span className="text-slate-400">Par :</span>
-                                    <span className="font-semibold text-slate-800 hover:text-indigo-600 transition">
-                                      {topic.lastPost.username}
-                                    </span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-slate-400 italic">Aucun message</span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

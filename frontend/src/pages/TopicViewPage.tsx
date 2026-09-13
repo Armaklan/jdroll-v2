@@ -215,25 +215,54 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   const previewAvatar = selectedCharacter?.avatar || user?.avatar || '';
   const previewConcept = selectedCharacter?.concept || '';
 
+  const campaignStyles = {
+    '--pensee-color': topicDetail.penseeColor || '#8844CC',
+    '--dialogue-color': topicDetail.dialogueColor || '#4488CC',
+    '--rp1-color': topicDetail.rp1Color || '#ff6600',
+    '--rp2-color': topicDetail.rp2Color || '#5EFF6C',
+    '--color-pensee': topicDetail.penseeColor || '#8844CC',
+    '--color-dialogue': topicDetail.dialogueColor || '#4488CC',
+    '--color-rp1': topicDetail.rp1Color || '#ff6600',
+    '--color-rp2': topicDetail.rp2Color || '#5EFF6C',
+  } as React.CSSProperties;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" style={campaignStyles}>
       {/* Navigation / Fil d'Ariane & En-tête */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+      <div
+        className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs"
+        style={{
+          backgroundColor: topicDetail.sidebarColor || undefined,
+          color: topicDetail.linkSidebarColor || topicDetail.textColor || undefined,
+          borderColor: topicDetail.sidebarColor ? 'rgba(0, 0, 0, 0.1)' : undefined,
+        }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-100/30">
+          <div
+            className="flex items-center gap-2 text-xs font-semibold"
+            style={{ color: topicDetail.linkSidebarColor || topicDetail.textColor || undefined }}
+          >
             <button
               onClick={handleBackToForum}
-              className="hover:text-indigo-600 transition flex items-center gap-1"
+              className="hover:opacity-80 transition flex items-center gap-1"
+              style={{ color: topicDetail.linkSidebarColor || undefined }}
             >
               <FolderOpen className="w-3.5 h-3.5" />
               <span>{topicDetail.campaignTitle}</span>
             </button>
             <span>/</span>
-            <span className="text-slate-700">{topicDetail.sectionTitle}</span>
+            <span style={{ color: topicDetail.linkSidebarColor || topicDetail.textColor || undefined }}>
+              {topicDetail.sectionTitle}
+            </span>
           </div>
 
           <button
             onClick={handleBackToForum}
+            style={{
+              backgroundColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.1)' : undefined,
+              color: topicDetail.linkSidebarColor || undefined,
+              borderColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.2)' : undefined,
+            }}
             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition shadow-2xs"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
@@ -263,11 +292,20 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                   <span>Secret / Privé</span>
                 </span>
               )}
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+              <h2
+                className="text-xl sm:text-2xl font-bold tracking-tight"
+                style={{ color: topicDetail.linkSidebarColor || topicDetail.textColor || undefined }}
+              >
                 {topicDetail.title}
               </h2>
             </div>
-            <p className="text-xs text-slate-500">
+            <p
+              className="text-xs"
+              style={{
+                color: topicDetail.linkSidebarColor || topicDetail.textColor || undefined,
+                opacity: 0.8,
+              }}
+            >
               {topicDetail.totalPosts} {topicDetail.totalPosts > 1 ? 'messages au total' : 'message au total'}
             </p>
           </div>
@@ -353,31 +391,48 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
         </div>
       ) : (
         <div className="space-y-4">
-          {topicDetail.posts.map((post) => {
+          {topicDetail.posts.map((post, postIdx) => {
             const isLastRead = topicDetail.lastReadPostId === post.id;
             const authorName = post.perso?.name || post.user.username;
             const avatarUrl = post.perso?.avatar || post.user.avatar;
             const isGm = post.user.profil === 1;
 
+            const isOdd = postIdx % 2 === 0;
+            const postBg = isOdd
+              ? topicDetail.oddLineColor
+              : topicDetail.evenLineColor;
+            const postTextColor = topicDetail.textColor;
+            const postLinkColor = topicDetail.linkColor;
+
             return (
               <div
                 key={post.id}
                 id={`post-${post.id}`}
-                className={`bg-white border rounded-2xl p-5 shadow-xs transition duration-150 ${
+                style={{
+                  backgroundColor: postBg || undefined,
+                  color: postTextColor || undefined,
+                  borderColor: postBg ? 'rgba(0, 0, 0, 0.1)' : undefined,
+                  ...(postLinkColor ? { '--link-color': postLinkColor } : {}),
+                  ...(postTextColor ? { '--text-color': postTextColor } : {}),
+                } as React.CSSProperties}
+                className={`border rounded-2xl p-5 shadow-xs transition duration-150 ${
                   isLastRead
                     ? 'border-indigo-400 ring-2 ring-indigo-100'
                     : 'border-slate-200 hover:border-slate-300'
-                }`}
+                } ${!postBg ? 'bg-white' : ''}`}
               >
                 {/* En-tête du message */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-100 text-xs text-slate-500">
+                <div
+                  className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-4 border-b border-slate-100 text-xs text-slate-500"
+                  style={{ color: postTextColor || undefined }}
+                >
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-[11px] font-semibold text-slate-400">
+                    <span className="font-mono text-[11px] font-semibold opacity-70" style={{ color: postTextColor || undefined }}>
                       #{post.id}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-slate-400" />
-                      <span>{formatDate(post.createDate)}</span>
+                      <Clock className="w-3 h-3 opacity-70" style={{ color: postTextColor || undefined }} />
+                      <span style={{ color: postTextColor || undefined }}>{formatDate(post.createDate)}</span>
                     </span>
                   </div>
 
@@ -421,24 +476,30 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
                     {/* Détails Auteur */}
                     <div className="space-y-0.5 min-w-0">
-                      <h4 className="font-bold text-sm sm:text-base text-slate-900 leading-tight">
+                      <h4
+                        className="font-bold text-sm sm:text-base leading-tight"
+                        style={{ color: postLinkColor || postTextColor || undefined }}
+                      >
                         {authorName}
                       </h4>
 
                       {post.perso?.concept && (
-                        <p className="text-xs text-indigo-600 font-medium italic">
+                        <p className="text-xs font-medium italic opacity-90" style={{ color: postTextColor || undefined }}>
                           {post.perso.concept}
                         </p>
                       )}
 
                       {post.perso && (
-                        <p className="text-[11px] text-slate-400">
-                          Joueur : <span className="text-slate-600 font-medium">{post.user.username}</span>
+                        <p className="text-[11px] opacity-75" style={{ color: postTextColor || undefined }}>
+                          Joueur :{' '}
+                          <span className="font-medium" style={{ color: postLinkColor || postTextColor || undefined }}>
+                            {post.user.username}
+                          </span>
                         </p>
                       )}
 
                       {!post.perso && post.user.titre && (
-                        <p className="text-[11px] text-slate-500 font-medium">
+                        <p className="text-[11px] font-medium opacity-80" style={{ color: postTextColor || undefined }}>
                           {post.user.titre}
                         </p>
                       )}
@@ -448,7 +509,15 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                   {/* Contenu du message (Droite) */}
                   <div className="md:col-span-9 min-w-0">
                     <div
-                      className="text-slate-800 text-sm sm:text-base leading-relaxed space-y-3 prose prose-slate max-w-none break-words"
+                      className="post-content-container text-sm sm:text-base leading-relaxed space-y-3 prose max-w-none break-words"
+                      style={{
+                        color: postTextColor || undefined,
+                        '--tw-prose-body': postTextColor || 'inherit',
+                        '--tw-prose-headings': postTextColor || 'inherit',
+                        '--tw-prose-links': postLinkColor || '#2563eb',
+                        '--tw-prose-bold': postTextColor || 'inherit',
+                        '--tw-prose-quotes': postTextColor || 'inherit',
+                      } as React.CSSProperties}
                       dangerouslySetInnerHTML={{ __html: post.content }}
                     />
                   </div>

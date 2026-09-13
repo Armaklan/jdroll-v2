@@ -18,6 +18,17 @@ export interface CampaignSummary {
   userRole?: 'mj' | 'player';
   characterName?: string | null;
   characterAvatar?: string | null;
+  dialogueColor?: string | null;
+  penseeColor?: string | null;
+  rp1Color?: string | null;
+  rp2Color?: string | null;
+  quoteColor?: string | null;
+  sidebarColor?: string | null;
+  oddLineColor?: string | null;
+  evenLineColor?: string | null;
+  textColor?: string | null;
+  linkColor?: string | null;
+  linkSidebarColor?: string | null;
 }
 
 export type CampaignRole = 'master' | 'player';
@@ -119,4 +130,15 @@ export interface TopicDetail {
   userRole?: 'mj' | 'player' | 'user' | null;
   availableCharacters: CharacterSummary[];
   posts: ForumPost[];
+  dialogueColor?: string | null;
+  penseeColor?: string | null;
+  rp1Color?: string | null;
+  rp2Color?: string | null;
+  quoteColor?: string | null;
+  sidebarColor?: string | null;
+  oddLineColor?: string | null;
+  evenLineColor?: string | null;
+  textColor?: string | null;
+  linkColor?: string | null;
+  linkSidebarColor?: string | null;
 }

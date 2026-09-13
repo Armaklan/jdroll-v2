@@ -177,6 +177,17 @@ export class MysqlForumRepository implements IForumRepository {
         s.title AS sectionTitle,
         s.campagne_id AS campagneId,
         COALESCE(c.name, 'Forum Général') AS campaignTitle,
+        cc.dialogue_color AS dialogueColor,
+        cc.pensee_color AS penseeColor,
+        cc.rp1_color AS rp1Color,
+        cc.rp2_color AS rp2Color,
+        cc.quote_color AS quoteColor,
+        cc.sidebar_color AS sidebarColor,
+        cc.odd_line_color AS oddLineColor,
+        cc.even_line_color AS evenLineColor,
+        cc.text_color AS textColor,
+        cc.link_color AS linkColor,
+        cc.link_sidebar_color AS linkSidebarColor,
         t.title,
         t.stickable,
         t.is_private AS isPrivate,
@@ -185,6 +196,7 @@ export class MysqlForumRepository implements IForumRepository {
       FROM topics t
       JOIN sections s ON t.section_id = s.id
       LEFT JOIN campagne c ON s.campagne_id = c.id
+      LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
       WHERE t.id = ?
     `;
 

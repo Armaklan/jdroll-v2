@@ -27,6 +27,16 @@ const mockCampaign: CampaignSummary = {
   statut: 0,
   isArchived: false,
   isRecrutementOpen: true,
+  dialogueColor: '#112233',
+  penseeColor: '#445566',
+  rp1Color: '#778899',
+  rp2Color: '#aabbcc',
+  sidebarColor: '#123456',
+  oddLineColor: '#234567',
+  evenLineColor: '#345678',
+  textColor: '#456789',
+  linkColor: '#56789a',
+  linkSidebarColor: '#6789ab',
 };
 
 const mockSections: ForumSectionSummary[] = [
@@ -96,6 +106,16 @@ const mockTopic: RawTopicDetail = {
   isPrivate: 0,
   isClosed: 0,
   ordre: 1,
+  dialogueColor: '#112233',
+  penseeColor: '#445566',
+  rp1Color: '#778899',
+  rp2Color: '#aabbcc',
+  sidebarColor: '#123456',
+  oddLineColor: '#234567',
+  evenLineColor: '#345678',
+  textColor: '#456789',
+  linkColor: '#56789a',
+  linkSidebarColor: '#6789ab',
 };
 
 // 25 posts simulés (id 1 à 25)
@@ -260,6 +280,16 @@ describe('ForumQueries', () => {
 
     assert.equal(result.campaign.id, 1);
     assert.equal(result.campaign.name, 'La Malédiction de Strahd');
+    assert.equal(result.campaign.dialogueColor, '#112233');
+    assert.equal(result.campaign.penseeColor, '#445566');
+    assert.equal(result.campaign.rp1Color, '#778899');
+    assert.equal(result.campaign.rp2Color, '#aabbcc');
+    assert.equal(result.campaign.sidebarColor, '#123456');
+    assert.equal(result.campaign.oddLineColor, '#234567');
+    assert.equal(result.campaign.evenLineColor, '#345678');
+    assert.equal(result.campaign.textColor, '#456789');
+    assert.equal(result.campaign.linkColor, '#56789a');
+    assert.equal(result.campaign.linkSidebarColor, '#6789ab');
     assert.equal(result.sections.length, 2);
     assert.equal(result.sections[0].topics.length, 2);
     assert.equal(result.sections[0].topics[0].isRead, true);
@@ -299,6 +329,16 @@ describe('ForumQueries', () => {
     assert.equal(result.totalPosts, 25);
     assert.equal(result.totalPages, 3);
     assert.equal(result.page, 1);
+    assert.equal(result.dialogueColor, '#112233');
+    assert.equal(result.penseeColor, '#445566');
+    assert.equal(result.rp1Color, '#778899');
+    assert.equal(result.rp2Color, '#aabbcc');
+    assert.equal(result.sidebarColor, '#123456');
+    assert.equal(result.oddLineColor, '#234567');
+    assert.equal(result.evenLineColor, '#345678');
+    assert.equal(result.textColor, '#456789');
+    assert.equal(result.linkColor, '#56789a');
+    assert.equal(result.linkSidebarColor, '#6789ab');
     assert.equal(result.posts.length, 10);
     assert.equal(result.posts[0].id, 16);
     assert.equal(result.posts[9].id, 25);
