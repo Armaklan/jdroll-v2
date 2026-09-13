@@ -65,6 +65,24 @@ export class ForumQueries {
 
     const posts = await this.forumRepo.findPostsByTopicId(topicId, offset, limit, userId);
 
+    let currentLastReadPostId = lastReadPostId;
+
+    if (userId && posts.length > 0) {
+      const lastVisiblePost = posts[posts.length - 1];
+      if (lastVisiblePost) {
+        await this.forumRepo.markTopicAsRead(topicId, userId, lastVisiblePost.id);
+        currentLastReadPostId =
+          currentLastReadPostId !== null
+            ? Math.max(currentLastReadPostId, lastVisiblePost.id)
+            : lastVisiblePost.id;
+      }
+    }
+
+    const mappedPosts = posts.map((p) => ({
+      ...p,
+      isRead: userId ? (currentLastReadPostId !== null && p.id <= currentLastReadPostId) : true,
+    }));
+
     let canPost = false;
     let userRole: 'mj' | 'player' | 'user' | null = null;
     let availableCharacters: CharacterSummary[] = [];
@@ -108,11 +126,11 @@ export class ForumQueries {
       page: targetPage,
       totalPages,
       pageSize,
-      lastReadPostId,
+      lastReadPostId: currentLastReadPostId,
       canPost,
       userRole,
       availableCharacters,
-      posts,
+      posts: mappedPosts,
     };
   }
 }

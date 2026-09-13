@@ -150,6 +150,7 @@ class MockCampaignRepository implements ICampaignRepository {
 class MockForumRepository implements IForumRepository {
   public allPosts: ForumPost[] = [];
   public lastReadPostId: number | null = null;
+  public markTopicAsReadCalls: Array<{ topicId: number; userId: number; postId: number }> = [];
 
   constructor(
     private sections: ForumSectionSummary[] = mockSections,
@@ -204,7 +205,12 @@ class MockForumRepository implements IForumRepository {
 
   async updateTopicLastPost(): Promise<void> {}
 
-  async markTopicAsRead(): Promise<void> {}
+  async markTopicAsRead(topicId: number, userId: number, postId: number): Promise<void> {
+    this.markTopicAsReadCalls.push({ topicId, userId, postId });
+    if (this.lastReadPostId === null || postId > this.lastReadPostId) {
+      this.lastReadPostId = postId;
+    }
+  }
 
   async findCampaignPersos(): Promise<CharacterSummary[]> {
     return [
@@ -324,9 +330,9 @@ describe('ForumQueries', () => {
     assert.equal(result.posts[4].id, 5);
   });
 
-  it('should automatically open the page containing the last read post when page is not specified', async () => {
+  it('should automatically open the page containing the last read post when page is not specified and update read marker with last visible post', async () => {
     // 25 posts au total, l'utilisateur a lu jusqu'au post #12 (il reste 13 posts après #12)
-    // 13 posts après -> floor(13 / 10) + 1 = page 2
+    // 13 posts après -> floor(13 / 10) + 1 = page 2 (posts 6 à 15)
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, 12);
     const queries = new ForumQueries(campaignRepo, forumRepo);
@@ -334,9 +340,45 @@ describe('ForumQueries', () => {
     const result = await queries.getTopicPosts(101, undefined, 2);
 
     assert.equal(result.page, 2);
-    assert.equal(result.lastReadPostId, 12);
+    // Le dernier post visible sur la page 2 est le #15, qui devient le nouveau lastReadPostId
+    assert.equal(result.lastReadPostId, 15);
     assert.equal(result.posts[0].id, 6);
     assert.equal(result.posts[9].id, 15);
+    assert.equal(result.posts.every((p) => p.isRead), true);
+    assert.equal(forumRepo.markTopicAsReadCalls.length, 1);
+    assert.deepEqual(forumRepo.markTopicAsReadCalls[0], { topicId: 101, userId: 2, postId: 15 });
+  });
+
+  it('should automatically mark last visible post as read when opening a topic for the first time', async () => {
+    // Utilisateur sans historique de lecture (null), ouvre la page 1 par défaut (posts 16 à 25)
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, 1, 2);
+
+    assert.equal(result.page, 1);
+    assert.equal(result.lastReadPostId, 25);
+    assert.equal(result.posts[9].id, 25);
+    assert.equal(result.posts.every((p) => p.isRead), true);
+    assert.equal(forumRepo.markTopicAsReadCalls.length, 1);
+    assert.deepEqual(forumRepo.markTopicAsReadCalls[0], { topicId: 101, userId: 2, postId: 25 });
+  });
+
+  it('should not regress lastReadPostId when opening an older history page', async () => {
+    // Utilisateur a déjà lu jusqu'au post #20, mais consulte la page 3 (posts 1 à 5)
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, 20);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, 3, 2);
+
+    assert.equal(result.page, 3);
+    assert.equal(result.lastReadPostId, 20); // Doit rester à 20 car 20 > 5
+    assert.equal(result.posts[4].id, 5);
+    assert.equal(result.posts.every((p) => p.isRead), true);
+    assert.equal(forumRepo.markTopicAsReadCalls.length, 1);
+    assert.deepEqual(forumRepo.markTopicAsReadCalls[0], { topicId: 101, userId: 2, postId: 5 });
   });
 
   it('should automatically open page 1 if all posts are read', async () => {
@@ -350,6 +392,7 @@ describe('ForumQueries', () => {
     assert.equal(result.page, 1);
     assert.equal(result.posts[0].id, 16);
     assert.equal(result.posts[9].id, 25);
+    assert.equal(result.lastReadPostId, 25);
   });
 
   it('should handle topics with 0 posts gracefully', async () => {
