@@ -3,8 +3,13 @@ import assert from 'node:assert/strict';
 import { ForumQueries } from './forum.queries.js';
 import { ICampaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository } from '../repositories/forum.repository.js';
-import { CampaignSummary, ForumSectionSummary } from '../types/index.js';
-import { CampaignNotFoundError } from '../errors/domain.errors.js';
+import {
+  CampaignSummary,
+  ForumSectionSummary,
+  ForumPost,
+  RawTopicDetail,
+} from '../types/index.js';
+import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
 
 const mockCampaign: CampaignSummary = {
   id: 1,
@@ -79,6 +84,48 @@ const mockSections: ForumSectionSummary[] = [
   },
 ];
 
+const mockTopic: RawTopicDetail = {
+  id: 101,
+  sectionId: 10,
+  sectionTitle: 'Général & Règles',
+  campagneId: 1,
+  campaignTitle: 'La Malédiction de Strahd',
+  title: 'Règles de la table',
+  stickable: 1,
+  isPrivate: 0,
+  isClosed: 0,
+  ordre: 1,
+};
+
+// 25 posts simulés (id 1 à 25)
+const generateMockPosts = (count: number): ForumPost[] => {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i + 1,
+    topicId: 101,
+    content: `Message numéro ${i + 1}`,
+    createDate: new Date(2026, 8, 1, 10, i).toISOString(),
+    editor: 0,
+    user: {
+      id: (i % 2) + 1,
+      username: i % 2 === 0 ? 'admin' : 'testuser',
+      avatar: '',
+      profil: i % 2 === 0 ? 1 : 0,
+      titre: i % 2 === 0 ? 'MJ' : 'Joueur',
+    },
+    perso:
+      i % 2 === 1
+        ? {
+            id: 1,
+            name: 'Kaelen',
+            concept: 'Mage',
+            avatar: '',
+            publicDescription: 'Un mage',
+          }
+        : null,
+    isRead: true,
+  }));
+};
+
 class MockCampaignRepository implements ICampaignRepository {
   constructor(private campaign: CampaignSummary | null = mockCampaign) {}
 
@@ -100,10 +147,49 @@ class MockCampaignRepository implements ICampaignRepository {
 }
 
 class MockForumRepository implements IForumRepository {
-  constructor(private sections: ForumSectionSummary[] = mockSections) {}
+  public allPosts: ForumPost[] = [];
+  public lastReadPostId: number | null = null;
+
+  constructor(
+    private sections: ForumSectionSummary[] = mockSections,
+    private topic: RawTopicDetail | null = mockTopic,
+    postsCount = 0,
+    lastReadPostId: number | null = null
+  ) {
+    this.allPosts = generateMockPosts(postsCount);
+    this.lastReadPostId = lastReadPostId;
+  }
 
   async findSectionsByCampaignId(campaignId: number, _userId?: number): Promise<ForumSectionSummary[]> {
     return this.sections.filter((s) => s.campagneId === campaignId);
+  }
+
+  async findTopicById(topicId: number): Promise<RawTopicDetail | null> {
+    if (this.topic && this.topic.id === topicId) {
+      return this.topic;
+    }
+    return null;
+  }
+
+  async countPostsByTopicId(_topicId: number): Promise<number> {
+    return this.allPosts.length;
+  }
+
+  async findPostsByTopicId(
+    _topicId: number,
+    offset: number,
+    limit: number,
+    _userId?: number
+  ): Promise<ForumPost[]> {
+    return this.allPosts.slice(offset, offset + limit);
+  }
+
+  async getUserLastReadPostId(_topicId: number, _userId: number): Promise<number | null> {
+    return this.lastReadPostId;
+  }
+
+  async countPostsAfterPostId(_topicId: number, postId: number): Promise<number> {
+    return this.allPosts.filter((p) => p.id > postId).length;
   }
 }
 
@@ -144,5 +230,98 @@ describe('ForumQueries', () => {
 
     assert.equal(result.campaign.id, 1);
     assert.equal(result.sections.length, 2);
+  });
+
+  it('should throw TopicNotFoundError if topic does not exist', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    await assert.rejects(
+      () => queries.getTopicPosts(999),
+      (err: any) => err instanceof TopicNotFoundError
+    );
+  });
+
+  it('should return page 1 with the 10 most recent posts (indices 15..24) for 25 posts', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, 1);
+
+    assert.equal(result.totalPosts, 25);
+    assert.equal(result.totalPages, 3);
+    assert.equal(result.page, 1);
+    assert.equal(result.posts.length, 10);
+    assert.equal(result.posts[0].id, 16);
+    assert.equal(result.posts[9].id, 25);
+  });
+
+  it('should return page 2 with posts 6 to 15 for 25 posts', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, 2);
+
+    assert.equal(result.page, 2);
+    assert.equal(result.posts.length, 10);
+    assert.equal(result.posts[0].id, 6);
+    assert.equal(result.posts[9].id, 15);
+  });
+
+  it('should return page 3 with posts 1 to 5 for 25 posts', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, 3);
+
+    assert.equal(result.page, 3);
+    assert.equal(result.posts.length, 5);
+    assert.equal(result.posts[0].id, 1);
+    assert.equal(result.posts[4].id, 5);
+  });
+
+  it('should automatically open the page containing the last read post when page is not specified', async () => {
+    // 25 posts au total, l'utilisateur a lu jusqu'au post #12 (il reste 13 posts après #12)
+    // 13 posts après -> floor(13 / 10) + 1 = page 2
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, 12);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, undefined, 2);
+
+    assert.equal(result.page, 2);
+    assert.equal(result.lastReadPostId, 12);
+    assert.equal(result.posts[0].id, 6);
+    assert.equal(result.posts[9].id, 15);
+  });
+
+  it('should automatically open page 1 if all posts are read', async () => {
+    // Lu jusqu'au post #25 (0 posts après -> page 1)
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, 25);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, undefined, 2);
+
+    assert.equal(result.page, 1);
+    assert.equal(result.posts[0].id, 16);
+    assert.equal(result.posts[9].id, 25);
+  });
+
+  it('should handle topics with 0 posts gracefully', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 0, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101);
+
+    assert.equal(result.totalPosts, 0);
+    assert.equal(result.totalPages, 1);
+    assert.equal(result.page, 1);
+    assert.equal(result.posts.length, 0);
   });
 });

@@ -29,6 +29,12 @@ export class CampaignNotFoundError extends DomainError {
   }
 }
 
+export class TopicNotFoundError extends DomainError {
+  constructor(message = 'Sujet introuvable') {
+    super(message);
+  }
+}
+
 export class ValidationError extends DomainError {
   public details?: unknown;
 

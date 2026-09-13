@@ -61,7 +61,7 @@ INSERT INTO `sections` (`id`, `campagne_id`, `title`, `ordre`, `default_collapse
 INSERT INTO `topics` (`id`, `section_id`, `last_post_id`, `title`, `stickable`, `is_private`, `ordre`, `is_closed`) VALUES
 (1, 1, 2, 'Règles de vie et rythme des réponses', 1, 0, 1, 0),
 (2, 1, 3, 'Questions / Réponses HRP et discussions', 0, 0, 2, 0),
-(3, 2, 5, 'Chapitre 1 : L''Auberge des Terres Perdues', 1, 0, 1, 0),
+(3, 2, 18, 'Chapitre 1 : L''Auberge des Terres Perdues', 1, 0, 1, 0),
 (4, 2, 6, 'Chapitre 2 : La Caravane vers les Brumes', 0, 0, 2, 0),
 (5, 3, 7, 'Prologue : La lettre du bourgmestre (Terminé)', 0, 0, 1, 1);
 
@@ -71,14 +71,25 @@ INSERT INTO `posts` (`id`, `topic_id`, `user_id`, `perso_id`, `content`, `create
 (2, 1, 2, NULL, '<p>C''est bien noté, très motivé pour cette aventure !</p>', '2026-09-10 11:30:00', 0),
 (3, 2, 3, NULL, '<p>Bonjour tout le monde ! Est-ce qu''on commence directement au niveau 3 ?</p>', '2026-09-11 14:15:00', 0),
 (4, 3, 1, NULL, '<p>La pluie frappe les vitres de la vieille auberge alors que la nuit tombe sur le village...</p>', '2026-09-12 09:00:00', 0),
-(5, 3, 2, 1, '<p>Kaelen resserre sa cape trempée et s''approche de la cheminée en observant la pièce du coin de l''œil.</p>', '2026-09-12 18:45:00', 0),
+(5, 3, 2, 1, '<p>Kaelen resserre sa cape trempée et s''approche de la cheminée en observant la pièce du coin de l''œil.</p>', '2026-09-12 09:30:00', 0),
 (6, 4, 1, NULL, '<p>Au petit matin, les roues des chariots grincent sur le chemin brumeux menant vers la passe montagneuse.</p>', '2026-09-13 15:20:00', 0),
-(7, 5, 1, NULL, '<p>Extrait du journal de voyage : lettre scellée aux armoiries de Barovie.</p>', '2026-09-08 08:00:00', 0);
+(7, 5, 1, NULL, '<p>Extrait du journal de voyage : lettre scellée aux armoiries de Barovie.</p>', '2026-09-08 08:00:00', 0),
+(8, 3, 1, NULL, '<p>L''aubergiste essuie une chope d''un air soucieux en voyant les voyageurs s''installer.</p>', '2026-09-12 10:00:00', 0),
+(9, 3, 3, NULL, '<p>Une silhouette drapée de noir entre soudainement dans l''établissement, attirant tous les regards.</p>', '2026-09-12 11:15:00', 0),
+(10, 3, 2, 1, '<p>Kaelen pose doucement sa main sur la garde de sa dague sous sa robe de mage.</p>', '2026-09-12 12:00:00', 0),
+(11, 3, 1, NULL, '<p>L''homme encapuchonné dépose une bourse lourde sur le comptoir sans dire un mot.</p>', '2026-09-12 14:30:00', 0),
+(12, 3, 3, NULL, '<p>Le silence se fait pesant dans toute la salle commune.</p>', '2026-09-12 15:00:00', 0),
+(13, 3, 1, NULL, '<p>Un grondement de tonnerre retentit à l''extérieur, faisant vaciller les flammes des chandeliers.</p>', '2026-09-12 16:45:00', 0),
+(14, 3, 2, 1, '<p>Kaelen murmure une prière de protection tout en préparant mentalement un sort de lumière.</p>', '2026-09-12 17:20:00', 0),
+(15, 3, 1, NULL, '<p>L''inconnu relève la tête, dévoilant un regard perçant et des yeux dorés inhabituels.</p>', '2026-09-12 18:00:00', 0),
+(16, 3, 3, NULL, '<p>— Je cherche des aventuriers courageux pour une mission au-delà du défilé, lance-t-il d''une voix rauque.</p>', '2026-09-12 18:30:00', 0),
+(17, 3, 1, NULL, '<p>Les quelques villageois présents quittent précipitamment leurs tables pour regagner leurs chambres.</p>', '2026-09-12 19:10:00', 0),
+(18, 3, 2, 1, '<p>Kaelen prend la parole : « Tout dépend de la mission, de la récompense et du danger qui nous attend. »</p>', '2026-09-12 20:00:00', 0);
 
 -- Suivi des lectures de topics (read_post)
 INSERT INTO `read_post` (`topic_id`, `user_id`, `post_id`) VALUES
 (1, 2, 2),
-(3, 2, 4),
+(3, 2, 8),
 (5, 2, 7);
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { campaignQueries, CampaignQueries } from '../queries/campaign.queries.js';
 import { forumQueries, ForumQueries } from '../queries/forum.queries.js';
 import { JWTPayload } from '../types/index.js';
-import { CampaignNotFoundError } from '../errors/domain.errors.js';
+import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
 
 const getMyCampaignsSchema = z.object({
   role: z.enum(['master', 'player']).default('master'),
@@ -31,6 +31,14 @@ const getAllCampaignsSchema = z.object({
 
 const getCampaignForumParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
+});
+
+const getTopicPostsParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const getTopicPostsQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional(),
 });
 
 export class CampaignController {
@@ -127,6 +135,50 @@ export class CampaignController {
   }
 
   /**
+   * GET /api/topics/:id
+   * Récupère les messages d'un topic avec pagination et détection automatique de la page du dernier message lu
+   */
+  async getTopicPosts(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getTopicPostsParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de sujet invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseQuery = getTopicPostsQuerySchema.safeParse(request.query);
+    if (!parseQuery.success) {
+      return reply.status(400).send({
+        error: 'Paramètre de page invalide',
+        details: parseQuery.error.format(),
+      });
+    }
+
+    const { id: topicId } = parseParams.data;
+    const { page } = parseQuery.data;
+
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      // Utilisateur non connecté / invité
+    }
+
+    try {
+      const data = await this.forumQueryService.getTopicPosts(topicId, page, userId);
+      return reply.status(200).send(data);
+    } catch (error) {
+      if (error instanceof TopicNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération des messages du sujet' });
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur
    */
   registerRoutes(app: FastifyInstance) {
@@ -142,6 +194,10 @@ export class CampaignController {
 
     // Route pour voir le forum d'une campagne (accessible public avec statut de lecture si connecté)
     app.get('/api/campaigns/:id/forum', (req, rep) => this.getCampaignForum(req, rep));
+
+    // Route pour voir les messages d'un sujet (accessible public avec statut de lecture si connecté)
+    app.get('/api/topics/:id', (req, rep) => this.getTopicPosts(req, rep));
+    app.get('/api/campaigns/:campaignId/topics/:id', (req, rep) => this.getTopicPosts(req, rep));
   }
 }
 

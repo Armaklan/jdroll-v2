@@ -25,12 +25,14 @@ import {
 interface CampaignForumPageProps {
   campaignId: number;
   onNavigate: (view: AppView) => void;
+  onSelectTopic?: (topicId: number) => void;
   onBack?: () => void;
 }
 
 export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   campaignId,
   onNavigate,
+  onSelectTopic,
   onBack,
 }) => {
   const [forumData, setForumData] = useState<CampaignForumData | null>(null);
@@ -289,7 +291,8 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                         {section.topics.map((topic) => (
                           <div
                             key={topic.id}
-                            className={`p-4 sm:px-5 sm:py-3.5 hover:bg-slate-50/80 transition flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:items-center ${
+                            onClick={() => onSelectTopic && onSelectTopic(topic.id)}
+                            className={`p-4 sm:px-5 sm:py-3.5 hover:bg-slate-50/80 transition flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:items-center cursor-pointer ${
                               !topic.isRead ? 'bg-indigo-50/30' : ''
                             }`}
                           >
@@ -341,7 +344,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                   )}
 
                                   <h3
-                                    className={`text-sm sm:text-base leading-snug cursor-pointer transition-colors hover:text-indigo-600 ${
+                                    className={`text-sm sm:text-base leading-snug transition-colors group-hover:text-indigo-600 ${
                                       !topic.isRead
                                         ? 'font-bold text-slate-900'
                                         : 'font-medium text-slate-700'

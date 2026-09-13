@@ -1,7 +1,7 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
-import { CampaignForumData } from '../types/index.js';
-import { CampaignNotFoundError } from '../errors/domain.errors.js';
+import { CampaignForumData, TopicDetail } from '../types/index.js';
+import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
 
 export class ForumQueries {
   constructor(
@@ -23,6 +23,65 @@ export class ForumQueries {
     return {
       campaign,
       sections,
+    };
+  }
+
+  /**
+   * Récupère les messages d'un topic avec pagination inversée (Page 1 = 10 derniers messages)
+   * et résolution automatique de la page du dernier message lu si la page n'est pas spécifiée.
+   */
+  async getTopicPosts(topicId: number, requestedPage?: number, userId?: number): Promise<TopicDetail> {
+    const topic = await this.forumRepo.findTopicById(topicId);
+    if (!topic) {
+      throw new TopicNotFoundError(`Le sujet avec l'identifiant ${topicId} n'existe pas`);
+    }
+
+    const totalPosts = await this.forumRepo.countPostsByTopicId(topicId);
+    const pageSize = 10;
+    const totalPages = Math.max(1, Math.ceil(totalPosts / pageSize));
+    const lastReadPostId = userId ? await this.forumRepo.getUserLastReadPostId(topicId, userId) : null;
+
+    let targetPage = 1;
+
+    if (requestedPage !== undefined && requestedPage !== null && !isNaN(requestedPage)) {
+      targetPage = Math.max(1, Math.min(requestedPage, totalPages));
+    } else if (lastReadPostId !== null) {
+      // Trouver la page contenant le dernier message lu
+      const newerPostsCount = await this.forumRepo.countPostsAfterPostId(topicId, lastReadPostId);
+      targetPage = Math.floor(newerPostsCount / pageSize) + 1;
+      targetPage = Math.max(1, Math.min(targetPage, totalPages));
+    } else {
+      // Par défaut, la page 1 correspond aux 10 derniers messages
+      targetPage = 1;
+    }
+
+    let offset = 0;
+    let limit = 0;
+
+    if (totalPosts > 0) {
+      offset = Math.max(0, totalPosts - targetPage * pageSize);
+      limit = Math.min(pageSize, totalPosts - (targetPage - 1) * pageSize);
+    }
+
+    const posts = await this.forumRepo.findPostsByTopicId(topicId, offset, limit, userId);
+
+    return {
+      id: topic.id,
+      sectionId: topic.sectionId,
+      sectionTitle: topic.sectionTitle,
+      campagneId: topic.campagneId,
+      campaignTitle: topic.campaignTitle,
+      title: topic.title,
+      stickable: Boolean(topic.stickable),
+      isPrivate: Boolean(topic.isPrivate),
+      isClosed: Boolean(topic.isClosed),
+      ordre: topic.ordre,
+      totalPosts,
+      page: targetPage,
+      totalPages,
+      pageSize,
+      lastReadPostId,
+      posts,
     };
   }
 }

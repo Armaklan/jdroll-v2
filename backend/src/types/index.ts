@@ -96,3 +96,62 @@ export interface CampaignForumData {
   campaign: CampaignSummary;
   sections: ForumSectionSummary[];
 }
+
+export interface ForumPostUser {
+  id: number;
+  username: string;
+  avatar: string;
+  profil: number;
+  titre?: string;
+}
+
+export interface ForumPostPerso {
+  id: number;
+  name: string;
+  concept?: string;
+  avatar?: string;
+  publicDescription?: string;
+}
+
+export interface ForumPost {
+  id: number;
+  topicId: number;
+  content: string;
+  createDate: string;
+  editor: number;
+  user: ForumPostUser;
+  perso?: ForumPostPerso | null;
+  isRead: boolean;
+}
+
+export interface TopicDetail {
+  id: number;
+  sectionId: number;
+  sectionTitle: string;
+  campagneId: number;
+  campaignTitle: string;
+  title: string;
+  stickable: boolean;
+  isPrivate: boolean;
+  isClosed: boolean;
+  ordre: number;
+  totalPosts: number;
+  page: number;
+  totalPages: number;
+  pageSize: number;
+  lastReadPostId: number | null;
+  posts: ForumPost[];
+}
+
+export interface RawTopicDetail {
+  id: number;
+  sectionId: number;
+  sectionTitle: string;
+  campagneId: number;
+  campaignTitle: string;
+  title: string;
+  stickable: number;
+  isPrivate: number;
+  isClosed: number;
+  ordre: number;
+}

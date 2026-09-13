@@ -7,6 +7,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { MyCampaignsPage } from './pages/MyCampaignsPage';
 import { AllCampaignsPage } from './pages/AllCampaignsPage';
 import { CampaignForumPage } from './pages/CampaignForumPage';
+import { TopicViewPage } from './pages/TopicViewPage';
 import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
 import {
   Mail,
@@ -19,11 +20,21 @@ import {
 export function AppContent() {
   const [currentView, setCurrentView] = useState<AppView>('home');
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
+  const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
   const [previousCampaignView, setPreviousCampaignView] = useState<AppView>('my-campaigns');
 
   const handleOpenCampaignForum = (campaignId: number, fromView: AppView = 'my-campaigns') => {
     setSelectedCampaignId(campaignId);
     setPreviousCampaignView(fromView);
+    setCurrentView('campaign-forum');
+  };
+
+  const handleOpenTopic = (topicId: number) => {
+    setSelectedTopicId(topicId);
+    setCurrentView('topic-view');
+  };
+
+  const handleBackToForum = () => {
     setCurrentView('campaign-forum');
   };
 
@@ -105,7 +116,17 @@ export function AppContent() {
           <CampaignForumPage
             campaignId={selectedCampaignId}
             onNavigate={(view) => setCurrentView(view)}
+            onSelectTopic={handleOpenTopic}
             onBack={() => setCurrentView(previousCampaignView)}
+          />
+        )}
+
+        {/* Topic View */}
+        {currentView === 'topic-view' && selectedTopicId && (
+          <TopicViewPage
+            topicId={selectedTopicId}
+            onNavigate={(view) => setCurrentView(view)}
+            onBackToForum={handleBackToForum}
           />
         )}
 
