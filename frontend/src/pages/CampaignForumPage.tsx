@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
-import { CampaignForumData } from '../types/campaign';
+import { CampaignForumData, ForumSectionSummary, ForumTopicSummary } from '../types/campaign';
 import { AppView } from '../components/Navbar';
+import { useAuth } from '../contexts/AuthContext';
 import {
   ArrowLeft,
   MessageSquare,
@@ -21,6 +22,14 @@ import {
   FolderOpen,
   MessageCircle,
   BookOpen,
+  SlidersHorizontal,
+  Plus,
+  GripVertical,
+  X,
+  Check,
+  FilePlus,
+  Shield,
+  Loader2,
 } from 'lucide-react';
 
 interface CampaignForumPageProps {
@@ -39,10 +48,49 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const navigate = useNavigate();
   const effectiveCampaignId = campaignId ?? (params.campaignId ? Number(params.campaignId) : 0);
 
+  const { user } = useAuth();
   const [forumData, setForumData] = useState<CampaignForumData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
+
+  // Mode Administration state
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
+  const [isSavingOrder, setIsSavingOrder] = useState<boolean>(false);
+  const [saveStatusMessage, setSaveStatusMessage] = useState<string | null>(null);
+
+  // Drag and drop states
+  const [draggedSectionIndex, setDraggedSectionIndex] = useState<number | null>(null);
+  const [dragOverSectionIndex, setDragOverSectionIndex] = useState<number | null>(null);
+  const [draggedTopicInfo, setDraggedTopicInfo] = useState<{
+    sectionId: number;
+    topicIndex: number;
+    topicId: number;
+  } | null>(null);
+  const [dragOverTopicInfo, setDragOverTopicInfo] = useState<{
+    sectionId: number;
+    topicIndex: number;
+  } | null>(null);
+  const [dragOverSectionId, setDragOverSectionId] = useState<number | null>(null);
+
+  // Create Section Modal state
+  const [isCreateSectionOpen, setIsCreateSectionOpen] = useState<boolean>(false);
+  const [newSectionTitle, setNewSectionTitle] = useState<string>('');
+  const [newSectionDefaultCollapse, setNewSectionDefaultCollapse] = useState<boolean>(false);
+  const [newSectionBanniere, setNewSectionBanniere] = useState<string>('');
+  const [isSubmittingSection, setIsSubmittingSection] = useState<boolean>(false);
+  const [sectionModalError, setSectionModalError] = useState<string | null>(null);
+
+  // Create Topic Modal state
+  const [isCreateTopicOpen, setIsCreateTopicOpen] = useState<boolean>(false);
+  const [targetTopicSectionId, setTargetTopicSectionId] = useState<number | null>(null);
+  const [newTopicTitle, setNewTopicTitle] = useState<string>('');
+  const [newTopicStickable, setNewTopicStickable] = useState<boolean>(false);
+  const [newTopicIsPrivate, setNewTopicIsPrivate] = useState<boolean>(false);
+  const [newTopicIsClosed, setNewTopicIsClosed] = useState<boolean>(false);
+  const [newTopicFirstPost, setNewTopicFirstPost] = useState<string>('');
+  const [isSubmittingTopic, setIsSubmittingTopic] = useState<boolean>(false);
+  const [topicModalError, setTopicModalError] = useState<string | null>(null);
 
   const handleBack = () => {
     if (onBack) {
@@ -111,6 +159,331 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     }
   };
 
+  // Section Creation
+  const handleOpenCreateSection = () => {
+    setNewSectionTitle('');
+    setNewSectionDefaultCollapse(false);
+    setNewSectionBanniere('');
+    setSectionModalError(null);
+    setIsCreateSectionOpen(true);
+  };
+
+  const handleCreateSectionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSectionTitle.trim()) {
+      setSectionModalError('Le titre de la section est requis.');
+      return;
+    }
+
+    setIsSubmittingSection(true);
+    setSectionModalError(null);
+
+    try {
+      const res = await campaignsApi.createSection(effectiveCampaignId, {
+        title: newSectionTitle.trim(),
+        defaultCollapse: newSectionDefaultCollapse,
+        banniere: newSectionBanniere.trim() || undefined,
+      });
+
+      const createdSection: ForumSectionSummary = {
+        id: res.section.id,
+        campagneId: effectiveCampaignId,
+        title: res.section.title,
+        ordre: res.section.ordre,
+        defaultCollapse: res.section.defaultCollapse,
+        banniere: res.section.banniere || '',
+        topics: [],
+      };
+
+      if (forumData) {
+        setForumData({
+          ...forumData,
+          sections: [...forumData.sections, createdSection],
+        });
+      }
+
+      setIsCreateSectionOpen(false);
+      setSaveStatusMessage('Section créée avec succès !');
+      setTimeout(() => setSaveStatusMessage(null), 3000);
+    } catch (err: any) {
+      setSectionModalError(err.message || 'Erreur lors de la création de la section.');
+    } finally {
+      setIsSubmittingSection(false);
+    }
+  };
+
+  // Topic Creation
+  const handleOpenCreateTopic = (sectionId: number) => {
+    setTargetTopicSectionId(sectionId);
+    setNewTopicTitle('');
+    setNewTopicStickable(false);
+    setNewTopicIsPrivate(false);
+    setNewTopicIsClosed(false);
+    setNewTopicFirstPost('');
+    setTopicModalError(null);
+    setIsCreateTopicOpen(true);
+  };
+
+  const handleCreateTopicSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetTopicSectionId) {
+      setTopicModalError('Veuillez sélectionner une section.');
+      return;
+    }
+    if (!newTopicTitle.trim()) {
+      setTopicModalError('Le titre du sujet est requis.');
+      return;
+    }
+
+    setIsSubmittingTopic(true);
+    setTopicModalError(null);
+
+    try {
+      const res = await campaignsApi.createTopic(targetTopicSectionId, {
+        title: newTopicTitle.trim(),
+        stickable: newTopicStickable,
+        isPrivate: newTopicIsPrivate,
+        isClosed: newTopicIsClosed,
+        firstPostContent: newTopicFirstPost.trim() || undefined,
+      });
+
+      const newTopic: ForumTopicSummary = {
+        id: res.topic.id,
+        sectionId: targetTopicSectionId,
+        title: res.topic.title,
+        stickable: res.topic.stickable,
+        isPrivate: res.topic.isPrivate,
+        isClosed: res.topic.isClosed,
+        ordre: res.topic.ordre,
+        postsCount: newTopicFirstPost.trim() ? 1 : 0,
+        lastPost: newTopicFirstPost.trim()
+          ? {
+              id: res.topic.postId || 1,
+              createDate: new Date().toISOString(),
+              userId: user?.id || 0,
+              username: user?.username || 'MJ',
+              userAvatar: user?.avatar,
+            }
+          : null,
+        isRead: true,
+      };
+
+      if (forumData) {
+        const updatedSections = forumData.sections.map((sec) => {
+          if (sec.id === targetTopicSectionId) {
+            return {
+              ...sec,
+              topics: [newTopic, ...sec.topics],
+            };
+          }
+          return sec;
+        });
+
+        setForumData({
+          ...forumData,
+          sections: updatedSections,
+        });
+      }
+
+      setIsCreateTopicOpen(false);
+      setSaveStatusMessage('Sujet créé avec succès !');
+      setTimeout(() => setSaveStatusMessage(null), 3000);
+    } catch (err: any) {
+      setTopicModalError(err.message || 'Erreur lors de la création du sujet.');
+    } finally {
+      setIsSubmittingTopic(false);
+    }
+  };
+
+  // Section Drag and Drop handlers
+  const handleSectionDragStart = (e: React.DragEvent, index: number) => {
+    if (!isAdminMode || draggedTopicInfo) return;
+    setDraggedSectionIndex(index);
+    e.dataTransfer.setData('text/plain', `section:${index}`);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleSectionDragOver = (e: React.DragEvent, index: number) => {
+    if (!isAdminMode) return;
+    if (draggedSectionIndex !== null && draggedSectionIndex !== index) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setDragOverSectionIndex(index);
+    }
+  };
+
+  const handleSectionDrop = async (e: React.DragEvent, targetIndex: number) => {
+    if (!isAdminMode) return;
+    e.preventDefault();
+    if (draggedSectionIndex !== null && draggedSectionIndex !== targetIndex && forumData) {
+      const newSections = [...forumData.sections];
+      const [movedSection] = newSections.splice(draggedSectionIndex, 1);
+      newSections.splice(targetIndex, 0, movedSection);
+
+      setForumData({ ...forumData, sections: newSections });
+      setDraggedSectionIndex(null);
+      setDragOverSectionIndex(null);
+
+      try {
+        setIsSavingOrder(true);
+        await campaignsApi.reorderSections(
+          effectiveCampaignId,
+          newSections.map((s) => s.id)
+        );
+        setSaveStatusMessage('Ordre des sections mis à jour');
+        setTimeout(() => setSaveStatusMessage(null), 2500);
+      } catch (err: any) {
+        setError(err.message || 'Erreur lors de la réorganisation des sections.');
+        fetchForum();
+      } finally {
+        setIsSavingOrder(false);
+      }
+    }
+  };
+
+  const handleSectionDragEnd = () => {
+    setDraggedSectionIndex(null);
+    setDragOverSectionIndex(null);
+  };
+
+  // Topic Drag and Drop handlers
+  const handleTopicDragStart = (
+    e: React.DragEvent,
+    sectionId: number,
+    topicIndex: number,
+    topicId: number
+  ) => {
+    if (!isAdminMode) return;
+    e.stopPropagation();
+    setDraggedTopicInfo({
+      sectionId,
+      topicIndex,
+      topicId,
+    });
+    e.dataTransfer.setData('text/plain', `topic:${topicId}`);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleTopicDragOver = (
+    e: React.DragEvent,
+    sectionId: number,
+    topicIndex: number
+  ) => {
+    if (!isAdminMode || !draggedTopicInfo) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverTopicInfo({ sectionId, topicIndex });
+    setDragOverSectionId(sectionId);
+  };
+
+  const handleTopicDropOnTopic = async (
+    e: React.DragEvent,
+    targetSectionId: number,
+    targetTopicIndex: number
+  ) => {
+    if (!isAdminMode || !draggedTopicInfo || !forumData) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const sourceSectionId = draggedTopicInfo.sectionId;
+    const sourceTopicIndex = draggedTopicInfo.topicIndex;
+
+    if (sourceSectionId === targetSectionId && sourceTopicIndex === targetTopicIndex) {
+      setDraggedTopicInfo(null);
+      setDragOverTopicInfo(null);
+      setDragOverSectionId(null);
+      return;
+    }
+
+    const newSections = forumData.sections.map((sec) => ({
+      ...sec,
+      topics: [...sec.topics],
+    }));
+
+    const sourceSection = newSections.find((s) => s.id === sourceSectionId);
+    const targetSection = newSections.find((s) => s.id === targetSectionId);
+
+    if (sourceSection && targetSection) {
+      const [movedTopic] = sourceSection.topics.splice(sourceTopicIndex, 1);
+      movedTopic.sectionId = targetSectionId;
+      targetSection.topics.splice(targetTopicIndex, 0, movedTopic);
+
+      setForumData({ ...forumData, sections: newSections });
+      setDraggedTopicInfo(null);
+      setDragOverTopicInfo(null);
+      setDragOverSectionId(null);
+
+      try {
+        setIsSavingOrder(true);
+        const payload = newSections.map((s) => ({
+          sectionId: s.id,
+          topicIds: s.topics.map((t) => t.id),
+        }));
+        await campaignsApi.reorderTopics(effectiveCampaignId, payload);
+        setSaveStatusMessage('Ordre des sujets mis à jour');
+        setTimeout(() => setSaveStatusMessage(null), 2500);
+      } catch (err: any) {
+        setError(err.message || 'Erreur lors de la réorganisation des sujets.');
+        fetchForum();
+      } finally {
+        setIsSavingOrder(false);
+      }
+    }
+  };
+
+  const handleTopicDropOnSection = async (
+    e: React.DragEvent,
+    targetSectionId: number
+  ) => {
+    if (!isAdminMode || !draggedTopicInfo || !forumData) return;
+    e.preventDefault();
+
+    const sourceSectionId = draggedTopicInfo.sectionId;
+    const sourceTopicIndex = draggedTopicInfo.topicIndex;
+
+    const newSections = forumData.sections.map((sec) => ({
+      ...sec,
+      topics: [...sec.topics],
+    }));
+
+    const sourceSection = newSections.find((s) => s.id === sourceSectionId);
+    const targetSection = newSections.find((s) => s.id === targetSectionId);
+
+    if (sourceSection && targetSection) {
+      const [movedTopic] = sourceSection.topics.splice(sourceTopicIndex, 1);
+      movedTopic.sectionId = targetSectionId;
+      targetSection.topics.push(movedTopic);
+
+      setForumData({ ...forumData, sections: newSections });
+      setDraggedTopicInfo(null);
+      setDragOverTopicInfo(null);
+      setDragOverSectionId(null);
+
+      try {
+        setIsSavingOrder(true);
+        const payload = newSections.map((s) => ({
+          sectionId: s.id,
+          topicIds: s.topics.map((t) => t.id),
+        }));
+        await campaignsApi.reorderTopics(effectiveCampaignId, payload);
+        setSaveStatusMessage('Sujet déplacé dans la nouvelle section');
+        setTimeout(() => setSaveStatusMessage(null), 2500);
+      } catch (err: any) {
+        setError(err.message || 'Erreur lors du déplacement du sujet.');
+        fetchForum();
+      } finally {
+        setIsSavingOrder(false);
+      }
+    }
+  };
+
+  const handleTopicDragEnd = () => {
+    setDraggedTopicInfo(null);
+    setDragOverTopicInfo(null);
+    setDragOverSectionId(null);
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -145,6 +518,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   }
 
   const { campaign, sections } = forumData;
+  const isMj = Boolean(user && (campaign.mjId === user.id || campaign.userRole === 'mj'));
 
   const campaignStyles = {
     '--pensee-color': campaign.penseeColor || '#8844CC',
@@ -159,7 +533,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
 
   return (
     <div className="space-y-6" style={campaignStyles}>
-      {/* Navigation Breadcrumb & Back button */}
+      {/* Navigation Breadcrumb & Back button & Action buttons */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <button
@@ -177,16 +551,74 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
           <span className="text-indigo-600 font-semibold">Forum</span>
         </div>
 
-        <button
-          onClick={fetchForum}
-          disabled={isLoading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-medium transition shadow-2xs"
-          title="Actualiser le forum"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
-          <span>Actualiser</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          {isMj && (
+            <button
+              onClick={() => setIsAdminMode(!isAdminMode)}
+              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs ${
+                isAdminMode
+                  ? 'bg-amber-600 text-white hover:bg-amber-700 ring-2 ring-amber-300'
+                  : 'bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200'
+              }`}
+              title="Activer ou désactiver le mode administration du forum"
+            >
+              <SlidersHorizontal className="w-4 h-4" />
+              <span>{isAdminMode ? 'Ne plus administrer' : 'Administrer'}</span>
+            </button>
+          )}
+
+          <button
+            onClick={fetchForum}
+            disabled={isLoading || isSavingOrder}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-medium transition shadow-2xs"
+            title="Actualiser le forum"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isLoading || isSavingOrder ? 'animate-spin text-indigo-600' : ''}`}
+            />
+            <span>Actualiser</span>
+          </button>
+        </div>
       </div>
+
+      {/* Admin Mode Bar banner */}
+      {isAdminMode && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/80 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-500 text-white rounded-xl shadow-xs">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-amber-950 flex items-center gap-2">
+                <span>Administration du Forum</span>
+                {isSavingOrder && (
+                  <span className="inline-flex items-center gap-1 text-xs text-amber-700 font-normal">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Enregistrement...
+                  </span>
+                )}
+                {saveStatusMessage && !isSavingOrder && (
+                  <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    <Check className="w-3 h-3" /> {saveStatusMessage}
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-amber-800">
+                Créez des sections et des sujets, ou réorganisez-les par glisser-déposer (sections et sujets).
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleOpenCreateSection}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Créer une section</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Campaign Header Banner Card */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
@@ -265,69 +697,148 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
         <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center shadow-xs">
           <FolderOpen className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800 mb-1">Aucune section créée</h3>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+          <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mb-6">
             Le Maître du Jeu n'a pas encore configuré de sections dans le forum de cette campagne.
           </p>
+          {isMj && (
+            <button
+              onClick={handleOpenCreateSection}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Créer la première section</span>
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
-          {sections.map((section) => {
+          {sections.map((section, secIdx) => {
             const isCollapsed = collapsedSections[section.id];
+            const isSectionDragged = draggedSectionIndex === secIdx;
+            const isSectionDragOver = dragOverSectionIndex === secIdx;
+            const isTopicTargetSection =
+              draggedTopicInfo !== null && dragOverSectionId === section.id;
 
             return (
               <div
                 key={section.id}
-                className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs"
+                draggable={isAdminMode && draggedTopicInfo === null}
+                onDragStart={(e) => handleSectionDragStart(e, secIdx)}
+                onDragOver={(e) => handleSectionDragOver(e, secIdx)}
+                onDrop={(e) => handleSectionDrop(e, secIdx)}
+                onDragEnd={handleSectionDragEnd}
+                className={`bg-white border rounded-2xl overflow-hidden shadow-xs transition-all duration-200 ${
+                  isSectionDragOver
+                    ? 'border-indigo-500 ring-2 ring-indigo-200'
+                    : isSectionDragged
+                    ? 'opacity-40 border-dashed border-slate-400'
+                    : 'border-slate-200'
+                }`}
               >
                 {/* Section Header */}
-                <button
-                  onClick={() => toggleSection(section.id)}
+                <div
                   style={{
                     backgroundColor: campaign.sidebarColor || undefined,
                     color: campaign.linkSidebarColor || undefined,
                   }}
-                  className="w-full px-5 py-3.5 bg-slate-100/80 hover:brightness-95 border-b border-slate-200 flex items-center justify-between transition group text-left"
+                  className="w-full px-5 py-3.5 bg-slate-100/80 border-b border-slate-200 flex items-center justify-between transition group"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <FolderOpen
-                      className="w-5 h-5 transition-transform group-hover:scale-105"
-                      style={{ color: campaign.linkSidebarColor || undefined }}
-                    />
-                    <h2
-                      className="font-bold text-sm sm:text-base tracking-tight"
-                      style={{ color: campaign.linkSidebarColor || undefined }}
-                    >
-                      {section.title}
-                    </h2>
-                    <span
-                      className="px-2 py-0.5 rounded-full text-xs font-medium"
-                      style={{
-                        backgroundColor: campaign.sidebarColor ? 'rgba(255, 255, 255, 0.2)' : undefined,
-                        color: campaign.linkSidebarColor || undefined,
-                      }}
-                    >
-                      {section.topics.length} sujet{section.topics.length > 1 ? 's' : ''}
-                    </span>
-                  </div>
-
-                  <div
-                    className="flex items-center gap-1 transition"
-                    style={{ color: campaign.linkSidebarColor || undefined }}
-                  >
-                    {isCollapsed ? (
-                      <ChevronDown className="w-4 h-4" />
-                    ) : (
-                      <ChevronUp className="w-4 h-4" />
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {isAdminMode && (
+                      <div
+                        className="cursor-grab active:cursor-grabbing p-1 rounded hover:bg-black/10 transition text-slate-400 hover:text-slate-700"
+                        title="Glisser pour réorganiser cette section"
+                      >
+                        <GripVertical className="w-4 h-4" />
+                      </div>
                     )}
-                  </div>
-                </button>
 
-                {/* Section Content: Topics Table */}
+                    <button
+                      onClick={() => toggleSection(section.id)}
+                      className="flex items-center gap-2.5 text-left truncate flex-1"
+                    >
+                      <FolderOpen
+                        className="w-5 h-5 shrink-0 transition-transform group-hover:scale-105"
+                        style={{ color: campaign.linkSidebarColor || undefined }}
+                      />
+                      <h2
+                        className="font-bold text-sm sm:text-base tracking-tight truncate"
+                        style={{ color: campaign.linkSidebarColor || undefined }}
+                      >
+                        {section.title}
+                      </h2>
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-medium shrink-0"
+                        style={{
+                          backgroundColor: campaign.sidebarColor
+                            ? 'rgba(255, 255, 255, 0.2)'
+                            : undefined,
+                          color: campaign.linkSidebarColor || undefined,
+                        }}
+                      >
+                        {section.topics.length} sujet{section.topics.length > 1 ? 's' : ''}
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {isAdminMode && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenCreateTopic(section.id);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/90 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow-2xs border border-slate-200/80 transition"
+                        title="Créer un sujet dans cette section"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Nouveau sujet</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => toggleSection(section.id)}
+                      className="p-1 rounded hover:bg-black/10 transition"
+                      style={{ color: campaign.linkSidebarColor || undefined }}
+                    >
+                      {isCollapsed ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronUp className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Section Content: Topics Table & Drop Zone */}
                 {!isCollapsed && (
-                  <div>
+                  <div
+                    onDragOver={(e) => {
+                      if (draggedTopicInfo) {
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = 'move';
+                        setDragOverSectionId(section.id);
+                      }
+                    }}
+                    onDrop={(e) => handleTopicDropOnSection(e, section.id)}
+                    className={`transition-colors ${
+                      isTopicTargetSection && section.topics.length === 0
+                        ? 'bg-indigo-50/50 border-2 border-dashed border-indigo-400'
+                        : ''
+                    }`}
+                  >
                     {section.topics.length === 0 ? (
                       <div className="p-8 text-center text-xs sm:text-sm text-slate-500">
-                        Aucun sujet dans cette section pour le moment.
+                        {isAdminMode ? (
+                          <div className="space-y-2">
+                            <p>Cette section ne contient aucun sujet pour le moment.</p>
+                            <p className="text-xs text-indigo-600 font-medium">
+                              Glissez un sujet ici ou cliquez sur "Nouveau sujet" pour en créer un.
+                            </p>
+                          </div>
+                        ) : (
+                          'Aucun sujet dans cette section pour le moment.'
+                        )}
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-100">
@@ -339,7 +850,10 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                             color: campaign.linkSidebarColor || undefined,
                           }}
                         >
-                          <div className="col-span-7 flex items-center gap-2">Sujet</div>
+                          <div className="col-span-7 flex items-center gap-2">
+                            {isAdminMode && <span className="w-5"></span>}
+                            <span>Sujet</span>
+                          </div>
                           <div className="col-span-2 text-center">Messages</div>
                           <div className="col-span-3 text-right">Dernier message</div>
                         </div>
@@ -353,35 +867,66 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                           const rowTextColor = campaign.textColor;
                           const rowLinkColor = campaign.linkColor;
 
+                          const isTopicDragged =
+                            draggedTopicInfo?.topicId === topic.id;
+                          const isTopicDragOver =
+                            dragOverTopicInfo?.sectionId === section.id &&
+                            dragOverTopicInfo?.topicIndex === topicIdx;
+
                           return (
                             <div
                               key={topic.id}
-                              onClick={() => handleSelectTopic(topic.id)}
+                              draggable={isAdminMode}
+                              onDragStart={(e) =>
+                                handleTopicDragStart(e, section.id, topicIdx, topic.id)
+                              }
+                              onDragOver={(e) =>
+                                handleTopicDragOver(e, section.id, topicIdx)
+                              }
+                              onDrop={(e) =>
+                                handleTopicDropOnTopic(e, section.id, topicIdx)
+                              }
+                              onDragEnd={handleTopicDragEnd}
+                              onClick={() => {
+                                if (!isAdminMode) {
+                                  handleSelectTopic(topic.id);
+                                }
+                              }}
                               style={{
                                 backgroundColor: rowBg || undefined,
                                 color: rowTextColor || undefined,
                               }}
-                              className={`p-4 sm:px-5 sm:py-3.5 hover:brightness-95 transition flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:items-center cursor-pointer ${
+                              className={`p-4 sm:px-5 sm:py-3.5 hover:brightness-95 transition flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:items-center ${
                                 !topic.isRead && !rowBg ? 'bg-indigo-50/30' : ''
-                              }`}
+                              } ${
+                                isTopicDragOver
+                                  ? 'border-t-2 border-indigo-500 bg-indigo-50/40'
+                                  : ''
+                              } ${
+                                isTopicDragged
+                                  ? 'opacity-40 border-dashed border-2 border-slate-400'
+                                  : ''
+                              } ${isAdminMode ? 'cursor-default' : 'cursor-pointer'}`}
                             >
                               {/* Topic Title & Badges */}
                               <div className="md:col-span-7 flex items-start gap-3">
+                                {isAdminMode && (
+                                  <div
+                                    className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-700 rounded transition shrink-0 mt-0.5"
+                                    title="Glisser pour réorganiser ou changer de section"
+                                  >
+                                    <GripVertical className="w-4 h-4" />
+                                  </div>
+                                )}
+
                                 {/* Read/Unread Icon Indicator */}
-                                <div className="pt-0.5 flex-shrink-0">
-                                  {!topic.isRead ? (
-                                    <div
-                                      className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shadow-xs border border-indigo-200"
-                                      title="Nouveaux messages non lus"
-                                    >
-                                      <MessageSquare className="w-4 h-4 fill-indigo-600 text-indigo-600" />
-                                    </div>
+                                <div className="mt-0.5 shrink-0">
+                                  {topic.isRead ? (
+                                    <MessageSquare className="w-4 h-4 text-slate-400" />
                                   ) : (
-                                    <div
-                                      className="w-8 h-8 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-200"
-                                      title="Tous les messages sont lus"
-                                    >
-                                      <MessageSquare className="w-4 h-4 text-slate-400" />
+                                    <div className="relative">
+                                      <MessageSquare className="w-4 h-4 text-indigo-600" />
+                                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
                                     </div>
                                   )}
                                 </div>
@@ -389,86 +934,69 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                 <div className="space-y-1 min-w-0">
                                   <div className="flex flex-wrap items-center gap-1.5">
                                     {topic.stickable && (
-                                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
-                                        <Pin className="w-3 h-3 fill-amber-500 text-amber-500" />
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+                                        <Pin className="w-3 h-3 text-amber-600" />
                                         Épinglé
                                       </span>
                                     )}
+
                                     {topic.isClosed && (
-                                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold">
-                                        <Lock className="w-3 h-3" />
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-bold uppercase tracking-wider">
+                                        <Lock className="w-3 h-3 text-red-600" />
                                         Fermé
                                       </span>
                                     )}
+
                                     {topic.isPrivate && (
-                                      <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-purple-700 text-[10px] font-semibold">
-                                        <EyeOff className="w-3 h-3" />
+                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider">
+                                        <EyeOff className="w-3 h-3 text-purple-600" />
                                         Privé
                                       </span>
                                     )}
-                                    {!topic.isRead && (
-                                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-indigo-600 text-white animate-pulse">
-                                        NOUVEAU
-                                      </span>
-                                    )}
 
-                                    <h3
-                                      className={`text-sm sm:text-base leading-snug transition-colors ${
-                                        !topic.isRead
-                                          ? 'font-bold text-slate-900'
-                                          : 'font-medium text-slate-700'
-                                      }`}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSelectTopic(topic.id);
+                                      }}
                                       style={{ color: rowLinkColor || undefined }}
+                                      className={`font-semibold text-sm hover:underline text-left line-clamp-2 ${
+                                        topic.isRead
+                                          ? 'text-slate-800'
+                                          : 'text-slate-900 font-bold'
+                                      }`}
                                     >
                                       {topic.title}
-                                    </h3>
+                                    </button>
                                   </div>
                                 </div>
                               </div>
 
                               {/* Posts Count */}
-                              <div
-                                className="md:col-span-2 flex items-center md:justify-center text-xs text-slate-500 pl-11 md:pl-0"
-                                style={{ color: rowTextColor || undefined }}
-                              >
-                                <span
-                                  className="font-semibold text-slate-700 mr-1 md:mr-0"
-                                  style={{ color: rowTextColor || undefined }}
-                                >
+                              <div className="md:col-span-2 flex items-center md:justify-center gap-1.5 text-xs text-slate-500">
+                                <span className="md:hidden font-medium text-slate-400">Messages:</span>
+                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold text-xs">
                                   {topic.postsCount}
-                                </span>
-                                <span className="md:hidden ml-1 opacity-80" style={{ color: rowTextColor || undefined }}>
-                                  message(s)
                                 </span>
                               </div>
 
                               {/* Last Post Info */}
-                              <div
-                                className="md:col-span-3 text-xs text-slate-500 md:text-right pl-11 md:pl-0"
-                                style={{ color: rowTextColor || undefined }}
-                              >
+                              <div className="md:col-span-3 text-xs text-slate-500 flex md:flex-col md:items-end justify-between gap-1">
                                 {topic.lastPost ? (
-                                  <div className="space-y-0.5">
-                                    <div className="flex items-center md:justify-end gap-1.5">
-                                      <Clock className="w-3 h-3 opacity-70" style={{ color: rowTextColor || undefined }} />
-                                      <span className="font-medium" style={{ color: rowTextColor || undefined }}>
-                                        {formatDate(topic.lastPost.createDate)}
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center md:justify-end gap-1.5">
-                                      <span className="opacity-70" style={{ color: rowTextColor || undefined }}>Par :</span>
-                                      <span
-                                        className="font-semibold hover:underline transition"
-                                        style={{ color: rowLinkColor || undefined }}
-                                      >
+                                  <>
+                                    <div className="flex items-center gap-1.5 font-medium text-slate-700 truncate">
+                                      <span className="text-slate-400">par</span>
+                                      <span className="font-semibold truncate">
                                         {topic.lastPost.username}
                                       </span>
                                     </div>
-                                  </div>
+                                    <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                                      <Clock className="w-3 h-3" />
+                                      <span>{formatDate(topic.lastPost.createDate)}</span>
+                                    </div>
+                                  </>
                                 ) : (
-                                  <span className="italic opacity-60" style={{ color: rowTextColor || undefined }}>
-                                    Aucun message
-                                  </span>
+                                  <span className="text-slate-400 italic">Aucun message</span>
                                 )}
                               </div>
                             </div>
@@ -484,40 +1012,221 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
         </div>
       )}
 
-      {/* Forum Legend Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-wrap items-center justify-between gap-4 text-xs text-slate-600">
-        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center border border-indigo-200">
-              <MessageSquare className="w-3 h-3 fill-indigo-600 text-indigo-600" />
+      {/* Modal: Créer une section */}
+      {isCreateSectionOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FolderOpen className="w-5 h-5 text-indigo-600" />
+                <span>Créer une nouvelle section</span>
+              </h3>
+              <button
+                onClick={() => setIsCreateSectionOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <span>Nouveaux messages non lus</span>
-          </div>
 
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-md bg-slate-100 text-slate-400 flex items-center justify-center border border-slate-200">
-              <MessageSquare className="w-3 h-3 text-slate-400" />
-            </div>
-            <span>Tous les messages lus</span>
-          </div>
+            {sectionModalError && (
+              <div className="p-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{sectionModalError}</span>
+              </div>
+            )}
 
-          <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 text-[10px] font-bold">
-              <Pin className="w-2.5 h-2.5 fill-amber-500 text-amber-500 mr-0.5" />
-              Épinglé
-            </span>
-            <span>Sujet important</span>
-          </div>
+            <form onSubmit={handleCreateSectionSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Titre de la section <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newSectionTitle}
+                  onChange={(e) => setNewSectionTitle(e.target.value)}
+                  placeholder="Ex : Actes de jeu, Taverne HRP..."
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  autoFocus
+                  required
+                />
+              </div>
 
-          <div className="flex items-center gap-1.5">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 text-[10px] font-semibold">
-              <Lock className="w-2.5 h-2.5 mr-0.5" />
-              Fermé
-            </span>
-            <span>Verrouillé</span>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  URL de la bannière (optionnelle)
+                </label>
+                <input
+                  type="url"
+                  value={newSectionBanniere}
+                  onChange={(e) => setNewSectionBanniere(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="sectionCollapseCheckbox"
+                  checked={newSectionDefaultCollapse}
+                  onChange={(e) => setNewSectionDefaultCollapse(e.target.checked)}
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                />
+                <label
+                  htmlFor="sectionCollapseCheckbox"
+                  className="text-xs font-medium text-slate-700 select-none cursor-pointer"
+                >
+                  Réduire la section par défaut à l'ouverture
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateSectionOpen(false)}
+                  className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingSection}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-xs disabled:opacity-50"
+                >
+                  {isSubmittingSection && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Créer la section</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Modal: Créer un topic */}
+      {isCreateTopicOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <FilePlus className="w-5 h-5 text-indigo-600" />
+                <span>Créer un nouveau sujet</span>
+              </h3>
+              <button
+                onClick={() => setIsCreateTopicOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {topicModalError && (
+              <div className="p-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{topicModalError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateTopicSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Section de destination <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={targetTopicSectionId || ''}
+                  onChange={(e) => setTargetTopicSectionId(Number(e.target.value))}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white"
+                  required
+                >
+                  {sections.map((sec) => (
+                    <option key={sec.id} value={sec.id}>
+                      {sec.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Titre du sujet <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newTopicTitle}
+                  onChange={(e) => setNewTopicTitle(e.target.value)}
+                  placeholder="Ex : Chapitre 1 : L'Auberge maudite"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Premier message (optionnel)
+                </label>
+                <textarea
+                  value={newTopicFirstPost}
+                  onChange={(e) => setNewTopicFirstPost(e.target.value)}
+                  placeholder="Écrivez le message d'ouverture du sujet..."
+                  rows={4}
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-y"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newTopicStickable}
+                    onChange={(e) => setNewTopicStickable(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span>Épinglé</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newTopicIsClosed}
+                    onChange={(e) => setNewTopicIsClosed(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span>Fermé</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newTopicIsPrivate}
+                    onChange={(e) => setNewTopicIsPrivate(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span>Privé</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateTopicOpen(false)}
+                  className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingTopic}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-xs disabled:opacity-50"
+                >
+                  {isSubmittingTopic && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Créer le sujet</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

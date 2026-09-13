@@ -251,6 +251,39 @@ class MockForumRepository implements IForumRepository {
     return userId === 2;
   }
 
+  async findSectionById(sectionId: number): Promise<any> {
+    const found = this.sections.find((s) => s.id === sectionId);
+    if (!found) return null;
+    return {
+      id: found.id,
+      campagneId: found.campagneId,
+      title: found.title,
+      ordre: found.ordre,
+      defaultCollapse: found.defaultCollapse,
+      banniere: found.banniere || '',
+    };
+  }
+
+  async createSection(data: any): Promise<number> {
+    return 1;
+  }
+
+  async getMaxSectionOrdre(): Promise<number> {
+    return 0;
+  }
+
+  async reorderSections(): Promise<void> {}
+
+  async createTopic(): Promise<number> {
+    return 1;
+  }
+
+  async getMaxTopicOrdre(): Promise<number> {
+    return 0;
+  }
+
+  async reorderTopics(): Promise<void> {}
+
   async findPersoById(persoId: number): Promise<CharacterSummary | null> {
     if (persoId === 1) {
       return { id: 1, name: 'Kaelen', concept: 'Mage', avatar: '', userId: 2, campagneId: 1 };

@@ -29,10 +29,25 @@ export class ForumQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
     }
 
+    let userRole: 'mj' | 'player' | undefined = undefined;
+    if (userId) {
+      if (campaign.mjId === userId) {
+        userRole = 'mj';
+      } else {
+        const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, userId);
+        if (isParticipant) {
+          userRole = 'player';
+        }
+      }
+    }
+
     const sections = await this.forumRepo.findSectionsByCampaignId(campaignId, userId);
 
     return {
-      campaign,
+      campaign: {
+        ...campaign,
+        userRole: userRole ?? campaign.userRole,
+      },
       sections,
     };
   }

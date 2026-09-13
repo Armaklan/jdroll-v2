@@ -10,6 +10,13 @@ import {
 
 export interface IForumRepository {
   findSectionsByCampaignId(campaignId: number | null, userId?: number): Promise<ForumSectionSummary[]>;
+  findSectionById(sectionId: number): Promise<{ id: number; campagneId: number | null; title: string; ordre: number; defaultCollapse: boolean; banniere: string } | null>;
+  createSection(data: { campagneId: number | null; title: string; ordre?: number; defaultCollapse?: boolean; banniere?: string }): Promise<number>;
+  getMaxSectionOrdre(campagneId: number | null): Promise<number>;
+  reorderSections(campaignId: number, sectionIds: number[]): Promise<void>;
+  createTopic(data: { sectionId: number; title: string; stickable?: boolean; isPrivate?: boolean; isClosed?: boolean; ordre?: number }): Promise<number>;
+  getMaxTopicOrdre(sectionId: number): Promise<number>;
+  reorderTopics(campaignId: number, sections: Array<{ sectionId: number; topicIds: number[] }>): Promise<void>;
   findTopicById(topicId: number): Promise<RawTopicDetail | null>;
   countPostsByTopicId(topicId: number): Promise<number>;
   findPostsByTopicId(topicId: number, offset: number, limit: number, userId?: number): Promise<ForumPost[]>;
@@ -622,6 +629,166 @@ export class MysqlForumRepository implements IForumRepository {
       concept: row.concept || '',
       avatar: row.avatar || '',
     };
+  }
+
+  async findSectionById(sectionId: number): Promise<{
+    id: number;
+    campagneId: number | null;
+    title: string;
+    ordre: number;
+    defaultCollapse: boolean;
+    banniere: string;
+  } | null> {
+    const sql = `
+      SELECT 
+        id,
+        campagne_id AS campagneId,
+        title,
+        ordre,
+        default_collapse AS defaultCollapse,
+        banniere
+      FROM sections
+      WHERE id = ?
+    `;
+
+    interface RawSectionRow {
+      id: number;
+      campagneId: number | null;
+      title: string;
+      ordre: number;
+      defaultCollapse: number;
+      banniere: string | null;
+    }
+
+    const row = await queryOne<RawSectionRow>(sql, [sectionId]);
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      campagneId: row.campagneId,
+      title: row.title,
+      ordre: row.ordre,
+      defaultCollapse: Boolean(row.defaultCollapse),
+      banniere: row.banniere || '',
+    };
+  }
+
+  async createSection(data: {
+    campagneId: number | null;
+    title: string;
+    ordre?: number;
+    defaultCollapse?: boolean;
+    banniere?: string;
+  }): Promise<number> {
+    let ordre = data.ordre;
+    if (ordre === undefined || ordre === null) {
+      const maxOrdre = await this.getMaxSectionOrdre(data.campagneId);
+      ordre = maxOrdre + 1;
+    }
+
+    const sql = `
+      INSERT INTO sections (campagne_id, title, ordre, default_collapse, banniere)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+
+    const result = await execute(sql, [
+      data.campagneId ?? null,
+      data.title,
+      ordre,
+      data.defaultCollapse ? 1 : 0,
+      data.banniere || '',
+    ]);
+
+    return result.insertId;
+  }
+
+  async getMaxSectionOrdre(campagneId: number | null): Promise<number> {
+    const isGeneral = campagneId === null || campagneId === undefined;
+    const sql = `
+      SELECT MAX(ordre) AS maxOrdre
+      FROM sections
+      WHERE ${isGeneral ? 'campagne_id IS NULL' : 'campagne_id = ?'}
+    `;
+
+    interface MaxOrdreRow {
+      maxOrdre: number | null;
+    }
+
+    const row = await queryOne<MaxOrdreRow>(sql, isGeneral ? [] : [campagneId]);
+    return Number(row?.maxOrdre || 0);
+  }
+
+  async reorderSections(campaignId: number, sectionIds: number[]): Promise<void> {
+    for (let i = 0; i < sectionIds.length; i++) {
+      const sectionId = sectionIds[i];
+      const ordre = i + 1;
+      await execute(
+        `UPDATE sections SET ordre = ? WHERE id = ? AND campagne_id = ?`,
+        [ordre, sectionId, campaignId]
+      );
+    }
+  }
+
+  async createTopic(data: {
+    sectionId: number;
+    title: string;
+    stickable?: boolean;
+    isPrivate?: boolean;
+    isClosed?: boolean;
+    ordre?: number;
+  }): Promise<number> {
+    let ordre = data.ordre;
+    if (ordre === undefined || ordre === null) {
+      const maxOrdre = await this.getMaxTopicOrdre(data.sectionId);
+      ordre = maxOrdre + 1;
+    }
+
+    const sql = `
+      INSERT INTO topics (section_id, title, stickable, is_private, is_closed, ordre)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    const result = await execute(sql, [
+      data.sectionId,
+      data.title,
+      data.stickable ? 1 : 0,
+      data.isPrivate ? 1 : 0,
+      data.isClosed ? 1 : 0,
+      ordre,
+    ]);
+
+    return result.insertId;
+  }
+
+  async getMaxTopicOrdre(sectionId: number): Promise<number> {
+    const sql = `
+      SELECT MAX(ordre) AS maxOrdre
+      FROM topics
+      WHERE section_id = ?
+    `;
+
+    interface MaxOrdreRow {
+      maxOrdre: number | null;
+    }
+
+    const row = await queryOne<MaxOrdreRow>(sql, [sectionId]);
+    return Number(row?.maxOrdre || 0);
+  }
+
+  async reorderTopics(campaignId: number, sections: Array<{ sectionId: number; topicIds: number[] }>): Promise<void> {
+    for (const sec of sections) {
+      for (let i = 0; i < sec.topicIds.length; i++) {
+        const topicId = sec.topicIds[i];
+        const ordre = i + 1;
+        await execute(
+          `UPDATE topics t
+           JOIN sections s ON t.section_id = s.id
+           SET t.section_id = ?, t.ordre = ?
+           WHERE t.id = ? AND s.campagne_id = ?`,
+          [sec.sectionId, ordre, topicId, campaignId]
+        );
+      }
+    }
   }
 }
 

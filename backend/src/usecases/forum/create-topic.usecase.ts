@@ -1,0 +1,95 @@
+import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import {
+  SectionNotFoundError,
+  ForbiddenError,
+  ValidationError,
+} from '../../errors/domain.errors.js';
+
+export interface CreateTopicInput {
+  sectionId: number;
+  userId: number;
+  title: string;
+  stickable?: boolean;
+  isPrivate?: boolean;
+  isClosed?: boolean;
+  firstPostContent?: string;
+  persoId?: number | null;
+}
+
+export interface CreateTopicOutput {
+  id: number;
+  sectionId: number;
+  title: string;
+  stickable: boolean;
+  isPrivate: boolean;
+  isClosed: boolean;
+  ordre: number;
+  postId?: number;
+}
+
+export class CreateTopicUseCase {
+  constructor(private readonly forumRepo: IForumRepository = forumRepository) {}
+
+  async execute(input: CreateTopicInput): Promise<CreateTopicOutput> {
+    const trimmedTitle = input.title ? input.title.trim() : '';
+    if (!trimmedTitle) {
+      throw new ValidationError('Le titre du sujet ne peut pas être vide');
+    }
+
+    if (trimmedTitle.length > 500) {
+      throw new ValidationError('Le titre du sujet ne peut pas dépasser 500 caractères');
+    }
+
+    const section = await this.forumRepo.findSectionById(input.sectionId);
+    if (!section) {
+      throw new SectionNotFoundError(`La section avec l'identifiant ${input.sectionId} n'existe pas`);
+    }
+
+    if (section.campagneId) {
+      const isMj = await this.forumRepo.isUserCampaignMj(section.campagneId, input.userId);
+      if (!isMj) {
+        throw new ForbiddenError('Seul le Maître du Jeu peut créer un sujet dans cette campagne');
+      }
+    }
+
+    const maxOrdre = await this.forumRepo.getMaxTopicOrdre(input.sectionId);
+    const newOrdre = maxOrdre + 1;
+
+    const topicId = await this.forumRepo.createTopic({
+      sectionId: input.sectionId,
+      title: trimmedTitle,
+      stickable: input.stickable ?? false,
+      isPrivate: input.isPrivate ?? false,
+      isClosed: input.isClosed ?? false,
+      ordre: newOrdre,
+    });
+
+    let createdPostId: number | undefined;
+
+    if (input.firstPostContent && input.firstPostContent.trim()) {
+      createdPostId = await this.forumRepo.createPost({
+        topicId,
+        userId: input.userId,
+        persoId: input.persoId ?? null,
+        content: input.firstPostContent.trim(),
+        editor: 0,
+      });
+
+      await this.forumRepo.updateTopicLastPost(topicId, createdPostId);
+      await this.forumRepo.markTopicAsRead(topicId, input.userId, createdPostId);
+    }
+
+    return {
+      id: topicId,
+      sectionId: input.sectionId,
+      title: trimmedTitle,
+      stickable: input.stickable ?? false,
+      isPrivate: input.isPrivate ?? false,
+      isClosed: input.isClosed ?? false,
+      ordre: newOrdre,
+      postId: createdPostId,
+    };
+  }
+}
+
+export const createTopicUseCase = new CreateTopicUseCase();

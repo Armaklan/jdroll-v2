@@ -71,4 +71,39 @@ export const campaignsApi = {
       }),
     });
   },
+
+  async createSection(campaignId: number, data: { title: string; defaultCollapse?: boolean; banniere?: string }) {
+    return request<{ section: any }>(`/api/campaigns/${campaignId}/sections`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async createTopic(sectionId: number, data: {
+    title: string;
+    stickable?: boolean;
+    isPrivate?: boolean;
+    isClosed?: boolean;
+    firstPostContent?: string;
+    persoId?: number | null;
+  }) {
+    return request<{ topic: any }>(`/api/sections/${sectionId}/topics`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async reorderSections(campaignId: number, sectionIds: number[]) {
+    return request<{ success: boolean; sectionIds: number[] }>(`/api/campaigns/${campaignId}/sections/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ sectionIds }),
+    });
+  },
+
+  async reorderTopics(campaignId: number, sections: Array<{ sectionId: number; topicIds: number[] }>) {
+    return request<{ success: boolean }>(`/api/campaigns/${campaignId}/topics/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify({ sections }),
+    });
+  },
 };

@@ -70,6 +70,13 @@ describe('CreatePostUseCase', () => {
 
     mockForumRepo = {
       findSectionsByCampaignId: async (): Promise<ForumSectionSummary[]> => [],
+      findSectionById: async () => null,
+      createSection: async () => 1,
+      getMaxSectionOrdre: async () => 0,
+      reorderSections: async () => {},
+      createTopic: async () => 1,
+      getMaxTopicOrdre: async () => 0,
+      reorderTopics: async () => {},
       findTopicById: async (topicId: number): Promise<RawTopicDetail | null> => {
         if (topicId === 10) return { ...mockTopic };
         if (topicId === 99) return { ...mockTopic, id: 99, isClosed: 1 };

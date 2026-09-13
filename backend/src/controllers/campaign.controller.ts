@@ -3,10 +3,15 @@ import { z } from 'zod';
 import { campaignQueries, CampaignQueries } from '../queries/campaign.queries.js';
 import { forumQueries, ForumQueries } from '../queries/forum.queries.js';
 import { createPostUseCase, CreatePostUseCase } from '../usecases/forum/create-post.usecase.js';
+import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/create-section.usecase.js';
+import { createTopicUseCase, CreateTopicUseCase } from '../usecases/forum/create-topic.usecase.js';
+import { reorderSectionsUseCase, ReorderSectionsUseCase } from '../usecases/forum/reorder-sections.usecase.js';
+import { reorderTopicsUseCase, ReorderTopicsUseCase } from '../usecases/forum/reorder-topics.usecase.js';
 import { JWTPayload } from '../types/index.js';
 import {
   CampaignNotFoundError,
   TopicNotFoundError,
+  SectionNotFoundError,
   TopicClosedError,
   ForbiddenError,
   ValidationError,
@@ -57,11 +62,59 @@ const createPostBodySchema = z.object({
   persoId: z.number().int().positive().nullable().optional(),
 });
 
+const createSectionParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const createSectionBodySchema = z.object({
+  title: z.string().min(1, 'Le titre de la section est requis'),
+  defaultCollapse: z.boolean().optional(),
+  banniere: z.string().optional(),
+});
+
+const createTopicParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const createTopicBodySchema = z.object({
+  title: z.string().min(1, 'Le titre du sujet est requis'),
+  stickable: z.boolean().optional(),
+  isPrivate: z.boolean().optional(),
+  isClosed: z.boolean().optional(),
+  firstPostContent: z.string().optional(),
+  persoId: z.number().int().positive().nullable().optional(),
+});
+
+const reorderSectionsParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const reorderSectionsBodySchema = z.object({
+  sectionIds: z.array(z.number().int().positive()),
+});
+
+const reorderTopicsParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const reorderTopicsBodySchema = z.object({
+  sections: z.array(
+    z.object({
+      sectionId: z.number().int().positive(),
+      topicIds: z.array(z.number().int().positive()),
+    })
+  ),
+});
+
 export class CampaignController {
   constructor(
     private readonly campaignQueryService: CampaignQueries = campaignQueries,
     private readonly forumQueryService: ForumQueries = forumQueries,
-    private readonly createPostUseCaseService: CreatePostUseCase = createPostUseCase
+    private readonly createPostUseCaseService: CreatePostUseCase = createPostUseCase,
+    private readonly createSectionUseCaseService: CreateSectionUseCase = createSectionUseCase,
+    private readonly createTopicUseCaseService: CreateTopicUseCase = createTopicUseCase,
+    private readonly reorderSectionsUseCaseService: ReorderSectionsUseCase = reorderSectionsUseCase,
+    private readonly reorderTopicsUseCaseService: ReorderTopicsUseCase = reorderTopicsUseCase
   ) {}
 
   /**
@@ -270,6 +323,205 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/campaigns/:id/sections
+   * Crée une nouvelle section dans le forum de la campagne
+   */
+  async createSection(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = createSectionParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = createSectionBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de section invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: campagneId } = parseParams.data;
+    const { title, defaultCollapse, banniere } = parseBody.data;
+
+    try {
+      const section = await this.createSectionUseCaseService.execute({
+        campagneId,
+        userId: user.id,
+        title,
+        defaultCollapse,
+        banniere,
+      });
+
+      return reply.status(201).send({ section });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la création de la section' });
+    }
+  }
+
+  /**
+   * POST /api/sections/:id/topics
+   * Crée un nouveau sujet dans une section
+   */
+  async createTopic(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = createTopicParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de section invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = createTopicBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de sujet invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: sectionId } = parseParams.data;
+    const { title, stickable, isPrivate, isClosed, firstPostContent, persoId } = parseBody.data;
+
+    try {
+      const topic = await this.createTopicUseCaseService.execute({
+        sectionId,
+        userId: user.id,
+        title,
+        stickable,
+        isPrivate,
+        isClosed,
+        firstPostContent,
+        persoId,
+      });
+
+      return reply.status(201).send({ topic });
+    } catch (error) {
+      if (error instanceof SectionNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la création du sujet' });
+    }
+  }
+
+  /**
+   * PUT /api/campaigns/:id/sections/reorder
+   * Réordonne les sections d'une campagne
+   */
+  async reorderSections(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = reorderSectionsParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = reorderSectionsBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de réorganisation invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: campagneId } = parseParams.data;
+    const { sectionIds } = parseBody.data;
+
+    try {
+      const result = await this.reorderSectionsUseCaseService.execute({
+        campagneId,
+        userId: user.id,
+        sectionIds,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError || error instanceof SectionNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la réorganisation des sections' });
+    }
+  }
+
+  /**
+   * PUT /api/campaigns/:id/topics/reorder
+   * Réordonne les sujets et gère les déplacements entre sections d'une campagne
+   */
+  async reorderTopics(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = reorderTopicsParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = reorderTopicsBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de réorganisation de sujets invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: campagneId } = parseParams.data;
+    const { sections } = parseBody.data;
+
+    try {
+      const result = await this.reorderTopicsUseCaseService.execute({
+        campagneId,
+        userId: user.id,
+        sections,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError || error instanceof SectionNotFoundError || error instanceof TopicNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la réorganisation des sujets' });
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur
    */
   registerRoutes(app: FastifyInstance) {
@@ -298,6 +550,41 @@ export class CampaignController {
       '/api/topics/:id/posts',
       { preHandler: [app.authenticate] },
       (req, rep) => this.createPost(req, rep)
+    );
+
+    // Routes authentifiées d'administration du forum de campagne (pour le MJ)
+    app.post(
+      '/api/campaigns/:id/sections',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.createSection(req, rep)
+    );
+
+    app.post(
+      '/api/sections/:id/topics',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.createTopic(req, rep)
+    );
+
+    app.put(
+      '/api/campaigns/:id/sections/reorder',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.reorderSections(req, rep)
+    );
+    app.patch(
+      '/api/campaigns/:id/sections/reorder',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.reorderSections(req, rep)
+    );
+
+    app.put(
+      '/api/campaigns/:id/topics/reorder',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.reorderTopics(req, rep)
+    );
+    app.patch(
+      '/api/campaigns/:id/topics/reorder',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.reorderTopics(req, rep)
     );
   }
 }
