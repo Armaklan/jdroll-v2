@@ -57,4 +57,14 @@ export const campaignsApi = {
     const url = page ? `/api/topics/${topicId}?page=${page}` : `/api/topics/${topicId}`;
     return request<TopicDetail>(url);
   },
+
+  async createPost(topicId: number, content: string, persoId?: number | null) {
+    return request<{ post: any }>(`/api/topics/${topicId}/posts`, {
+      method: 'POST',
+      body: JSON.stringify({
+        content,
+        persoId: persoId ?? null,
+      }),
+    });
+  },
 };

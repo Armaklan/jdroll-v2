@@ -2,8 +2,15 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { campaignQueries, CampaignQueries } from '../queries/campaign.queries.js';
 import { forumQueries, ForumQueries } from '../queries/forum.queries.js';
+import { createPostUseCase, CreatePostUseCase } from '../usecases/forum/create-post.usecase.js';
 import { JWTPayload } from '../types/index.js';
-import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
+import {
+  CampaignNotFoundError,
+  TopicNotFoundError,
+  TopicClosedError,
+  ForbiddenError,
+  ValidationError,
+} from '../errors/domain.errors.js';
 
 const getMyCampaignsSchema = z.object({
   role: z.enum(['master', 'player']).default('master'),
@@ -41,10 +48,20 @@ const getTopicPostsQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional(),
 });
 
+const createPostParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const createPostBodySchema = z.object({
+  content: z.string().min(1, 'Le message ne peut pas être vide'),
+  persoId: z.number().int().positive().nullable().optional(),
+});
+
 export class CampaignController {
   constructor(
     private readonly campaignQueryService: CampaignQueries = campaignQueries,
-    private readonly forumQueryService: ForumQueries = forumQueries
+    private readonly forumQueryService: ForumQueries = forumQueries,
+    private readonly createPostUseCaseService: CreatePostUseCase = createPostUseCase
   ) {}
 
   /**
@@ -179,6 +196,58 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/topics/:id/posts
+   * Crée un nouveau message dans un sujet
+   */
+  async createPost(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = createPostParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de sujet invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = createPostBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de message invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: topicId } = parseParams.data;
+    const { content, persoId } = parseBody.data;
+
+    try {
+      const post = await this.createPostUseCaseService.execute({
+        topicId,
+        userId: user.id,
+        content,
+        persoId: persoId ?? null,
+      });
+
+      return reply.status(201).send({ post });
+    } catch (error) {
+      if (error instanceof TopicNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof TopicClosedError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la création du message' });
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur
    */
   registerRoutes(app: FastifyInstance) {
@@ -198,6 +267,13 @@ export class CampaignController {
     // Route pour voir les messages d'un sujet (accessible public avec statut de lecture si connecté)
     app.get('/api/topics/:id', (req, rep) => this.getTopicPosts(req, rep));
     app.get('/api/campaigns/:campaignId/topics/:id', (req, rep) => this.getTopicPosts(req, rep));
+
+    // Route authentifiée pour poster un message dans un sujet
+    app.post(
+      '/api/topics/:id/posts',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.createPost(req, rep)
+    );
   }
 }
 

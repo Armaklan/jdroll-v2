@@ -86,11 +86,20 @@ export interface ForumPost {
   isRead: boolean;
 }
 
+export interface CharacterSummary {
+  id: number;
+  name: string;
+  concept?: string;
+  avatar?: string;
+  userId?: number | null;
+  campagneId: number;
+}
+
 export interface TopicDetail {
   id: number;
   sectionId: number;
   sectionTitle: string;
-  campagneId: number;
+  campagneId: number | null;
   campaignTitle: string;
   title: string;
   stickable: boolean;
@@ -102,5 +111,8 @@ export interface TopicDetail {
   totalPages: number;
   pageSize: number;
   lastReadPostId: number | null;
+  canPost: boolean;
+  userRole?: 'mj' | 'player' | 'user' | null;
+  availableCharacters: CharacterSummary[];
   posts: ForumPost[];
 }

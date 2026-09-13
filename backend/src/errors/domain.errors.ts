@@ -35,6 +35,18 @@ export class TopicNotFoundError extends DomainError {
   }
 }
 
+export class TopicClosedError extends DomainError {
+  constructor(message = 'Ce sujet est fermé') {
+    super(message);
+  }
+}
+
+export class ForbiddenError extends DomainError {
+  constructor(message = 'Action non autorisée') {
+    super(message);
+  }
+}
+
 export class ValidationError extends DomainError {
   public details?: unknown;
 

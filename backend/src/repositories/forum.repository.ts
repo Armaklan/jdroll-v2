@@ -1,10 +1,11 @@
-import { query, queryOne } from '../db/mysql.js';
+import { query, queryOne, execute } from '../db/mysql.js';
 import {
   ForumSectionSummary,
   ForumTopicSummary,
   ForumLastPost,
   ForumPost,
   RawTopicDetail,
+  CharacterSummary,
 } from '../types/index.js';
 
 export interface IForumRepository {
@@ -14,6 +15,15 @@ export interface IForumRepository {
   findPostsByTopicId(topicId: number, offset: number, limit: number, userId?: number): Promise<ForumPost[]>;
   getUserLastReadPostId(topicId: number, userId: number): Promise<number | null>;
   countPostsAfterPostId(topicId: number, postId: number): Promise<number>;
+  getPostById(postId: number, userId?: number): Promise<ForumPost | null>;
+  createPost(data: { topicId: number; userId: number; persoId: number | null; content: string; editor?: number }): Promise<number>;
+  updateTopicLastPost(topicId: number, postId: number): Promise<void>;
+  markTopicAsRead(topicId: number, userId: number, postId: number): Promise<void>;
+  findCampaignPersos(campagneId: number): Promise<CharacterSummary[]>;
+  findUserCampaignPersos(campagneId: number, userId: number): Promise<CharacterSummary[]>;
+  isUserCampaignMj(campagneId: number, userId: number): Promise<boolean>;
+  isUserCampaignParticipant(campagneId: number, userId: number): Promise<boolean>;
+  findPersoById(persoId: number): Promise<CharacterSummary | null>;
 }
 
 export class MysqlForumRepository implements IForumRepository {
@@ -154,7 +164,7 @@ export class MysqlForumRepository implements IForumRepository {
         t.section_id AS sectionId,
         s.title AS sectionTitle,
         s.campagne_id AS campagneId,
-        c.name AS campaignTitle,
+        COALESCE(c.name, 'Forum Général') AS campaignTitle,
         t.title,
         t.stickable,
         t.is_private AS isPrivate,
@@ -162,7 +172,7 @@ export class MysqlForumRepository implements IForumRepository {
         t.ordre
       FROM topics t
       JOIN sections s ON t.section_id = s.id
-      JOIN campagne c ON s.campagne_id = c.id
+      LEFT JOIN campagne c ON s.campagne_id = c.id
       WHERE t.id = ?
     `;
 
@@ -308,6 +318,263 @@ export class MysqlForumRepository implements IForumRepository {
 
     const row = await queryOne<CountRow>(sql, [topicId, postId]);
     return Number(row?.total || 0);
+  }
+
+  async getPostById(postId: number, userId?: number): Promise<ForumPost | null> {
+    const sql = `
+      SELECT 
+        p.id,
+        p.topic_id AS topicId,
+        p.content,
+        p.create_date AS createDate,
+        p.editor,
+        u.id AS userId,
+        u.username,
+        u.avatar AS userAvatar,
+        u.profil AS userProfil,
+        u.titre AS userTitre,
+        perso.id AS persoId,
+        perso.name AS persoName,
+        perso.concept AS persoConcept,
+        perso.avatar AS persoAvatar,
+        perso.publicDescription AS persoPublicDescription,
+        rp.post_id AS userLastReadPostId
+      FROM posts p
+      LEFT JOIN user u ON p.user_id = u.id
+      LEFT JOIN personnages perso ON p.perso_id = perso.id
+      LEFT JOIN read_post rp ON rp.topic_id = p.topic_id AND rp.user_id = ?
+      WHERE p.id = ?
+    `;
+
+    interface RawPostRow {
+      id: number;
+      topicId: number;
+      content: string;
+      createDate: Date | string;
+      editor: number;
+      userId: number | null;
+      username: string | null;
+      userAvatar: string | null;
+      userProfil: number | null;
+      userTitre: string | null;
+      persoId: number | null;
+      persoName: string | null;
+      persoConcept: string | null;
+      persoAvatar: string | null;
+      persoPublicDescription: string | null;
+      userLastReadPostId: number | null;
+    }
+
+    const row = await queryOne<RawPostRow>(sql, [userId ?? 0, postId]);
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      topicId: row.topicId,
+      content: row.content,
+      createDate:
+        row.createDate instanceof Date
+          ? row.createDate.toISOString()
+          : String(row.createDate || ''),
+      editor: row.editor,
+      user: {
+        id: row.userId ?? 0,
+        username: row.username ?? 'Anonyme',
+        avatar: row.userAvatar ?? '',
+        profil: row.userProfil ?? 0,
+        titre: row.userTitre ?? '',
+      },
+      perso: row.persoId
+        ? {
+            id: row.persoId,
+            name: row.persoName ?? '',
+            concept: row.persoConcept ?? '',
+            avatar: row.persoAvatar ?? '',
+            publicDescription: row.persoPublicDescription ?? '',
+          }
+        : null,
+      isRead: true,
+    };
+  }
+
+  async createPost(data: {
+    topicId: number;
+    userId: number;
+    persoId: number | null;
+    content: string;
+    editor?: number;
+  }): Promise<number> {
+    const sql = `
+      INSERT INTO posts (topic_id, user_id, perso_id, content, create_date, editor)
+      VALUES (?, ?, ?, ?, NOW(), ?)
+    `;
+
+    const result = await execute(sql, [
+      data.topicId,
+      data.userId,
+      data.persoId ?? null,
+      data.content,
+      data.editor ?? 0,
+    ]);
+
+    return result.insertId;
+  }
+
+  async updateTopicLastPost(topicId: number, postId: number): Promise<void> {
+    const sql = `
+      UPDATE topics
+      SET last_post_id = ?
+      WHERE id = ?
+    `;
+
+    await execute(sql, [postId, topicId]);
+  }
+
+  async markTopicAsRead(topicId: number, userId: number, postId: number): Promise<void> {
+    const checkSql = `
+      SELECT post_id AS postId
+      FROM read_post
+      WHERE topic_id = ? AND user_id = ?
+      LIMIT 1
+    `;
+
+    const existing = await queryOne<{ postId: number }>(checkSql, [topicId, userId]);
+
+    if (existing) {
+      if (postId > existing.postId) {
+        const updateSql = `
+          UPDATE read_post
+          SET post_id = ?
+          WHERE topic_id = ? AND user_id = ?
+        `;
+        await execute(updateSql, [postId, topicId, userId]);
+      }
+    } else {
+      const insertSql = `
+        INSERT INTO read_post (topic_id, user_id, post_id)
+        VALUES (?, ?, ?)
+      `;
+      await execute(insertSql, [topicId, userId, postId]);
+    }
+  }
+
+  async findCampaignPersos(campagneId: number): Promise<CharacterSummary[]> {
+    const sql = `
+      SELECT 
+        id,
+        user_id AS userId,
+        campagne_id AS campagneId,
+        name,
+        concept,
+        avatar
+      FROM personnages
+      WHERE campagne_id = ?
+      ORDER BY name ASC
+    `;
+
+    interface RawPersoRow {
+      id: number;
+      userId: number | null;
+      campagneId: number;
+      name: string;
+      concept: string | null;
+      avatar: string | null;
+    }
+
+    const rows = await query<RawPersoRow>(sql, [campagneId]);
+
+    return rows.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      campagneId: r.campagneId,
+      name: r.name,
+      concept: r.concept || '',
+      avatar: r.avatar || '',
+    }));
+  }
+
+  async findUserCampaignPersos(campagneId: number, userId: number): Promise<CharacterSummary[]> {
+    const sql = `
+      SELECT 
+        id,
+        user_id AS userId,
+        campagne_id AS campagneId,
+        name,
+        concept,
+        avatar
+      FROM personnages
+      WHERE campagne_id = ? AND user_id = ?
+      ORDER BY name ASC
+    `;
+
+    interface RawPersoRow {
+      id: number;
+      userId: number | null;
+      campagneId: number;
+      name: string;
+      concept: string | null;
+      avatar: string | null;
+    }
+
+    const rows = await query<RawPersoRow>(sql, [campagneId, userId]);
+
+    return rows.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      campagneId: r.campagneId,
+      name: r.name,
+      concept: r.concept || '',
+      avatar: r.avatar || '',
+    }));
+  }
+
+  async isUserCampaignMj(campagneId: number, userId: number): Promise<boolean> {
+    const sql = `SELECT mj_id AS mjId FROM campagne WHERE id = ?`;
+    const row = await queryOne<{ mjId: number }>(sql, [campagneId]);
+    return row ? row.mjId === userId : false;
+  }
+
+  async isUserCampaignParticipant(campagneId: number, userId: number): Promise<boolean> {
+    const sql = `SELECT user_id AS userId FROM campagne_participant WHERE campagne_id = ? AND user_id = ?`;
+    const row = await queryOne<{ userId: number }>(sql, [campagneId, userId]);
+    return Boolean(row);
+  }
+
+  async findPersoById(persoId: number): Promise<CharacterSummary | null> {
+    const sql = `
+      SELECT 
+        id,
+        user_id AS userId,
+        campagne_id AS campagneId,
+        name,
+        concept,
+        avatar
+      FROM personnages
+      WHERE id = ?
+    `;
+
+    interface RawPersoRow {
+      id: number;
+      userId: number | null;
+      campagneId: number;
+      name: string;
+      concept: string | null;
+      avatar: string | null;
+    }
+
+    const row = await queryOne<RawPersoRow>(sql, [persoId]);
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      userId: row.userId,
+      campagneId: row.campagneId,
+      name: row.name,
+      concept: row.concept || '',
+      avatar: row.avatar || '',
+    };
   }
 }
 

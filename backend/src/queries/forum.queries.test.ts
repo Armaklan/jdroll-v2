@@ -8,6 +8,7 @@ import {
   ForumSectionSummary,
   ForumPost,
   RawTopicDetail,
+  CharacterSummary,
 } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
 
@@ -191,6 +192,45 @@ class MockForumRepository implements IForumRepository {
   async countPostsAfterPostId(_topicId: number, postId: number): Promise<number> {
     return this.allPosts.filter((p) => p.id > postId).length;
   }
+
+  async getPostById(postId: number): Promise<ForumPost | null> {
+    return this.allPosts.find((p) => p.id === postId) || null;
+  }
+
+  async createPost(data: any): Promise<number> {
+    const id = this.allPosts.length + 1;
+    return id;
+  }
+
+  async updateTopicLastPost(): Promise<void> {}
+
+  async markTopicAsRead(): Promise<void> {}
+
+  async findCampaignPersos(): Promise<CharacterSummary[]> {
+    return [
+      { id: 1, name: 'Kaelen', concept: 'Mage', avatar: '', userId: 2, campagneId: 1 },
+      { id: 2, name: 'Aubergiste', concept: 'PNJ', avatar: '', userId: null, campagneId: 1 },
+    ];
+  }
+
+  async findUserCampaignPersos(): Promise<CharacterSummary[]> {
+    return [{ id: 1, name: 'Kaelen', concept: 'Mage', avatar: '', userId: 2, campagneId: 1 }];
+  }
+
+  async isUserCampaignMj(_campagneId: number, userId: number): Promise<boolean> {
+    return userId === 1;
+  }
+
+  async isUserCampaignParticipant(_campagneId: number, userId: number): Promise<boolean> {
+    return userId === 2;
+  }
+
+  async findPersoById(persoId: number): Promise<CharacterSummary | null> {
+    if (persoId === 1) {
+      return { id: 1, name: 'Kaelen', concept: 'Mage', avatar: '', userId: 2, campagneId: 1 };
+    }
+    return null;
+  }
 }
 
 describe('ForumQueries', () => {
@@ -323,5 +363,43 @@ describe('ForumQueries', () => {
     assert.equal(result.totalPages, 1);
     assert.equal(result.page, 1);
     assert.equal(result.posts.length, 0);
+    assert.equal(result.canPost, false);
+  });
+
+  it('should return canPost=true with userRole=mj and all campaign characters for GM user', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 5, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, 1, 1); // User 1 = MJ
+
+    assert.equal(result.canPost, true);
+    assert.equal(result.userRole, 'mj');
+    assert.equal(result.availableCharacters.length, 2);
+  });
+
+  it('should return canPost=true with userRole=player and assigned characters for Player user', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 5, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, 1, 2); // User 2 = Player
+
+    assert.equal(result.canPost, true);
+    assert.equal(result.userRole, 'player');
+    assert.equal(result.availableCharacters.length, 1);
+    assert.equal(result.availableCharacters[0].name, 'Kaelen');
+  });
+
+  it('should return canPost=false for non-participating user in a campaign topic', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 5, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, 1, 999); // User 999 = non participant
+
+    assert.equal(result.canPost, false);
+    assert.equal(result.userRole, null);
+    assert.equal(result.availableCharacters.length, 0);
   });
 });

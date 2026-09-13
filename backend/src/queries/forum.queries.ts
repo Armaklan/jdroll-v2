@@ -1,6 +1,6 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
-import { CampaignForumData, TopicDetail } from '../types/index.js';
+import { CampaignForumData, TopicDetail, CharacterSummary } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
 
 export class ForumQueries {
@@ -65,22 +65,53 @@ export class ForumQueries {
 
     const posts = await this.forumRepo.findPostsByTopicId(topicId, offset, limit, userId);
 
+    let canPost = false;
+    let userRole: 'mj' | 'player' | 'user' | null = null;
+    let availableCharacters: CharacterSummary[] = [];
+
+    const isClosed = Boolean(topic.isClosed);
+
+    if (userId && !isClosed) {
+      if (topic.campagneId && topic.campagneId > 0) {
+        const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, userId);
+        if (isMj) {
+          canPost = true;
+          userRole = 'mj';
+          availableCharacters = await this.forumRepo.findCampaignPersos(topic.campagneId);
+        } else {
+          const isParticipant = await this.forumRepo.isUserCampaignParticipant(topic.campagneId, userId);
+          if (isParticipant) {
+            canPost = true;
+            userRole = 'player';
+            availableCharacters = await this.forumRepo.findUserCampaignPersos(topic.campagneId, userId);
+          }
+        }
+      } else {
+        canPost = true;
+        userRole = 'user';
+        availableCharacters = [];
+      }
+    }
+
     return {
       id: topic.id,
       sectionId: topic.sectionId,
       sectionTitle: topic.sectionTitle,
       campagneId: topic.campagneId,
-      campaignTitle: topic.campaignTitle,
+      campaignTitle: topic.campaignTitle || 'Forum Général',
       title: topic.title,
       stickable: Boolean(topic.stickable),
       isPrivate: Boolean(topic.isPrivate),
-      isClosed: Boolean(topic.isClosed),
+      isClosed,
       ordre: topic.ordre,
       totalPosts,
       page: targetPage,
       totalPages,
       pageSize,
       lastReadPostId,
+      canPost,
+      userRole,
+      availableCharacters,
       posts,
     };
   }
