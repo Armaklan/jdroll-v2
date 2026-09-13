@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { AuthProvider } from './contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Navbar, AppView } from './components/Navbar';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
@@ -17,137 +17,168 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
+const PUBLIC_VIEWS: AppView[] = ['home', 'help', 'login', 'register'];
+
 export function AppContent() {
+  const { isAuthenticated, isLoading } = useAuth();
   const [currentView, setCurrentView] = useState<AppView>('home');
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
   const [previousCampaignView, setPreviousCampaignView] = useState<AppView>('my-campaigns');
   const [previousForumView, setPreviousForumView] = useState<'campaign-forum' | 'forum'>('campaign-forum');
 
+  // Navigation gardée : redirige vers 'login' pour toute vue protégée sans authentification
+  const handleNavigate = (view: AppView) => {
+    if (!isAuthenticated && !PUBLIC_VIEWS.includes(view)) {
+      setCurrentView('login');
+    } else {
+      setCurrentView(view);
+    }
+  };
+
+  // Redirection automatique vers login si la session expire ou en cas de déconnexion sur une vue protégée
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && !PUBLIC_VIEWS.includes(currentView)) {
+      setCurrentView('login');
+    }
+  }, [isAuthenticated, isLoading, currentView]);
+
   const handleOpenCampaignForum = (campaignId: number, fromView: AppView = 'my-campaigns') => {
+    if (!isAuthenticated) {
+      setCurrentView('login');
+      return;
+    }
     setSelectedCampaignId(campaignId);
     setPreviousCampaignView(fromView);
     setCurrentView('campaign-forum');
   };
 
   const handleOpenTopic = (topicId: number, source: 'campaign-forum' | 'forum' = 'campaign-forum') => {
+    if (!isAuthenticated) {
+      setCurrentView('login');
+      return;
+    }
     setSelectedTopicId(topicId);
     setPreviousForumView(source);
     setCurrentView('topic-view');
   };
 
   const handleBackToForum = () => {
-    setCurrentView(previousForumView);
+    handleNavigate(previousForumView);
   };
+
+  // Vue effective à afficher (si protégée et non connecté, forcer l'affichage du login)
+  const isProtected = !PUBLIC_VIEWS.includes(currentView);
+  const effectiveView = !isLoading && !isAuthenticated && isProtected ? 'login' : currentView;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      <Navbar currentView={currentView} setCurrentView={setCurrentView} />
+      <Navbar currentView={effectiveView} setCurrentView={handleNavigate} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
-        {currentView === 'home' && (
+        {effectiveView === 'home' && (
           <HomePage
-            onNavigateLogin={() => setCurrentView('login')}
-            onNavigateRegister={() => setCurrentView('register')}
-            onNavigate={(view) => setCurrentView(view)}
+            onNavigateLogin={() => handleNavigate('login')}
+            onNavigateRegister={() => handleNavigate('register')}
+            onNavigate={handleNavigate}
           />
         )}
 
-        {currentView === 'login' && (
+        {effectiveView === 'login' && (
           <LoginPage
-            onSuccess={() => setCurrentView('home')}
-            onSwitchToRegister={() => setCurrentView('register')}
+            onSuccess={() => handleNavigate('home')}
+            onSwitchToRegister={() => handleNavigate('register')}
           />
         )}
 
-        {currentView === 'register' && (
+        {effectiveView === 'register' && (
           <RegisterPage
-            onSuccess={() => setCurrentView('home')}
-            onSwitchToLogin={() => setCurrentView('login')}
+            onSuccess={() => handleNavigate('home')}
+            onSwitchToLogin={() => handleNavigate('login')}
           />
         )}
 
         {/* Communiquer Sub-items */}
-        {currentView === 'messages' && (
+        {effectiveView === 'messages' && (
           <SectionPlaceholderPage
             title="Messagerie Privée"
             category="Communiquer"
             description="Consultez vos messages privés, vos notifications de jeu et échangez avec d'autres joueurs ou maîtres du jeu."
             icon={Mail}
-            onNavigateHome={() => setCurrentView('home')}
+            onNavigateHome={() => handleNavigate('home')}
           />
         )}
 
-        {currentView === 'chat' && (
+        {effectiveView === 'chat' && (
           <SectionPlaceholderPage
             title="Tchat en Direct"
             category="Communiquer"
             description="Salon de discussion instantané pour échanger en direct avec la communauté et les membres connectés."
             icon={MessagesSquare}
-            onNavigateHome={() => setCurrentView('home')}
+            onNavigateHome={() => handleNavigate('home')}
           />
         )}
 
         {/* Jouer Sub-items */}
-        {currentView === 'my-campaigns' && (
+        {effectiveView === 'my-campaigns' && (
           <MyCampaignsPage
-            onNavigate={(view) => setCurrentView(view)}
+            onNavigate={handleNavigate}
             onSelectCampaign={(id) => handleOpenCampaignForum(id, 'my-campaigns')}
           />
         )}
 
-        {currentView === 'join-campaign' && (
+        {effectiveView === 'join-campaign' && (
           <SectionPlaceholderPage
             title="Rejoindre une Campagne"
             category="Jouer"
             description="Explorez les campagnes avec recrutements ouverts et postulez avec vos fiches de personnages."
             icon={Sparkles}
-            onNavigateHome={() => setCurrentView('home')}
+            onNavigateHome={() => handleNavigate('home')}
           />
         )}
 
-        {currentView === 'all-campaigns' && (
+        {effectiveView === 'all-campaigns' && (
           <AllCampaignsPage
-            onNavigate={(view) => setCurrentView(view)}
+            onNavigate={handleNavigate}
             onSelectCampaign={(id) => handleOpenCampaignForum(id, 'all-campaigns')}
           />
         )}
 
         {/* Campaign Forum View */}
-        {currentView === 'campaign-forum' && selectedCampaignId && (
+        {effectiveView === 'campaign-forum' && selectedCampaignId && (
           <CampaignForumPage
             campaignId={selectedCampaignId}
-            onNavigate={(view) => setCurrentView(view)}
+            onNavigate={handleNavigate}
             onSelectTopic={(id) => handleOpenTopic(id, 'campaign-forum')}
-            onBack={() => setCurrentView(previousCampaignView)}
+            onBack={() => handleNavigate(previousCampaignView)}
           />
         )}
 
         {/* Topic View */}
-        {currentView === 'topic-view' && selectedTopicId && (
+        {effectiveView === 'topic-view' && selectedTopicId && (
           <TopicViewPage
             topicId={selectedTopicId}
-            onNavigate={(view) => setCurrentView(view)}
+            onNavigate={handleNavigate}
             onBackToForum={handleBackToForum}
           />
         )}
 
         {/* Forum */}
-        {currentView === 'forum' && (
+        {effectiveView === 'forum' && (
           <GeneralForumPage
-            onNavigate={(view) => setCurrentView(view)}
+            onNavigate={handleNavigate}
             onSelectTopic={(id) => handleOpenTopic(id, 'forum')}
           />
         )}
 
         {/* Aide */}
-        {currentView === 'help' && (
+        {effectiveView === 'help' && (
           <SectionPlaceholderPage
             title="Centre d'Aide & Documentation"
             category="Aide"
             description="Guides d'utilisation de la plateforme, syntaxe de mise en page, fonctionnement des dés et règles communautaires."
             icon={HelpCircle}
-            onNavigateHome={() => setCurrentView('home')}
+            onNavigateHome={() => handleNavigate('home')}
           />
         )}
       </main>
