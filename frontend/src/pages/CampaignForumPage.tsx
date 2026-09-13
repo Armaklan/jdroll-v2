@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignForumData } from '../types/campaign';
 import { AppView } from '../components/Navbar';
@@ -23,28 +24,48 @@ import {
 } from 'lucide-react';
 
 interface CampaignForumPageProps {
-  campaignId: number;
-  onNavigate: (view: AppView) => void;
+  campaignId?: number;
+  onNavigate?: (view: AppView) => void;
   onSelectTopic?: (topicId: number) => void;
   onBack?: () => void;
 }
 
 export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   campaignId,
-  onNavigate,
   onSelectTopic,
   onBack,
 }) => {
+  const params = useParams<{ campaignId: string }>();
+  const navigate = useNavigate();
+  const effectiveCampaignId = campaignId ?? (params.campaignId ? Number(params.campaignId) : 0);
+
   const [forumData, setForumData] = useState<CampaignForumData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
 
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/my-campaigns');
+    }
+  };
+
+  const handleSelectTopic = (topicId: number) => {
+    if (onSelectTopic) {
+      onSelectTopic(topicId);
+    } else {
+      navigate(`/topics/${topicId}`);
+    }
+  };
+
   const fetchForum = async () => {
+    if (!effectiveCampaignId) return;
     setIsLoading(true);
     setError(null);
     try {
-      const data = await campaignsApi.getCampaignForum(campaignId);
+      const data = await campaignsApi.getCampaignForum(effectiveCampaignId);
       setForumData(data);
 
       // Initialize collapsed state from defaultCollapse
@@ -61,10 +82,10 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   };
 
   useEffect(() => {
-    if (campaignId) {
+    if (effectiveCampaignId) {
       fetchForum();
     }
-  }, [campaignId]);
+  }, [effectiveCampaignId]);
 
   const toggleSection = (sectionId: number) => {
     setCollapsedSections((prev) => ({
@@ -107,7 +128,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
         <p className="text-sm text-red-700 mb-6">{error || 'Campagne introuvable.'}</p>
         <div className="flex justify-center gap-3">
           <button
-            onClick={() => (onBack ? onBack() : onNavigate('my-campaigns'))}
+            onClick={handleBack}
             className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition"
           >
             Retour aux campagnes
@@ -131,7 +152,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <button
-            onClick={() => (onBack ? onBack() : onNavigate('my-campaigns'))}
+            onClick={handleBack}
             className="inline-flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 font-medium transition"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -291,7 +312,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                         {section.topics.map((topic) => (
                           <div
                             key={topic.id}
-                            onClick={() => onSelectTopic && onSelectTopic(topic.id)}
+                            onClick={() => handleSelectTopic(topic.id)}
                             className={`p-4 sm:px-5 sm:py-3.5 hover:bg-slate-50/80 transition flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:items-center cursor-pointer ${
                               !topic.isRead ? 'bg-indigo-50/30' : ''
                             }`}

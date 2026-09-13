@@ -1,19 +1,37 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserPlus, AlertCircle, Loader2 } from 'lucide-react';
 
 interface RegisterPageProps {
-  onSuccess: () => void;
-  onSwitchToLogin: () => void;
+  onSuccess?: () => void;
+  onSwitchToLogin?: () => void;
 }
 
 export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onSwitchToLogin }) => {
+  const navigate = useNavigate();
   const { register } = useAuth();
   const [username, setUsername] = useState('');
   const [mail, setMail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSuccess = () => {
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      navigate('/', { replace: true });
+    }
+  };
+
+  const handleSwitchToLogin = () => {
+    if (onSwitchToLogin) {
+      onSwitchToLogin();
+    } else {
+      navigate('/login');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +40,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onSwitchT
 
     try {
       await register({ username, mail, password });
-      onSuccess();
+      handleSuccess();
     } catch (err) {
       setError((err as Error).message || "Erreur lors de l'inscription");
     } finally {
@@ -109,7 +127,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onSwitchT
       <div className="mt-6 text-center text-sm text-slate-600">
         Déjà un compte ?{' '}
         <button
-          onClick={onSwitchToLogin}
+          onClick={handleSwitchToLogin}
           className="text-indigo-600 hover:text-indigo-700 font-semibold underline-offset-4 hover:underline"
         >
           Se connecter

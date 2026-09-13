@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import React from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Navbar, AppView } from './components/Navbar';
+import { Navbar } from './components/Navbar';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -17,170 +18,104 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
-const PUBLIC_VIEWS: AppView[] = ['home', 'help', 'login', 'register'];
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-slate-600 font-medium text-sm">Chargement de la session...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return <>{children}</>;
+}
 
 export function AppContent() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const [currentView, setCurrentView] = useState<AppView>('home');
-  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
-  const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
-  const [previousCampaignView, setPreviousCampaignView] = useState<AppView>('my-campaigns');
-  const [previousForumView, setPreviousForumView] = useState<'campaign-forum' | 'forum'>('campaign-forum');
-
-  // Navigation gardée : redirige vers 'login' pour toute vue protégée sans authentification
-  const handleNavigate = (view: AppView) => {
-    if (!isAuthenticated && !PUBLIC_VIEWS.includes(view)) {
-      setCurrentView('login');
-    } else {
-      setCurrentView(view);
-    }
-  };
-
-  // Redirection automatique vers login si la session expire ou en cas de déconnexion sur une vue protégée
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated && !PUBLIC_VIEWS.includes(currentView)) {
-      setCurrentView('login');
-    }
-  }, [isAuthenticated, isLoading, currentView]);
-
-  const handleOpenCampaignForum = (campaignId: number, fromView: AppView = 'my-campaigns') => {
-    if (!isAuthenticated) {
-      setCurrentView('login');
-      return;
-    }
-    setSelectedCampaignId(campaignId);
-    setPreviousCampaignView(fromView);
-    setCurrentView('campaign-forum');
-  };
-
-  const handleOpenTopic = (topicId: number, source: 'campaign-forum' | 'forum' = 'campaign-forum') => {
-    if (!isAuthenticated) {
-      setCurrentView('login');
-      return;
-    }
-    setSelectedTopicId(topicId);
-    setPreviousForumView(source);
-    setCurrentView('topic-view');
-  };
-
-  const handleBackToForum = () => {
-    handleNavigate(previousForumView);
-  };
-
-  // Vue effective à afficher (si protégée et non connecté, forcer l'affichage du login)
-  const isProtected = !PUBLIC_VIEWS.includes(currentView);
-  const effectiveView = !isLoading && !isAuthenticated && isProtected ? 'login' : currentView;
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      <Navbar currentView={effectiveView} setCurrentView={handleNavigate} />
+      <Navbar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
-        {effectiveView === 'home' && (
-          <HomePage
-            onNavigateLogin={() => handleNavigate('login')}
-            onNavigateRegister={() => handleNavigate('register')}
-            onNavigate={handleNavigate}
-          />
-        )}
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
 
-        {effectiveView === 'login' && (
-          <LoginPage
-            onSuccess={() => handleNavigate('home')}
-            onSwitchToRegister={() => handleNavigate('register')}
+          {/* Communiquer */}
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <SectionPlaceholderPage
+                  title="Messagerie Privée"
+                  category="Communiquer"
+                  description="Consultez vos messages privés, vos notifications de jeu et échangez avec d'autres joueurs ou maîtres du jeu."
+                  icon={Mail}
+                />
+              </ProtectedRoute>
+            }
           />
-        )}
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <SectionPlaceholderPage
+                  title="Tchat en Direct"
+                  category="Communiquer"
+                  description="Salon de discussion instantané pour échanger en direct avec la communauté et les membres connectés."
+                  icon={MessagesSquare}
+                />
+              </ProtectedRoute>
+            }
+          />
 
-        {effectiveView === 'register' && (
-          <RegisterPage
-            onSuccess={() => handleNavigate('home')}
-            onSwitchToLogin={() => handleNavigate('login')}
+          {/* Jouer */}
+          <Route path="/my-campaigns" element={<MyCampaignsPage />} />
+          <Route
+            path="/join-campaign"
+            element={
+              <SectionPlaceholderPage
+                title="Rejoindre une Campagne"
+                category="Jouer"
+                description="Explorez les campagnes avec recrutements ouverts et postulez avec vos fiches de personnages."
+                icon={Sparkles}
+              />
+            }
           />
-        )}
+          <Route path="/all-campaigns" element={<AllCampaignsPage />} />
+          <Route path="/campaigns" element={<Navigate to="/all-campaigns" replace />} />
+          <Route path="/campaigns/:campaignId" element={<CampaignForumPage />} />
+          <Route path="/campaign-forum/:campaignId" element={<CampaignForumPage />} />
 
-        {/* Communiquer Sub-items */}
-        {effectiveView === 'messages' && (
-          <SectionPlaceholderPage
-            title="Messagerie Privée"
-            category="Communiquer"
-            description="Consultez vos messages privés, vos notifications de jeu et échangez avec d'autres joueurs ou maîtres du jeu."
-            icon={Mail}
-            onNavigateHome={() => handleNavigate('home')}
-          />
-        )}
+          {/* Forum & Topics */}
+          <Route path="/topics/:topicId" element={<TopicViewPage />} />
+          <Route path="/campaigns/:campaignId/topics/:topicId" element={<TopicViewPage />} />
+          <Route path="/forum" element={<GeneralForumPage />} />
 
-        {effectiveView === 'chat' && (
-          <SectionPlaceholderPage
-            title="Tchat en Direct"
-            category="Communiquer"
-            description="Salon de discussion instantané pour échanger en direct avec la communauté et les membres connectés."
-            icon={MessagesSquare}
-            onNavigateHome={() => handleNavigate('home')}
+          {/* Aide */}
+          <Route
+            path="/help"
+            element={
+              <SectionPlaceholderPage
+                title="Centre d'Aide & Documentation"
+                category="Aide"
+                description="Guides d'utilisation de la plateforme, syntaxe de mise en page, fonctionnement des dés et règles communautaires."
+                icon={HelpCircle}
+              />
+            }
           />
-        )}
 
-        {/* Jouer Sub-items */}
-        {effectiveView === 'my-campaigns' && (
-          <MyCampaignsPage
-            onNavigate={handleNavigate}
-            onSelectCampaign={(id) => handleOpenCampaignForum(id, 'my-campaigns')}
-          />
-        )}
-
-        {effectiveView === 'join-campaign' && (
-          <SectionPlaceholderPage
-            title="Rejoindre une Campagne"
-            category="Jouer"
-            description="Explorez les campagnes avec recrutements ouverts et postulez avec vos fiches de personnages."
-            icon={Sparkles}
-            onNavigateHome={() => handleNavigate('home')}
-          />
-        )}
-
-        {effectiveView === 'all-campaigns' && (
-          <AllCampaignsPage
-            onNavigate={handleNavigate}
-            onSelectCampaign={(id) => handleOpenCampaignForum(id, 'all-campaigns')}
-          />
-        )}
-
-        {/* Campaign Forum View */}
-        {effectiveView === 'campaign-forum' && selectedCampaignId && (
-          <CampaignForumPage
-            campaignId={selectedCampaignId}
-            onNavigate={handleNavigate}
-            onSelectTopic={(id) => handleOpenTopic(id, 'campaign-forum')}
-            onBack={() => handleNavigate(previousCampaignView)}
-          />
-        )}
-
-        {/* Topic View */}
-        {effectiveView === 'topic-view' && selectedTopicId && (
-          <TopicViewPage
-            topicId={selectedTopicId}
-            onNavigate={handleNavigate}
-            onBackToForum={handleBackToForum}
-          />
-        )}
-
-        {/* Forum */}
-        {effectiveView === 'forum' && (
-          <GeneralForumPage
-            onNavigate={handleNavigate}
-            onSelectTopic={(id) => handleOpenTopic(id, 'forum')}
-          />
-        )}
-
-        {/* Aide */}
-        {effectiveView === 'help' && (
-          <SectionPlaceholderPage
-            title="Centre d'Aide & Documentation"
-            category="Aide"
-            description="Guides d'utilisation de la plateforme, syntaxe de mise en page, fonctionnement des dés et règles communautaires."
-            icon={HelpCircle}
-            onNavigateHome={() => handleNavigate('home')}
-          />
-        )}
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">

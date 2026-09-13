@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignSummary } from '../types/campaign';
-import { AppView } from '../components/Navbar';
+import { AppView, viewToPath } from '../components/Navbar';
 import {
   Compass,
   Search,
@@ -19,16 +20,27 @@ import {
 } from 'lucide-react';
 
 interface AllCampaignsPageProps {
-  onNavigate: (view: AppView) => void;
+  onNavigate?: (view: AppView) => void;
   onSelectCampaign?: (campaignId: number) => void;
 }
 
 export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onNavigate, onSelectCampaign }) => {
+  const navigate = useNavigate();
   const [includeArchived, setIncludeArchived] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleNavigate = (view: AppView) => {
+    if (onNavigate) onNavigate(view);
+    else navigate(viewToPath(view));
+  };
+
+  const handleSelectCampaign = (campaignId: number) => {
+    if (onSelectCampaign) onSelectCampaign(campaignId);
+    else navigate(`/campaigns/${campaignId}`);
+  };
 
   const fetchCampaigns = async () => {
     setIsLoading(true);
@@ -424,7 +436,7 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onNavigate, 
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              onNavigate('join-campaign');
+                              handleNavigate('join-campaign');
                             }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-xs transition"
                           >
@@ -433,7 +445,7 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onNavigate, 
                           </button>
                         )}
                         <button
-                          onClick={() => onSelectCampaign ? onSelectCampaign(campagne.id) : onNavigate('join-campaign')}
+                          onClick={() => handleSelectCampaign(campagne.id)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 font-semibold rounded-lg text-xs transition"
                         >
                           <BookOpen className="w-3 h-3" />

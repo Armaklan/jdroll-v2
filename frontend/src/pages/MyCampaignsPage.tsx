@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignSummary, CampaignRole } from '../types/campaign';
-import { AppView } from '../components/Navbar';
+import { AppView, viewToPath } from '../components/Navbar';
 import {
   Crown,
   User,
@@ -19,17 +20,28 @@ import {
 } from 'lucide-react';
 
 interface MyCampaignsPageProps {
-  onNavigate: (view: AppView) => void;
+  onNavigate?: (view: AppView) => void;
   onSelectCampaign?: (campaignId: number) => void;
 }
 
 export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, onSelectCampaign }) => {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [role, setRole] = useState<CampaignRole>('master');
   const [includeArchived, setIncludeArchived] = useState<boolean>(false);
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleNavigate = (view: AppView) => {
+    if (onNavigate) onNavigate(view);
+    else navigate(viewToPath(view));
+  };
+
+  const handleSelectCampaign = (campaignId: number) => {
+    if (onSelectCampaign) onSelectCampaign(campaignId);
+    else navigate(`/campaigns/${campaignId}`);
+  };
 
   const fetchCampaigns = async () => {
     if (!isAuthenticated) return;
@@ -73,14 +85,14 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <button
-              onClick={() => onNavigate('login')}
+              onClick={() => handleNavigate('login')}
               className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition shadow-sm"
             >
               <LogIn className="w-4 h-4" />
               <span>Se connecter</span>
             </button>
             <button
-              onClick={() => onNavigate('register')}
+              onClick={() => handleNavigate('register')}
               className="flex items-center gap-2 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl text-sm transition"
             >
               <span>Créer un compte</span>
@@ -246,7 +258,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
             )}
             {role === 'player' ? (
               <button
-                onClick={() => onNavigate('join-campaign')}
+                onClick={() => handleNavigate('join-campaign')}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-semibold rounded-xl transition shadow-xs"
               >
                 <Sparkles className="w-4 h-4" />
@@ -369,7 +381,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
                 </div>
 
                 <button
-                  onClick={() => onSelectCampaign ? onSelectCampaign(campaign.id) : null}
+                  onClick={() => handleSelectCampaign(campaign.id)}
                   className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl text-xs sm:text-sm transition shadow-2xs"
                 >
                   <BookOpen className="w-4 h-4" />

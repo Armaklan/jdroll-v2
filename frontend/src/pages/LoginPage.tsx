@@ -1,18 +1,38 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LogIn, AlertCircle, Loader2 } from 'lucide-react';
 
 interface LoginPageProps {
-  onSuccess: () => void;
-  onSwitchToRegister: () => void;
+  onSuccess?: () => void;
+  onSwitchToRegister?: () => void;
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegister }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSuccess = () => {
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      const from = (location.state as any)?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  };
+
+  const handleSwitchToRegister = () => {
+    if (onSwitchToRegister) {
+      onSwitchToRegister();
+    } else {
+      navigate('/register');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +41,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegis
 
     try {
       await login({ username, password });
-      onSuccess();
+      handleSuccess();
     } catch (err) {
       setError((err as Error).message || 'Erreur lors de la connexion');
     } finally {
@@ -94,7 +114,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegis
       <div className="mt-6 text-center text-sm text-slate-600">
         Pas encore de compte ?{' '}
         <button
-          onClick={onSwitchToRegister}
+          onClick={handleSwitchToRegister}
           className="text-indigo-600 hover:text-indigo-700 font-semibold underline-offset-4 hover:underline"
         >
           Créer un compte

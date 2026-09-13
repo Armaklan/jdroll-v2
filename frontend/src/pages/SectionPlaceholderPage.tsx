@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LucideIcon } from 'lucide-react';
 
 interface SectionPlaceholderPageProps {
@@ -6,7 +7,7 @@ interface SectionPlaceholderPageProps {
   category: string;
   description: string;
   icon: LucideIcon;
-  onNavigateHome: () => void;
+  onNavigateHome?: () => void;
 }
 
 export const SectionPlaceholderPage: React.FC<SectionPlaceholderPageProps> = ({
@@ -16,6 +17,13 @@ export const SectionPlaceholderPage: React.FC<SectionPlaceholderPageProps> = ({
   icon: Icon,
   onNavigateHome,
 }) => {
+  const navigate = useNavigate();
+
+  const handleNavigateHome = () => {
+    if (onNavigateHome) onNavigateHome();
+    else navigate('/');
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white border border-slate-200 rounded-2xl p-8 sm:p-12 shadow-sm text-center">
@@ -41,7 +49,7 @@ export const SectionPlaceholderPage: React.FC<SectionPlaceholderPageProps> = ({
 
         <div>
           <button
-            onClick={onNavigateHome}
+            onClick={handleNavigateHome}
             className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-xl transition shadow-sm"
           >
             Retourner à l'accueil

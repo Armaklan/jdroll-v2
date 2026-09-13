@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Dice6,
@@ -35,13 +36,46 @@ export type AppView =
   | 'forum'
   | 'help';
 
+export const viewToPath = (view: AppView): string => {
+  switch (view) {
+    case 'home':
+      return '/';
+    case 'login':
+      return '/login';
+    case 'register':
+      return '/register';
+    case 'messages':
+      return '/messages';
+    case 'chat':
+      return '/chat';
+    case 'my-campaigns':
+      return '/my-campaigns';
+    case 'join-campaign':
+      return '/join-campaign';
+    case 'all-campaigns':
+      return '/all-campaigns';
+    case 'campaign-forum':
+      return '/all-campaigns';
+    case 'topic-view':
+      return '/forum';
+    case 'forum':
+      return '/forum';
+    case 'help':
+      return '/help';
+    default:
+      return '/';
+  }
+};
+
 interface NavbarProps {
-  currentView: AppView;
-  setCurrentView: (view: AppView) => void;
+  currentView?: AppView;
+  setCurrentView?: (view: AppView) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) => {
   const { user, isAuthenticated, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [openDropdown, setOpenDropdown] = useState<'communicate' | 'play' | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSubmenu, setMobileSubmenu] = useState<'communicate' | 'play' | null>(null);
@@ -59,17 +93,46 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const getActiveView = (): AppView => {
+    const path = location.pathname;
+    if (path === '/') return 'home';
+    if (path === '/login') return 'login';
+    if (path === '/register') return 'register';
+    if (path === '/messages') return 'messages';
+    if (path === '/chat') return 'chat';
+    if (path === '/my-campaigns') return 'my-campaigns';
+    if (path === '/join-campaign') return 'join-campaign';
+    if (path === '/all-campaigns' || path === '/campaigns') return 'all-campaigns';
+    if (path.startsWith('/campaigns/')) return 'campaign-forum';
+    if (path.startsWith('/topics/')) return 'topic-view';
+    if (path === '/forum') return 'forum';
+    if (path === '/help') return 'help';
+    return currentView || 'home';
+  };
+
+  const activeView = getActiveView();
+
   const handleNavigate = (view: AppView) => {
-    setCurrentView(view);
+    if (setCurrentView) {
+      setCurrentView(view);
+    }
+    navigate(viewToPath(view));
     setOpenDropdown(null);
     setMobileMenuOpen(false);
   };
 
-  const isCommunicateActive = currentView === 'messages' || currentView === 'chat';
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+    setMobileMenuOpen(false);
+  };
+
+  const isCommunicateActive = activeView === 'messages' || activeView === 'chat';
   const isPlayActive =
-    currentView === 'my-campaigns' ||
-    currentView === 'join-campaign' ||
-    currentView === 'all-campaigns';
+    activeView === 'my-campaigns' ||
+    activeView === 'join-campaign' ||
+    activeView === 'all-campaigns' ||
+    activeView === 'campaign-forum';
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
@@ -93,7 +156,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             <button
               onClick={() => handleNavigate('home')}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
-                currentView === 'home'
+                activeView === 'home'
                   ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
               }`}
@@ -132,7 +195,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('messages')}
                     className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
-                      currentView === 'messages'
+                      activeView === 'messages'
                         ? 'bg-indigo-50 text-indigo-700 font-medium'
                         : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                     }`}
@@ -147,7 +210,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('chat')}
                     className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
-                      currentView === 'chat'
+                      activeView === 'chat'
                         ? 'bg-indigo-50 text-indigo-700 font-medium'
                         : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                     }`}
@@ -190,7 +253,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('my-campaigns')}
                     className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
-                      currentView === 'my-campaigns'
+                      activeView === 'my-campaigns'
                         ? 'bg-indigo-50 text-indigo-700 font-medium'
                         : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                     }`}
@@ -205,7 +268,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('join-campaign')}
                     className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
-                      currentView === 'join-campaign'
+                      activeView === 'join-campaign'
                         ? 'bg-indigo-50 text-indigo-700 font-medium'
                         : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                     }`}
@@ -220,7 +283,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('all-campaigns')}
                     className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
-                      currentView === 'all-campaigns'
+                      activeView === 'all-campaigns'
                         ? 'bg-indigo-50 text-indigo-700 font-medium'
                         : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                     }`}
@@ -239,7 +302,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             <button
               onClick={() => handleNavigate('forum')}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
-                currentView === 'forum'
+                activeView === 'forum' || activeView === 'topic-view'
                   ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
               }`}
@@ -252,7 +315,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             <button
               onClick={() => handleNavigate('help')}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
-                currentView === 'help'
+                activeView === 'help'
                   ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
               }`}
@@ -279,7 +342,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                 )}
               </div>
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-red-600 px-3 py-1.5 rounded-xl hover:bg-red-50 border border-transparent hover:border-red-100 transition"
                 title="Déconnexion"
               >
@@ -292,7 +355,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               <button
                 onClick={() => handleNavigate('login')}
                 className={`flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-medium transition ${
-                  currentView === 'login'
+                  activeView === 'login'
                     ? 'bg-slate-100 text-slate-900 border border-slate-300 font-semibold'
                     : 'text-slate-700 hover:bg-slate-100'
                 }`}
@@ -303,7 +366,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               <button
                 onClick={() => handleNavigate('register')}
                 className={`flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-medium transition shadow-sm ${
-                  currentView === 'register'
+                  activeView === 'register'
                     ? 'bg-indigo-700 text-white'
                     : 'bg-indigo-600 hover:bg-indigo-700 text-white'
                 }`}
@@ -335,7 +398,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             <button
               onClick={() => handleNavigate('home')}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
-                currentView === 'home'
+                activeView === 'home'
                   ? 'bg-indigo-50 text-indigo-700 font-semibold'
                   : 'text-slate-700 hover:bg-slate-50'
               }`}
@@ -368,7 +431,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('messages')}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      currentView === 'messages'
+                      activeView === 'messages'
                         ? 'bg-indigo-50 text-indigo-700 font-semibold'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
@@ -379,7 +442,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('chat')}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      currentView === 'chat'
+                      activeView === 'chat'
                         ? 'bg-indigo-50 text-indigo-700 font-semibold'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
@@ -413,7 +476,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('my-campaigns')}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      currentView === 'my-campaigns'
+                      activeView === 'my-campaigns'
                         ? 'bg-indigo-50 text-indigo-700 font-semibold'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
@@ -424,7 +487,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('join-campaign')}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      currentView === 'join-campaign'
+                      activeView === 'join-campaign'
                         ? 'bg-indigo-50 text-indigo-700 font-semibold'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
@@ -435,7 +498,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <button
                     onClick={() => handleNavigate('all-campaigns')}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      currentView === 'all-campaigns'
+                      activeView === 'all-campaigns'
                         ? 'bg-indigo-50 text-indigo-700 font-semibold'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
@@ -451,7 +514,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             <button
               onClick={() => handleNavigate('forum')}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
-                currentView === 'forum'
+                activeView === 'forum' || activeView === 'topic-view'
                   ? 'bg-indigo-50 text-indigo-700 font-semibold'
                   : 'text-slate-700 hover:bg-slate-50'
               }`}
@@ -464,7 +527,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             <button
               onClick={() => handleNavigate('help')}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
-                currentView === 'help'
+                activeView === 'help'
                   ? 'bg-indigo-50 text-indigo-700 font-semibold'
                   : 'text-slate-700 hover:bg-slate-50'
               }`}
@@ -482,10 +545,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <span className="text-sm font-semibold text-slate-800">{user.username}</span>
                 </div>
                 <button
-                  onClick={() => {
-                    logout();
-                    setMobileMenuOpen(false);
-                  }}
+                  onClick={handleLogout}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 bg-red-50 hover:bg-red-100 font-medium"
                 >
                   <LogOut className="w-4 h-4" />

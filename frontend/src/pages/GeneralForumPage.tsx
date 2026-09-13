@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
 import { GeneralForumData } from '../types/campaign';
-import { AppView } from '../components/Navbar';
+import { AppView, viewToPath } from '../components/Navbar';
 import {
   MessageSquare,
   Pin,
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react';
 
 interface GeneralForumPageProps {
-  onNavigate: (view: AppView) => void;
+  onNavigate?: (view: AppView) => void;
   onSelectTopic?: (topicId: number) => void;
 }
 
@@ -26,10 +27,21 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
   onNavigate,
   onSelectTopic,
 }) => {
+  const navigate = useNavigate();
   const [forumData, setForumData] = useState<GeneralForumData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
+
+  const handleNavigate = (view: AppView) => {
+    if (onNavigate) onNavigate(view);
+    else navigate(viewToPath(view));
+  };
+
+  const handleSelectTopic = (topicId: number) => {
+    if (onSelectTopic) onSelectTopic(topicId);
+    else navigate(`/topics/${topicId}`);
+  };
 
   const fetchForum = async () => {
     setIsLoading(true);
@@ -96,7 +108,7 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
         <p className="text-sm text-red-700 mb-6">{error || 'Forum introuvable.'}</p>
         <div className="flex justify-center gap-3">
           <button
-            onClick={() => onNavigate('home')}
+            onClick={() => handleNavigate('home')}
             className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition"
           >
             Retour à l'accueil
@@ -213,7 +225,7 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                       section.topics.map((topic) => (
                         <div
                           key={topic.id}
-                          onClick={() => onSelectTopic && onSelectTopic(topic.id)}
+                          onClick={() => handleSelectTopic(topic.id)}
                           className="p-4 hover:bg-slate-50/90 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer group"
                         >
                           {/* Titre & Statuts du Topic */}

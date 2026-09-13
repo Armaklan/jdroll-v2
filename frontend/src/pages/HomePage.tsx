@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../api/auth';
 import { Server, CheckCircle2, XCircle, User as UserIcon, Shield, Database, Lock, ArrowRight } from 'lucide-react';
-import { AppView } from '../components/Navbar';
+import { AppView, viewToPath } from '../components/Navbar';
 
 interface HomePageProps {
-  onNavigateLogin: () => void;
-  onNavigateRegister: () => void;
-  onNavigate: (view: AppView) => void;
+  onNavigateLogin?: () => void;
+  onNavigateRegister?: () => void;
+  onNavigate?: (view: AppView) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -15,8 +16,24 @@ export const HomePage: React.FC<HomePageProps> = ({
   onNavigateRegister,
   onNavigate,
 }) => {
+  const navigate = useNavigate();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+
+  const handleNavigateLogin = () => {
+    if (onNavigateLogin) onNavigateLogin();
+    else navigate('/login');
+  };
+
+  const handleNavigateRegister = () => {
+    if (onNavigateRegister) onNavigateRegister();
+    else navigate('/register');
+  };
+
+  const handleNavigate = (view: AppView) => {
+    if (onNavigate) onNavigate(view);
+    else navigate(viewToPath(view));
+  };
 
   useEffect(() => {
     authApi
@@ -58,13 +75,13 @@ export const HomePage: React.FC<HomePageProps> = ({
             ) : (
               <div className="flex flex-col sm:flex-row gap-2">
                 <button
-                  onClick={onNavigateLogin}
+                  onClick={handleNavigateLogin}
                   className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition shadow-sm text-center"
                 >
                   Se connecter
                 </button>
                 <button
-                  onClick={onNavigateRegister}
+                  onClick={handleNavigateRegister}
                   className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium rounded-xl transition text-center shadow-sm"
                 >
                   S'inscrire
@@ -78,7 +95,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* Quick Access Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <button
-          onClick={() => onNavigate('my-campaigns')}
+          onClick={() => handleNavigate('my-campaigns')}
           className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
         >
           <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
@@ -94,7 +111,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </button>
 
         <button
-          onClick={() => onNavigate('all-campaigns')}
+          onClick={() => handleNavigate('all-campaigns')}
           className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
         >
           <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
@@ -110,7 +127,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </button>
 
         <button
-          onClick={() => onNavigate('join-campaign')}
+          onClick={() => handleNavigate('join-campaign')}
           className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
         >
           <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
@@ -126,7 +143,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         </button>
 
         <button
-          onClick={() => onNavigate('forum')}
+          onClick={() => handleNavigate('forum')}
           className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
         >
           <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
