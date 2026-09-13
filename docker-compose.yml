@@ -1,0 +1,23 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: jdroll-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: jdroll
+      MYSQL_USER: jdroll
+      MYSQL_PASSWORD: jdroll
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/create.sql:/docker-entrypoint-initdb.d/01-create.sql:ro
+      - ./data/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - mysql_data:/var/lib/mysql
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+
+volumes:
+  mysql_data:
