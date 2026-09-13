@@ -1,4 +1,4 @@
-import { CampaignSummary, CampaignRole, CampaignForumData, TopicDetail } from '../types/campaign';
+import { CampaignSummary, CampaignRole, CampaignForumData, GeneralForumData, TopicDetail } from '../types/campaign';
 import { getToken } from './auth';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -27,6 +27,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const campaignsApi = {
+  async getGeneralForum(): Promise<GeneralForumData> {
+    return request<GeneralForumData>('/api/forum');
+  },
+
   async getMyCampaigns(role: CampaignRole = 'master', includeArchived: boolean = false): Promise<CampaignSummary[]> {
     const params = new URLSearchParams({
       role,

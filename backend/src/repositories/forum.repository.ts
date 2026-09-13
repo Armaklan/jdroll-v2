@@ -9,7 +9,7 @@ import {
 } from '../types/index.js';
 
 export interface IForumRepository {
-  findSectionsByCampaignId(campaignId: number, userId?: number): Promise<ForumSectionSummary[]>;
+  findSectionsByCampaignId(campaignId: number | null, userId?: number): Promise<ForumSectionSummary[]>;
   findTopicById(topicId: number): Promise<RawTopicDetail | null>;
   countPostsByTopicId(topicId: number): Promise<number>;
   findPostsByTopicId(topicId: number, offset: number, limit: number, userId?: number): Promise<ForumPost[]>;
@@ -27,7 +27,8 @@ export interface IForumRepository {
 }
 
 export class MysqlForumRepository implements IForumRepository {
-  async findSectionsByCampaignId(campaignId: number, userId?: number): Promise<ForumSectionSummary[]> {
+  async findSectionsByCampaignId(campaignId: number | null, userId?: number): Promise<ForumSectionSummary[]> {
+    const isGeneral = campaignId === null || campaignId === undefined;
     const sectionsSql = `
       SELECT 
         id,
@@ -37,20 +38,23 @@ export class MysqlForumRepository implements IForumRepository {
         default_collapse AS defaultCollapse,
         banniere
       FROM sections
-      WHERE campagne_id = ?
+      WHERE ${isGeneral ? 'campagne_id IS NULL' : 'campagne_id = ?'}
       ORDER BY ordre ASC, id ASC
     `;
 
     interface RawSectionRow {
       id: number;
-      campagneId: number;
+      campagneId: number | null;
       title: string;
       ordre: number;
       defaultCollapse: number;
       banniere: string | null;
     }
 
-    const sectionRows = await query<RawSectionRow>(sectionsSql, [campaignId]);
+    const sectionRows = await query<RawSectionRow>(
+      sectionsSql,
+      isGeneral ? [] : [campaignId]
+    );
 
     if (sectionRows.length === 0) {
       return [];
@@ -77,8 +81,13 @@ export class MysqlForumRepository implements IForumRepository {
       JOIN sections s ON t.section_id = s.id
       LEFT JOIN posts p ON t.last_post_id = p.id
       LEFT JOIN user u ON p.user_id = u.id
-      LEFT JOIN read_post rp ON rp.topic_id = t.id AND rp.user_id = ?
-      WHERE s.campagne_id = ?
+      LEFT JOIN (
+        SELECT topic_id, MAX(post_id) AS post_id
+        FROM read_post
+        WHERE user_id = ?
+        GROUP BY topic_id
+      ) rp ON rp.topic_id = t.id
+      WHERE ${isGeneral ? 's.campagne_id IS NULL' : 's.campagne_id = ?'}
       ORDER BY t.stickable DESC, t.ordre ASC, t.id DESC
     `;
 
@@ -100,7 +109,10 @@ export class MysqlForumRepository implements IForumRepository {
       postsCount: number;
     }
 
-    const topicRows = await query<RawTopicRow>(topicsSql, [userId ?? 0, campaignId]);
+    const topicRows = await query<RawTopicRow>(
+      topicsSql,
+      isGeneral ? [userId ?? 0] : [userId ?? 0, campaignId]
+    );
 
     const topicsBySection = new Map<number, ForumTopicSummary[]>();
 
@@ -225,7 +237,12 @@ export class MysqlForumRepository implements IForumRepository {
       FROM posts p
       LEFT JOIN user u ON p.user_id = u.id
       LEFT JOIN personnages perso ON p.perso_id = perso.id
-      LEFT JOIN read_post rp ON rp.topic_id = p.topic_id AND rp.user_id = ?
+      LEFT JOIN (
+        SELECT topic_id, MAX(post_id) AS post_id
+        FROM read_post
+        WHERE topic_id = ? AND user_id = ?
+        GROUP BY topic_id
+      ) rp ON rp.topic_id = p.topic_id
       WHERE p.topic_id = ?
       ORDER BY p.id ASC
       LIMIT ? OFFSET ?
@@ -250,7 +267,7 @@ export class MysqlForumRepository implements IForumRepository {
       userLastReadPostId: number | null;
     }
 
-    const rows = await query<RawPostRow>(sql, [userId ?? 0, topicId, limit, offset]);
+    const rows = await query<RawPostRow>(sql, [topicId, userId ?? 0, topicId, limit, offset]);
 
     return rows.map((row) => {
       const isRead = userId
@@ -291,18 +308,17 @@ export class MysqlForumRepository implements IForumRepository {
 
   async getUserLastReadPostId(topicId: number, userId: number): Promise<number | null> {
     const sql = `
-      SELECT post_id AS postId
+      SELECT MAX(post_id) AS postId
       FROM read_post
       WHERE topic_id = ? AND user_id = ?
-      LIMIT 1
     `;
 
     interface ReadPostRow {
-      postId: number;
+      postId: number | null;
     }
 
     const row = await queryOne<ReadPostRow>(sql, [topicId, userId]);
-    return row ? row.postId : null;
+    return row && row.postId !== null ? Number(row.postId) : null;
   }
 
   async countPostsAfterPostId(topicId: number, postId: number): Promise<number> {
@@ -342,7 +358,12 @@ export class MysqlForumRepository implements IForumRepository {
       FROM posts p
       LEFT JOIN user u ON p.user_id = u.id
       LEFT JOIN personnages perso ON p.perso_id = perso.id
-      LEFT JOIN read_post rp ON rp.topic_id = p.topic_id AND rp.user_id = ?
+      LEFT JOIN (
+        SELECT topic_id, MAX(post_id) AS post_id
+        FROM read_post
+        WHERE user_id = ?
+        GROUP BY topic_id
+      ) rp ON rp.topic_id = p.topic_id
       WHERE p.id = ?
     `;
 
@@ -437,19 +458,33 @@ export class MysqlForumRepository implements IForumRepository {
       SELECT post_id AS postId
       FROM read_post
       WHERE topic_id = ? AND user_id = ?
-      LIMIT 1
     `;
 
-    const existing = await queryOne<{ postId: number }>(checkSql, [topicId, userId]);
+    interface ReadPostCheckRow {
+      postId: number;
+    }
 
-    if (existing) {
-      if (postId > existing.postId) {
-        const updateSql = `
-          UPDATE read_post
-          SET post_id = ?
-          WHERE topic_id = ? AND user_id = ?
-        `;
-        await execute(updateSql, [postId, topicId, userId]);
+    const existingRows = await query<ReadPostCheckRow>(checkSql, [topicId, userId]);
+
+    if (existingRows.length > 0) {
+      const maxExisting = Math.max(...existingRows.map((r) => r.postId));
+      const targetPostId = Math.max(maxExisting, postId);
+
+      if (existingRows.length > 1) {
+        // Nettoyer les doublons résiduels s'il y en avait
+        await execute(
+          `DELETE FROM read_post WHERE topic_id = ? AND user_id = ?`,
+          [topicId, userId]
+        );
+        await execute(
+          `INSERT INTO read_post (topic_id, user_id, post_id) VALUES (?, ?, ?)`,
+          [topicId, userId, targetPostId]
+        );
+      } else if (targetPostId > existingRows[0].postId) {
+        await execute(
+          `UPDATE read_post SET post_id = ? WHERE topic_id = ? AND user_id = ?`,
+          [targetPostId, topicId, userId]
+        );
       }
     } else {
       const insertSql = `

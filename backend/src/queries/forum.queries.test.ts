@@ -162,7 +162,7 @@ class MockForumRepository implements IForumRepository {
     this.lastReadPostId = lastReadPostId;
   }
 
-  async findSectionsByCampaignId(campaignId: number, _userId?: number): Promise<ForumSectionSummary[]> {
+  async findSectionsByCampaignId(campaignId: number | null, _userId?: number): Promise<ForumSectionSummary[]> {
     return this.sections.filter((s) => s.campagneId === campaignId);
   }
 
@@ -444,5 +444,75 @@ describe('ForumQueries', () => {
     assert.equal(result.canPost, false);
     assert.equal(result.userRole, null);
     assert.equal(result.availableCharacters.length, 0);
+  });
+
+  it('should return general forum sections when getGeneralForum is called', async () => {
+    const generalSections: ForumSectionSummary[] = [
+      {
+        id: 100,
+        campagneId: null,
+        title: 'Taverne & Annonces',
+        ordre: 1,
+        defaultCollapse: false,
+        banniere: '',
+        topics: [
+          {
+            id: 201,
+            sectionId: 100,
+            title: 'Bienvenue sur JdRoll 2.0',
+            stickable: true,
+            isPrivate: false,
+            isClosed: false,
+            ordre: 1,
+            postsCount: 3,
+            lastPost: {
+              id: 99,
+              createDate: '2026-09-13T10:00:00.000Z',
+              userId: 1,
+              username: 'admin',
+            },
+            isRead: true,
+          },
+        ],
+      },
+    ];
+
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(generalSections, mockTopic, 5, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getGeneralForum(1);
+
+    assert.equal(result.sections.length, 1);
+    assert.equal(result.sections[0].id, 100);
+    assert.equal(result.sections[0].campagneId, null);
+    assert.equal(result.sections[0].topics.length, 1);
+    assert.equal(result.sections[0].topics[0].title, 'Bienvenue sur JdRoll 2.0');
+  });
+
+  it('should allow any authenticated user to post in general forum without characters', async () => {
+    const generalTopic: RawTopicDetail = {
+      id: 201,
+      sectionId: 100,
+      sectionTitle: 'Taverne & Annonces',
+      campagneId: null,
+      campaignTitle: null,
+      title: 'Bienvenue sur JdRoll 2.0',
+      stickable: 1,
+      isPrivate: 0,
+      isClosed: 0,
+      ordre: 1,
+    };
+
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository([], generalTopic, 5, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(201, 1, 999); // Any user 999
+
+    assert.equal(result.canPost, true);
+    assert.equal(result.userRole, 'user');
+    assert.equal(result.availableCharacters.length, 0);
+    assert.equal(result.campaignTitle, 'Forum Général');
   });
 });

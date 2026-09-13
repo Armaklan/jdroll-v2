@@ -84,7 +84,7 @@ export interface ForumTopicSummary {
 
 export interface ForumSectionSummary {
   id: number;
-  campagneId: number;
+  campagneId: number | null;
   title: string;
   ordre: number;
   defaultCollapse: boolean;
@@ -94,6 +94,10 @@ export interface ForumSectionSummary {
 
 export interface CampaignForumData {
   campaign: CampaignSummary;
+  sections: ForumSectionSummary[];
+}
+
+export interface GeneralForumData {
   sections: ForumSectionSummary[];
 }
 

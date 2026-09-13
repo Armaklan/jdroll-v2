@@ -116,6 +116,28 @@ export class CampaignController {
   }
 
   /**
+   * GET /api/forum
+   * Récupère le forum général avec ses sections et topics (et l'état de lecture selon l'utilisateur)
+   */
+  async getGeneralForum(request: FastifyRequest, reply: FastifyReply) {
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      // Utilisateur non connecté / invité
+    }
+
+    try {
+      const data = await this.forumQueryService.getGeneralForum(userId);
+      return reply.status(200).send(data);
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération du forum général' });
+    }
+  }
+
+  /**
    * GET /api/campaigns/:id/forum
    * Récupère le forum d'une campagne avec ses sections et topics (et l'état de lecture selon l'utilisateur)
    */
@@ -260,6 +282,9 @@ export class CampaignController {
       { preHandler: [app.authenticate] },
       (req, rep) => this.getMyCampaigns(req, rep)
     );
+
+    // Route pour voir le forum général (accessible public avec statut de lecture si connecté)
+    app.get('/api/forum', (req, rep) => this.getGeneralForum(req, rep));
 
     // Route pour voir le forum d'une campagne (accessible public avec statut de lecture si connecté)
     app.get('/api/campaigns/:id/forum', (req, rep) => this.getCampaignForum(req, rep));

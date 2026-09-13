@@ -1,6 +1,6 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
-import { CampaignForumData, TopicDetail, CharacterSummary } from '../types/index.js';
+import { CampaignForumData, GeneralForumData, TopicDetail, CharacterSummary } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
 
 export class ForumQueries {
@@ -8,6 +8,17 @@ export class ForumQueries {
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
     private readonly forumRepo: IForumRepository = forumRepository
   ) {}
+
+  /**
+   * Récupère les données complètes du forum général (sections avec campagne_id IS NULL et topics avec statut de lecture)
+   */
+  async getGeneralForum(userId?: number): Promise<GeneralForumData> {
+    const sections = await this.forumRepo.findSectionsByCampaignId(null, userId);
+
+    return {
+      sections,
+    };
+  }
 
   /**
    * Récupère les données complètes du forum d'une campagne (détails de la campagne, sections et topics avec statut de lecture)

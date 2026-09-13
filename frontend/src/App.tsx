@@ -7,6 +7,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { MyCampaignsPage } from './pages/MyCampaignsPage';
 import { AllCampaignsPage } from './pages/AllCampaignsPage';
 import { CampaignForumPage } from './pages/CampaignForumPage';
+import { GeneralForumPage } from './pages/GeneralForumPage';
 import { TopicViewPage } from './pages/TopicViewPage';
 import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
 import {
@@ -14,7 +15,6 @@ import {
   MessagesSquare,
   Sparkles,
   HelpCircle,
-  MessageCircle,
 } from 'lucide-react';
 
 export function AppContent() {
@@ -22,6 +22,7 @@ export function AppContent() {
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
   const [selectedTopicId, setSelectedTopicId] = useState<number | null>(null);
   const [previousCampaignView, setPreviousCampaignView] = useState<AppView>('my-campaigns');
+  const [previousForumView, setPreviousForumView] = useState<'campaign-forum' | 'forum'>('campaign-forum');
 
   const handleOpenCampaignForum = (campaignId: number, fromView: AppView = 'my-campaigns') => {
     setSelectedCampaignId(campaignId);
@@ -29,13 +30,14 @@ export function AppContent() {
     setCurrentView('campaign-forum');
   };
 
-  const handleOpenTopic = (topicId: number) => {
+  const handleOpenTopic = (topicId: number, source: 'campaign-forum' | 'forum' = 'campaign-forum') => {
     setSelectedTopicId(topicId);
+    setPreviousForumView(source);
     setCurrentView('topic-view');
   };
 
   const handleBackToForum = () => {
-    setCurrentView('campaign-forum');
+    setCurrentView(previousForumView);
   };
 
   return (
@@ -116,7 +118,7 @@ export function AppContent() {
           <CampaignForumPage
             campaignId={selectedCampaignId}
             onNavigate={(view) => setCurrentView(view)}
-            onSelectTopic={handleOpenTopic}
+            onSelectTopic={(id) => handleOpenTopic(id, 'campaign-forum')}
             onBack={() => setCurrentView(previousCampaignView)}
           />
         )}
@@ -132,12 +134,9 @@ export function AppContent() {
 
         {/* Forum */}
         {currentView === 'forum' && (
-          <SectionPlaceholderPage
-            title="Forum Général"
-            category="Forum"
-            description="Sections de discussions générales, auberge des joueurs, annonces et débats rôlistes."
-            icon={MessageCircle}
-            onNavigateHome={() => setCurrentView('home')}
+          <GeneralForumPage
+            onNavigate={(view) => setCurrentView(view)}
+            onSelectTopic={(id) => handleOpenTopic(id, 'forum')}
           />
         )}
 
