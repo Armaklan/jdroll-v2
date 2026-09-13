@@ -7,9 +7,13 @@ import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/cr
 import { createTopicUseCase, CreateTopicUseCase } from '../usecases/forum/create-topic.usecase.js';
 import { reorderSectionsUseCase, ReorderSectionsUseCase } from '../usecases/forum/reorder-sections.usecase.js';
 import { reorderTopicsUseCase, ReorderTopicsUseCase } from '../usecases/forum/reorder-topics.usecase.js';
+import { createCharacterUseCase, CreateCharacterUseCase } from '../usecases/character/create-character.usecase.js';
+import { updateCharacterUseCase, UpdateCharacterUseCase } from '../usecases/character/update-character.usecase.js';
+import { uploadCharacterAvatarUseCase, UploadCharacterAvatarUseCase } from '../usecases/character/upload-character-avatar.usecase.js';
 import { JWTPayload } from '../types/index.js';
 import {
   CampaignNotFoundError,
+  CharacterNotFoundError,
   TopicNotFoundError,
   SectionNotFoundError,
   TopicClosedError,
@@ -106,6 +110,45 @@ const reorderTopicsBodySchema = z.object({
   ),
 });
 
+const createCharacterParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const createCharacterBodySchema = z.object({
+  name: z.string().min(1, 'Le nom du personnage est requis').max(100, 'Le nom ne peut pas dépasser 100 caractères'),
+  concept: z.string().max(200, 'Le concept ne peut pas dépasser 200 caractères').optional().default(''),
+  avatar: z.string().max(500, "L'URL de l'avatar ne peut pas dépasser 500 caractères").optional().default(''),
+  publicDescription: z.string().optional().default(''),
+  privateDescription: z.string().optional().default(''),
+  technical: z.string().optional().default(''),
+  catId: z.number().nullable().optional().default(null),
+  userId: z.number().nullable().optional().default(null),
+  assignedUserId: z.number().nullable().optional().default(null),
+  statut: z.number().optional().default(0),
+  persoFields: z.string().nullable().optional().default(null),
+  widgets: z.string().optional().default(''),
+});
+
+const updateCharacterParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  campaignId: z.coerce.number().int().positive().optional(),
+});
+
+const updateCharacterBodySchema = z.object({
+  name: z.string().min(1, 'Le nom du personnage est requis').max(100, 'Le nom ne peut pas dépasser 100 caractères').optional(),
+  concept: z.string().max(200, 'Le concept ne peut pas dépasser 200 caractères').optional(),
+  avatar: z.string().max(500, "L'URL de l'avatar ne peut pas dépasser 500 caractères").optional(),
+  publicDescription: z.string().optional(),
+  privateDescription: z.string().optional(),
+  technical: z.string().optional(),
+  catId: z.number().nullable().optional(),
+  userId: z.number().nullable().optional(),
+  assignedUserId: z.number().nullable().optional(),
+  statut: z.number().optional(),
+  persoFields: z.string().nullable().optional(),
+  widgets: z.string().optional(),
+});
+
 export class CampaignController {
   constructor(
     private readonly campaignQueryService: CampaignQueries = campaignQueries,
@@ -114,7 +157,10 @@ export class CampaignController {
     private readonly createSectionUseCaseService: CreateSectionUseCase = createSectionUseCase,
     private readonly createTopicUseCaseService: CreateTopicUseCase = createTopicUseCase,
     private readonly reorderSectionsUseCaseService: ReorderSectionsUseCase = reorderSectionsUseCase,
-    private readonly reorderTopicsUseCaseService: ReorderTopicsUseCase = reorderTopicsUseCase
+    private readonly reorderTopicsUseCaseService: ReorderTopicsUseCase = reorderTopicsUseCase,
+    private readonly createCharacterUseCaseService: CreateCharacterUseCase = createCharacterUseCase,
+    private readonly updateCharacterUseCaseService: UpdateCharacterUseCase = updateCharacterUseCase,
+    private readonly uploadCharacterAvatarUseCaseService: UploadCharacterAvatarUseCase = uploadCharacterAvatarUseCase
   ) {}
 
   /**
@@ -223,6 +269,42 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la récupération du forum de la campagne' });
+    }
+  }
+
+  /**
+   * GET /api/campaigns/:id/characters
+   * Récupère la galerie des personnages d'une campagne avec leurs catégories
+   */
+  async getCampaignCharacters(request: FastifyRequest, reply: FastifyReply) {
+    const parseResult = getCampaignForumParamsSchema.safeParse(request.params);
+
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseResult.error.format(),
+      });
+    }
+
+    const { id: campaignId } = parseResult.data;
+
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      // Utilisateur non connecté / invité
+    }
+
+    try {
+      const data = await this.campaignQueryService.getCampaignCharacters(campaignId, userId);
+      return reply.status(200).send(data);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération des personnages de la campagne' });
     }
   }
 
@@ -522,6 +604,192 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/campaigns/:id/characters
+   * Crée un nouveau personnage dans une campagne (réservé au MJ)
+   */
+  async createCharacter(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = createCharacterParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = createCharacterBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de personnage invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: campagneId } = parseParams.data;
+    const body = parseBody.data;
+
+    try {
+      const character = await this.createCharacterUseCaseService.execute({
+        campagneId,
+        userId: user.id,
+        name: body.name,
+        concept: body.concept,
+        avatar: body.avatar,
+        publicDescription: body.publicDescription,
+        privateDescription: body.privateDescription,
+        technical: body.technical,
+        catId: body.catId,
+        assignedUserId: body.assignedUserId !== undefined ? body.assignedUserId : body.userId,
+        statut: body.statut,
+        persoFields: body.persoFields,
+        widgets: body.widgets,
+      });
+
+      return reply.status(201).send(character);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la création du personnage' });
+    }
+  }
+
+  /**
+   * PUT /api/characters/:id ou PUT /api/campaigns/:campaignId/characters/:id
+   * Met à jour un personnage (par le MJ ou le joueur affecté)
+   */
+  async updateCharacter(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = updateCharacterParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de personnage invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = updateCharacterBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de modification du personnage invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: characterId } = parseParams.data;
+    const body = parseBody.data;
+
+    try {
+      const character = await this.updateCharacterUseCaseService.execute({
+        characterId,
+        userId: user.id,
+        name: body.name,
+        concept: body.concept,
+        avatar: body.avatar,
+        publicDescription: body.publicDescription,
+        privateDescription: body.privateDescription,
+        technical: body.technical,
+        catId: body.catId,
+        assignedUserId: body.assignedUserId !== undefined ? body.assignedUserId : body.userId,
+        statut: body.statut,
+        persoFields: body.persoFields,
+        widgets: body.widgets,
+      });
+
+      return reply.status(200).send(character);
+    } catch (error) {
+      if (error instanceof CharacterNotFoundError || error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la mise à jour du personnage' });
+    }
+  }
+
+  /**
+   * GET /api/campaigns/:id/participants
+   * Récupère la liste des participants d'une campagne
+   */
+  async getCampaignParticipants(request: FastifyRequest, reply: FastifyReply) {
+    const parseResult = getCampaignForumParamsSchema.safeParse(request.params);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseResult.error.format(),
+      });
+    }
+
+    const { id: campaignId } = parseResult.data;
+
+    try {
+      const participants = await this.campaignQueryService.getCampaignParticipants(campaignId);
+      return reply.status(200).send({ participants });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération des participants' });
+    }
+  }
+
+  /**
+   * POST /api/campaigns/:id/characters/upload-avatar
+   * Téléverser une image de portrait pour un personnage de la campagne
+   */
+  async uploadCharacterAvatar(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const user = request.user as JWTPayload;
+      const paramsSchema = z.object({ id: z.coerce.number().int().positive() });
+      const { id: campaignId } = paramsSchema.parse(request.params);
+
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ error: 'Aucun fichier fourni' });
+      }
+
+      const buffer = await file.toBuffer();
+      const result = await this.uploadCharacterAvatarUseCaseService.execute({
+        campagneId: campaignId,
+        userId: user.id,
+        filename: file.filename,
+        mimetype: file.mimetype,
+        content: buffer,
+      });
+
+      return reply.status(201).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: error.errors[0]?.message || 'Données invalides' });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors du téléversement du portrait' });
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur
    */
   registerRoutes(app: FastifyInstance) {
@@ -540,6 +808,54 @@ export class CampaignController {
 
     // Route pour voir le forum d'une campagne (accessible public avec statut de lecture si connecté)
     app.get('/api/campaigns/:id/forum', (req, rep) => this.getCampaignForum(req, rep));
+
+    // Route pour voir la galerie des personnages d'une campagne
+    app.get('/api/campaigns/:id/characters', (req, rep) => this.getCampaignCharacters(req, rep));
+    app.get('/api/campaigns/:id/gallery', (req, rep) => this.getCampaignCharacters(req, rep));
+
+    // Route pour voir les participants d'une campagne
+    app.get('/api/campaigns/:id/participants', (req, rep) => this.getCampaignParticipants(req, rep));
+
+    // Route authentifiée pour créer un personnage (MJ)
+    app.post(
+      '/api/campaigns/:id/characters',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.createCharacter(req, rep)
+    );
+
+    // Route authentifiée pour téléverser un portrait de personnage
+    app.post(
+      '/api/campaigns/:id/characters/upload-avatar',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.uploadCharacterAvatar(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/upload',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.uploadCharacterAvatar(req, rep)
+    );
+
+    // Routes authentifiées pour modifier un personnage (MJ ou joueur assigné)
+    app.put(
+      '/api/characters/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateCharacter(req, rep)
+    );
+    app.patch(
+      '/api/characters/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateCharacter(req, rep)
+    );
+    app.put(
+      '/api/campaigns/:campaignId/characters/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateCharacter(req, rep)
+    );
+    app.patch(
+      '/api/campaigns/:campaignId/characters/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateCharacter(req, rep)
+    );
 
     // Route pour voir les messages d'un sujet (accessible public avec statut de lecture si connecté)
     app.get('/api/topics/:id', (req, rep) => this.getTopicPosts(req, rep));

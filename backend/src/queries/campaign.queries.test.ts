@@ -2,13 +2,16 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { CampaignQueries } from './campaign.queries.js';
 import { ICampaignRepository } from '../repositories/campaign.repository.js';
-import { CampaignSummary } from '../types/index.js';
+import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow } from '../types/index.js';
+import { CampaignNotFoundError } from '../errors/domain.errors.js';
 
 class MockCampaignRepository implements ICampaignRepository {
   constructor(
     private mastered: CampaignSummary[] = [],
     private player: CampaignSummary[] = [],
-    private allCampaigns: CampaignSummary[] = []
+    private allCampaigns: CampaignSummary[] = [],
+    private characters: RawCampaignCharacterRow[] = [],
+    private categories: RawPnjCategoryRow[] = []
   ) {}
 
   async findMasteredCampaigns(userId: number, includeArchived: boolean = false): Promise<CampaignSummary[]> {
@@ -39,6 +42,28 @@ class MockCampaignRepository implements ICampaignRepository {
   async findById(id: number): Promise<CampaignSummary | null> {
     const all = [...this.mastered, ...this.player, ...this.allCampaigns];
     return all.find((c) => c.id === id) || null;
+  }
+
+  async findCampaignCharacters(campaignId: number): Promise<RawCampaignCharacterRow[]> {
+    return this.characters.filter((char) => char.campagneId === campaignId);
+  }
+
+  async findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]> {
+    return this.categories.filter((cat) => cat.campagneId === campaignId);
+  }
+
+  async findCharacterById(id: number): Promise<RawCampaignCharacterRow | null> {
+    return this.characters.find((char) => char.id === id) || null;
+  }
+
+  async createCharacter(character: any): Promise<number> {
+    return 1;
+  }
+
+  async updateCharacter(id: number, character: any): Promise<void> {}
+
+  async findCampaignParticipants(campaignId: number): Promise<any[]> {
+    return [];
   }
 }
 
@@ -206,5 +231,161 @@ describe('CampaignQueries', () => {
     // Search with no match
     const res4 = await queries.getAllCampaigns(true, 'Inexistant');
     assert.equal(res4.length, 0);
+  });
+
+  describe('getCampaignCharacters', () => {
+    const campaign1: CampaignSummary = {
+      id: 1,
+      name: 'La Malédiction de Strahd',
+      mjId: 1,
+      mjUsername: 'admin',
+      nbJoueurs: 4,
+      nbJoueursActuel: 2,
+      banniere: '',
+      systeme: 'D&D 5e',
+      univers: 'Ravenloft',
+      description: 'Test',
+      statut: 0,
+      isArchived: false,
+      isRecrutementOpen: true,
+    };
+
+    const categories: RawPnjCategoryRow[] = [
+      { id: 10, campagneId: 1, name: 'Noblesse de Barovie', defaultCollapse: 0 },
+      { id: 20, campagneId: 1, name: 'Ordre de la Plume', defaultCollapse: 1 },
+    ];
+
+    const characters: RawCampaignCharacterRow[] = [
+      {
+        id: 1,
+        userId: 2,
+        userName: 'joueur1',
+        userAvatar: '',
+        campagneId: 1,
+        name: 'Kaelen',
+        concept: 'Mage de bataille',
+        avatar: 'http://avatar1.png',
+        publicDescription: 'Mage discret',
+        privateDescription: 'Secret de mage',
+        technical: 'Niveau 5',
+        statut: 0,
+        catId: null,
+        categoryName: null,
+        persoFields: null,
+        widgets: null,
+      },
+      {
+        id: 2,
+        userId: null,
+        userName: null,
+        userAvatar: null,
+        campagneId: 1,
+        name: 'Strahd von Zarovich',
+        concept: 'Seigneur vampire',
+        avatar: 'http://strahd.png',
+        publicDescription: 'Maitre des lieux',
+        privateDescription: 'Faiblesses du vampire',
+        technical: 'CR 15',
+        statut: 0,
+        catId: 10,
+        categoryName: 'Noblesse de Barovie',
+        persoFields: null,
+        widgets: null,
+      },
+      {
+        id: 3,
+        userId: null,
+        userName: null,
+        userAvatar: null,
+        campagneId: 1,
+        name: 'Aubergiste Danovich',
+        concept: 'Commerçant jovial',
+        avatar: '',
+        publicDescription: 'Tient la taverne',
+        privateDescription: 'Informateur secret',
+        technical: '',
+        statut: 0,
+        catId: null,
+        categoryName: null,
+        persoFields: null,
+        widgets: null,
+      },
+    ];
+
+    it('should throw CampaignNotFoundError when campaign does not exist', async () => {
+      const repo = new MockCampaignRepository();
+      const queries = new CampaignQueries(repo);
+      await assert.rejects(
+        async () => {
+          await queries.getCampaignCharacters(999);
+        },
+        (err: any) => {
+          assert.ok(err instanceof CampaignNotFoundError);
+          return true;
+        }
+      );
+    });
+
+    it('should classify characters by category: custom category, "Personnage joueur" for PJ without category, "Non classées" for PNJ without category', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], characters, categories);
+      const queries = new CampaignQueries(repo);
+
+      const data = await queries.getCampaignCharacters(1, 1); // User 1 is MJ
+      assert.equal(data.campaign.name, 'La Malédiction de Strahd');
+      assert.equal(data.campaign.userRole, 'mj');
+
+      // Categories should have:
+      // 1. Noblesse de Barovie (with Strahd)
+      // 2. Ordre de la Plume (0 characters)
+      // 3. Personnage joueur (with Kaelen)
+      // 4. Non classées (with Danovich)
+      assert.equal(data.categories.length, 4);
+
+      const catNoblesse = data.categories.find((c) => c.name === 'Noblesse de Barovie');
+      assert.ok(catNoblesse);
+      assert.equal(catNoblesse.characters.length, 1);
+      assert.equal(catNoblesse.characters[0].name, 'Strahd von Zarovich');
+      assert.equal(catNoblesse.characters[0].concept, 'Seigneur vampire');
+      assert.equal(catNoblesse.characters[0].isPlayer, false);
+      // MJ can see privateDescription
+      assert.equal(catNoblesse.characters[0].privateDescription, 'Faiblesses du vampire');
+
+      const catPJ = data.categories.find((c) => c.name === 'Personnage joueur');
+      assert.ok(catPJ);
+      assert.equal(catPJ.characters.length, 1);
+      assert.equal(catPJ.characters[0].name, 'Kaelen');
+      assert.equal(catPJ.characters[0].isPlayer, true);
+      assert.equal(catPJ.characters[0].userName, 'joueur1');
+
+      const catNonClasses = data.categories.find((c) => c.name === 'Non classées');
+      assert.ok(catNonClasses);
+      assert.equal(catNonClasses.characters.length, 1);
+      assert.equal(catNonClasses.characters[0].name, 'Aubergiste Danovich');
+      assert.equal(catNonClasses.characters[0].isPlayer, false);
+    });
+
+    it('should hide private description for users who are not GM and not character owner', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], characters, categories);
+      const queries = new CampaignQueries(repo);
+
+      const data = await queries.getCampaignCharacters(1, 99); // Another user
+      const catPJ = data.categories.find((c) => c.name === 'Personnage joueur')!;
+      assert.equal(catPJ.characters[0].privateDescription, undefined);
+
+      const catNoblesse = data.categories.find((c) => c.name === 'Noblesse de Barovie')!;
+      assert.equal(catNoblesse.characters[0].privateDescription, undefined);
+    });
+
+    it('should reveal private description to the character owner', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], characters, categories);
+      const queries = new CampaignQueries(repo);
+
+      const data = await queries.getCampaignCharacters(1, 2); // User 2 is Kaelen's owner
+      const catPJ = data.categories.find((c) => c.name === 'Personnage joueur')!;
+      assert.equal(catPJ.characters[0].privateDescription, 'Secret de mage');
+
+      const catNoblesse = data.categories.find((c) => c.name === 'Noblesse de Barovie')!;
+      assert.equal(catNoblesse.characters[0].privateDescription, undefined);
+    });
   });
 });

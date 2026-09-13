@@ -1,5 +1,12 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
-import { CampaignSummary, CampaignRole } from '../types/index.js';
+import {
+  CampaignSummary,
+  CampaignRole,
+  CampaignCharactersData,
+  CampaignCharacterCategory,
+  CampaignCharacter,
+} from '../types/index.js';
+import { CampaignNotFoundError } from '../errors/domain.errors.js';
 
 export class CampaignQueries {
   constructor(private readonly campaignRepo: ICampaignRepository = campaignRepository) {}
@@ -33,6 +40,125 @@ export class CampaignQueries {
    */
   async getAllCampaigns(includeArchived: boolean = false, search?: string): Promise<CampaignSummary[]> {
     return this.campaignRepo.findAllCampaigns({ includeArchived, search });
+  }
+
+  /**
+   * Récupère la galerie des personnages d'une campagne classés par catégorie
+   */
+  async getCampaignCharacters(campaignId: number, currentUserId?: number): Promise<CampaignCharactersData> {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) {
+      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
+    }
+
+    const isMj = Boolean(currentUserId && campaign.mjId === currentUserId);
+    const rawCategories = await this.campaignRepo.findCampaignPnjCategories(campaignId);
+    const rawCharacters = await this.campaignRepo.findCampaignCharacters(campaignId);
+
+    const categoryMap = new Map<number, { id: number; name: string; defaultCollapse: boolean; characters: CampaignCharacter[] }>();
+    for (const cat of rawCategories) {
+      categoryMap.set(cat.id, {
+        id: cat.id,
+        name: cat.name,
+        defaultCollapse: Boolean(cat.defaultCollapse),
+        characters: [],
+      });
+    }
+
+    const playerCharacters: CampaignCharacter[] = [];
+    const uncategorizedPnj: CampaignCharacter[] = [];
+
+    for (const raw of rawCharacters) {
+      const isPlayer = raw.userId !== null && raw.userId !== undefined;
+      const isOwner = Boolean(currentUserId && raw.userId === currentUserId);
+      const canSeePrivate = isMj || isOwner;
+
+      const character: CampaignCharacter = {
+        id: raw.id,
+        userId: raw.userId,
+        userName: raw.userName || null,
+        userAvatar: raw.userAvatar || null,
+        campagneId: raw.campagneId,
+        name: raw.name,
+        concept: raw.concept || '',
+        avatar: raw.avatar || '',
+        publicDescription: raw.publicDescription || '',
+        privateDescription: canSeePrivate ? (raw.privateDescription || '') : undefined,
+        technical: canSeePrivate ? (raw.technical || '') : undefined,
+        statut: raw.statut,
+        catId: raw.catId,
+        categoryName: '',
+        isPlayer,
+        persoFields: raw.persoFields,
+        widgets: raw.widgets,
+      };
+
+      if (raw.catId && categoryMap.has(raw.catId)) {
+        const cat = categoryMap.get(raw.catId)!;
+        character.categoryName = cat.name;
+        cat.characters.push(character);
+      } else if (isPlayer) {
+        character.categoryName = 'Personnage joueur';
+        playerCharacters.push(character);
+      } else {
+        character.categoryName = 'Non classées';
+        uncategorizedPnj.push(character);
+      }
+    }
+
+    const categories: CampaignCharacterCategory[] = [];
+
+    // 1. Defined categories from pnj_category
+    for (const cat of rawCategories) {
+      const entry = categoryMap.get(cat.id);
+      if (entry) {
+        categories.push({
+          id: entry.id,
+          name: entry.name,
+          defaultCollapse: entry.defaultCollapse,
+          characters: entry.characters,
+        });
+      }
+    }
+
+    // 2. "Personnage joueur" category if there are player characters
+    if (playerCharacters.length > 0) {
+      categories.push({
+        id: null,
+        name: 'Personnage joueur',
+        defaultCollapse: false,
+        characters: playerCharacters,
+      });
+    }
+
+    // 3. "Non classées" category if there are uncategorized NPCs
+    if (uncategorizedPnj.length > 0) {
+      categories.push({
+        id: null,
+        name: 'Non classées',
+        defaultCollapse: false,
+        characters: uncategorizedPnj,
+      });
+    }
+
+    return {
+      campaign: {
+        ...campaign,
+        userRole: isMj ? 'mj' : campaign.userRole,
+      },
+      categories,
+    };
+  }
+
+  /**
+   * Récupère les participants (joueurs) d'une campagne
+   */
+  async getCampaignParticipants(campaignId: number) {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) {
+      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
+    }
+    return this.campaignRepo.findCampaignParticipants(campaignId);
   }
 }
 

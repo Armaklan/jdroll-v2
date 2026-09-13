@@ -1,4 +1,15 @@
-import { CampaignSummary, CampaignRole, CampaignForumData, GeneralForumData, TopicDetail } from '../types/campaign';
+import {
+  CampaignSummary,
+  CampaignRole,
+  CampaignForumData,
+  GeneralForumData,
+  TopicDetail,
+  CampaignCharactersData,
+  CampaignParticipant,
+  CreateCharacterPayload,
+  UpdateCharacterPayload,
+  CampaignCharacter,
+} from '../types/campaign';
 import { getToken } from './auth';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -55,6 +66,59 @@ export const campaignsApi = {
 
   async getCampaignForum(campaignId: number): Promise<CampaignForumData> {
     return request<CampaignForumData>(`/api/campaigns/${campaignId}/forum`);
+  },
+
+  async getCampaignCharacters(campaignId: number): Promise<CampaignCharactersData> {
+    return request<CampaignCharactersData>(`/api/campaigns/${campaignId}/characters`);
+  },
+
+  async getCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]> {
+    const result = await request<{ participants: CampaignParticipant[] }>(`/api/campaigns/${campaignId}/participants`);
+    return result.participants;
+  },
+
+  async createCharacter(campaignId: number, payload: CreateCharacterPayload): Promise<CampaignCharacter> {
+    return request<CampaignCharacter>(`/api/campaigns/${campaignId}/characters`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateCharacter(characterId: number, payload: UpdateCharacterPayload, campaignId?: number): Promise<CampaignCharacter> {
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/characters/${characterId}` : `/api/characters/${characterId}`;
+    return request<CampaignCharacter>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async uploadCampaignImage(campaignId: number, file: File): Promise<{ url: string; filename: string }> {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`/api/campaigns/${campaignId}/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Erreur lors du téléversement (${response.status})`);
+    }
+
+    return data as { url: string; filename: string };
+  },
+
+  async uploadCharacterAvatar(campaignId: number, file: File): Promise<{ url: string; filename: string }> {
+    return this.uploadCampaignImage(campaignId, file);
   },
 
   async getTopicPosts(topicId: number, page?: number): Promise<TopicDetail> {

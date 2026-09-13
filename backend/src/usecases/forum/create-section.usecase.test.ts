@@ -44,6 +44,12 @@ describe('CreateSectionUseCase', () => {
         if (id === 1) return { ...mockCampaign };
         return null;
       },
+      findCampaignCharacters: async () => [],
+      findCampaignPnjCategories: async () => [],
+      findCharacterById: async () => null,
+      createCharacter: async () => 1,
+      updateCharacter: async () => {},
+      findCampaignParticipants: async () => [],
     };
 
     mockForumRepo = {

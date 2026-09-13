@@ -1,6 +1,10 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
+import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
+import fs from 'node:fs';
+import { getFilesDirectory } from './storage/file-storage.js';
 import { registerAuthPlugin } from './plugins/auth.plugin.js';
 import { authRoutes } from './controllers/auth.controller.js';
 import { campaignRoutes } from './controllers/campaign.controller.js';
@@ -18,6 +22,23 @@ export async function buildApp() {
     credentials: true,
   });
   await app.register(sensible);
+  await app.register(multipart, {
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10 Mo
+    },
+  });
+
+  const filesDir = getFilesDirectory();
+  if (!fs.existsSync(filesDir)) {
+    fs.mkdirSync(filesDir, { recursive: true });
+  }
+
+  await app.register(fastifyStatic, {
+    root: filesDir,
+    prefix: '/files/',
+    decorateReply: false,
+  });
+
   await registerAuthPlugin(app);
 
   // Health check

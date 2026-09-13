@@ -8,6 +8,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { MyCampaignsPage } from './pages/MyCampaignsPage';
 import { AllCampaignsPage } from './pages/AllCampaignsPage';
 import { CampaignForumPage } from './pages/CampaignForumPage';
+import { CampaignCharactersPage } from './pages/CampaignCharactersPage';
 import { GeneralForumPage } from './pages/GeneralForumPage';
 import { TopicViewPage } from './pages/TopicViewPage';
 import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
@@ -94,6 +95,8 @@ export function AppContent() {
           <Route path="/campaigns" element={<Navigate to="/all-campaigns" replace />} />
           <Route path="/campaigns/:campaignId" element={<CampaignForumPage />} />
           <Route path="/campaign-forum/:campaignId" element={<CampaignForumPage />} />
+          <Route path="/campaigns/:campaignId/characters" element={<CampaignCharactersPage />} />
+          <Route path="/campaigns/:campaignId/gallery" element={<CampaignCharactersPage />} />
 
           {/* Forum & Topics */}
           <Route path="/topics/:topicId" element={<TopicViewPage />} />

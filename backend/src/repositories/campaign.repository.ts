@@ -1,11 +1,45 @@
-import { query } from '../db/mysql.js';
-import { CampaignSummary } from '../types/index.js';
+import { query, queryOne, execute } from '../db/mysql.js';
+import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow, CampaignParticipant } from '../types/index.js';
 
 export interface ICampaignRepository {
   findMasteredCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findPlayerCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findAllCampaigns(options?: { includeArchived?: boolean; search?: string }): Promise<CampaignSummary[]>;
   findById(id: number): Promise<CampaignSummary | null>;
+  findCampaignCharacters(campaignId: number): Promise<RawCampaignCharacterRow[]>;
+  findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]>;
+  findCharacterById(id: number): Promise<RawCampaignCharacterRow | null>;
+  createCharacter(character: {
+    campagneId: number;
+    userId: number | null;
+    name: string;
+    concept: string;
+    avatar: string;
+    publicDescription: string;
+    privateDescription: string;
+    technical: string;
+    statut: number;
+    catId: number | null;
+    persoFields?: string | null;
+    widgets?: string;
+  }): Promise<number>;
+  updateCharacter(
+    id: number,
+    character: Partial<{
+      userId: number | null;
+      name: string;
+      concept: string;
+      avatar: string;
+      publicDescription: string;
+      privateDescription: string;
+      technical: string;
+      statut: number;
+      catId: number | null;
+      persoFields: string | null;
+      widgets: string;
+    }>
+  ): Promise<void>;
+  findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]>;
 }
 
 export class MysqlCampaignRepository implements ICampaignRepository {
@@ -433,6 +467,214 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       linkColor: row.linkColor || null,
       linkSidebarColor: row.linkSidebarColor || null,
     };
+  }
+
+  async findCampaignCharacters(campaignId: number): Promise<RawCampaignCharacterRow[]> {
+    const sql = `
+      SELECT 
+        p.id,
+        p.user_id AS userId,
+        u.username AS userName,
+        u.avatar AS userAvatar,
+        p.campagne_id AS campagneId,
+        p.name,
+        p.concept,
+        p.avatar,
+        p.publicDescription,
+        p.privateDescription,
+        p.technical,
+        p.statut,
+        p.cat_id AS catId,
+        c.name AS categoryName,
+        p.perso_fields AS persoFields,
+        p.widgets
+      FROM personnages p
+      LEFT JOIN user u ON p.user_id = u.id
+      LEFT JOIN pnj_category c ON p.cat_id = c.id
+      WHERE p.campagne_id = ?
+      ORDER BY p.name ASC
+    `;
+
+    return query<RawCampaignCharacterRow>(sql, [campaignId]);
+  }
+
+  async findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]> {
+    const sql = `
+      SELECT 
+        id,
+        campagne_id AS campagneId,
+        name,
+        default_collapse AS defaultCollapse
+      FROM pnj_category
+      WHERE campagne_id = ?
+      ORDER BY id ASC
+    `;
+
+    return query<RawPnjCategoryRow>(sql, [campaignId]);
+  }
+
+  async findCharacterById(id: number): Promise<RawCampaignCharacterRow | null> {
+    const sql = `
+      SELECT 
+        p.id,
+        p.user_id AS userId,
+        u.username AS userName,
+        u.avatar AS userAvatar,
+        p.campagne_id AS campagneId,
+        p.name,
+        p.concept,
+        p.avatar,
+        p.publicDescription,
+        p.privateDescription,
+        p.technical,
+        p.statut,
+        p.cat_id AS catId,
+        c.name AS categoryName,
+        p.perso_fields AS persoFields,
+        p.widgets
+      FROM personnages p
+      LEFT JOIN user u ON p.user_id = u.id
+      LEFT JOIN pnj_category c ON p.cat_id = c.id
+      WHERE p.id = ?
+      LIMIT 1
+    `;
+
+    return queryOne<RawCampaignCharacterRow>(sql, [id]);
+  }
+
+  async createCharacter(character: {
+    campagneId: number;
+    userId: number | null;
+    name: string;
+    concept: string;
+    avatar: string;
+    publicDescription: string;
+    privateDescription: string;
+    technical: string;
+    statut: number;
+    catId: number | null;
+    persoFields?: string | null;
+    widgets?: string;
+  }): Promise<number> {
+    const sql = `
+      INSERT INTO personnages (
+        campagne_id,
+        user_id,
+        name,
+        concept,
+        avatar,
+        publicDescription,
+        privateDescription,
+        technical,
+        statut,
+        cat_id,
+        perso_fields,
+        widgets
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const result = await execute(sql, [
+      character.campagneId,
+      character.userId,
+      character.name,
+      character.concept,
+      character.avatar,
+      character.publicDescription,
+      character.privateDescription,
+      character.technical,
+      character.statut,
+      character.catId,
+      character.persoFields ?? null,
+      character.widgets ?? '',
+    ]);
+
+    return result.insertId;
+  }
+
+  async updateCharacter(
+    id: number,
+    character: Partial<{
+      userId: number | null;
+      name: string;
+      concept: string;
+      avatar: string;
+      publicDescription: string;
+      privateDescription: string;
+      technical: string;
+      statut: number;
+      catId: number | null;
+      persoFields: string | null;
+      widgets: string;
+    }>
+  ): Promise<void> {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (character.userId !== undefined) {
+      fields.push('user_id = ?');
+      values.push(character.userId);
+    }
+    if (character.name !== undefined) {
+      fields.push('name = ?');
+      values.push(character.name);
+    }
+    if (character.concept !== undefined) {
+      fields.push('concept = ?');
+      values.push(character.concept);
+    }
+    if (character.avatar !== undefined) {
+      fields.push('avatar = ?');
+      values.push(character.avatar);
+    }
+    if (character.publicDescription !== undefined) {
+      fields.push('publicDescription = ?');
+      values.push(character.publicDescription);
+    }
+    if (character.privateDescription !== undefined) {
+      fields.push('privateDescription = ?');
+      values.push(character.privateDescription);
+    }
+    if (character.technical !== undefined) {
+      fields.push('technical = ?');
+      values.push(character.technical);
+    }
+    if (character.statut !== undefined) {
+      fields.push('statut = ?');
+      values.push(character.statut);
+    }
+    if (character.catId !== undefined) {
+      fields.push('cat_id = ?');
+      values.push(character.catId);
+    }
+    if (character.persoFields !== undefined) {
+      fields.push('perso_fields = ?');
+      values.push(character.persoFields);
+    }
+    if (character.widgets !== undefined) {
+      fields.push('widgets = ?');
+      values.push(character.widgets);
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
+    const sql = `UPDATE personnages SET ${fields.join(', ')} WHERE id = ?`;
+    await execute(sql, values);
+  }
+
+  async findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]> {
+    const sql = `
+      SELECT 
+        u.id,
+        u.username,
+        u.avatar
+      FROM campagne_participant cp
+      JOIN user u ON cp.user_id = u.id
+      WHERE cp.campagne_id = ?
+      ORDER BY u.username ASC
+    `;
+
+    return query<CampaignParticipant>(sql, [campaignId]);
   }
 }
 

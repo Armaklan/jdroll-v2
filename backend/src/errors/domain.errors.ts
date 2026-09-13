@@ -35,6 +35,12 @@ export class TopicNotFoundError extends DomainError {
   }
 }
 
+export class CharacterNotFoundError extends DomainError {
+  constructor(message = 'Personnage introuvable') {
+    super(message);
+  }
+}
+
 export class SectionNotFoundError extends DomainError {
   constructor(message = 'Section introuvable') {
     super(message);

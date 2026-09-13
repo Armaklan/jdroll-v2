@@ -165,6 +165,22 @@ class MockCampaignRepository implements ICampaignRepository {
     }
     return null;
   }
+  async findCampaignCharacters(): Promise<any[]> {
+    return [];
+  }
+  async findCampaignPnjCategories(): Promise<any[]> {
+    return [];
+  }
+  async findCharacterById(): Promise<any> {
+    return null;
+  }
+  async createCharacter(): Promise<number> {
+    return 1;
+  }
+  async updateCharacter(): Promise<void> {}
+  async findCampaignParticipants(): Promise<any[]> {
+    return [];
+  }
 }
 
 class MockForumRepository implements IForumRepository {

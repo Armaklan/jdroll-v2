@@ -110,6 +110,68 @@ export interface CharacterSummary {
   campagneId: number;
 }
 
+export interface CampaignCharacter {
+  id: number;
+  userId: number | null;
+  userName?: string | null;
+  userAvatar?: string | null;
+  campagneId: number;
+  name: string;
+  concept: string;
+  avatar: string;
+  publicDescription: string;
+  privateDescription?: string;
+  technical?: string;
+  statut: number;
+  catId: number | null;
+  categoryName: string;
+  isPlayer: boolean;
+  persoFields?: string | null;
+  widgets?: string | null;
+}
+
+export interface CampaignCharacterCategory {
+  id: number | null;
+  name: string;
+  defaultCollapse: boolean;
+  characters: CampaignCharacter[];
+}
+
+export interface CampaignCharactersData {
+  campaign: CampaignSummary;
+  categories: CampaignCharacterCategory[];
+}
+
+export interface CampaignParticipant {
+  id: number;
+  username: string;
+  avatar: string | null;
+}
+
+export interface CreateCharacterPayload {
+  name: string;
+  concept?: string;
+  avatar?: string;
+  publicDescription?: string;
+  privateDescription?: string;
+  technical?: string;
+  catId?: number | null;
+  assignedUserId?: number | null;
+  statut?: number;
+}
+
+export interface UpdateCharacterPayload {
+  name?: string;
+  concept?: string;
+  avatar?: string;
+  publicDescription?: string;
+  privateDescription?: string;
+  technical?: string;
+  catId?: number | null;
+  assignedUserId?: number | null;
+  statut?: number;
+}
+
 export interface TopicDetail {
   id: number;
   sectionId: number;

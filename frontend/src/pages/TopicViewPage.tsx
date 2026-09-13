@@ -758,6 +758,14 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
               placeholder="Écrivez votre message RP ou vos remarques de jeu..."
               disabled={isSubmitting}
               minHeight="160px"
+              onUploadImage={
+                topicDetail && topicDetail.campagneId
+                  ? async (file: File) => {
+                      const res = await campaignsApi.uploadCampaignImage(topicDetail.campagneId!, file);
+                      return res.url;
+                    }
+                  : undefined
+              }
             />
 
             {/* Boutons d'action */}

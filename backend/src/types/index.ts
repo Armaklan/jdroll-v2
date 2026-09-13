@@ -148,6 +148,70 @@ export interface CharacterSummary {
   campagneId: number;
 }
 
+export interface RawCampaignCharacterRow {
+  id: number;
+  userId: number | null;
+  userName: string | null;
+  userAvatar: string | null;
+  campagneId: number;
+  name: string;
+  concept: string | null;
+  avatar: string | null;
+  publicDescription: string | null;
+  privateDescription: string | null;
+  technical: string | null;
+  statut: number;
+  catId: number | null;
+  categoryName: string | null;
+  persoFields: string | null;
+  widgets: string | null;
+}
+
+export interface RawPnjCategoryRow {
+  id: number;
+  campagneId: number;
+  name: string;
+  defaultCollapse: number;
+}
+
+export interface CampaignCharacter {
+  id: number;
+  userId: number | null;
+  userName?: string | null;
+  userAvatar?: string | null;
+  campagneId: number;
+  name: string;
+  concept: string;
+  avatar: string;
+  publicDescription: string;
+  privateDescription?: string;
+  technical?: string;
+  statut: number;
+  catId: number | null;
+  categoryName: string;
+  isPlayer: boolean;
+  persoFields?: string | null;
+  widgets?: string | null;
+}
+
+export interface CampaignCharacterCategory {
+  id: number | null;
+  name: string;
+  defaultCollapse: boolean;
+  characters: CampaignCharacter[];
+}
+
+export interface CampaignParticipant {
+  id: number;
+  username: string;
+  avatar: string | null;
+}
+
+export interface CampaignCharactersData {
+  campaign: CampaignSummary;
+  categories: CampaignCharacterCategory[];
+}
+
 export interface TopicDetail {
   id: number;
   sectionId: number;
