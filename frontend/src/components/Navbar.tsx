@@ -30,6 +30,7 @@ export type AppView =
   | 'my-campaigns'
   | 'join-campaign'
   | 'all-campaigns'
+  | 'campaign-forum'
   | 'forum'
   | 'help';
 

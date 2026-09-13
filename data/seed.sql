@@ -1,5 +1,9 @@
 -- Données de test initiales pour le développement de JdRoll 2.0
 
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- Comptes utilisateurs de test :
 -- Mot de passe pour tous les utilisateurs de test : "password"
 -- Hash MD5 de "password" : 5f4dcc3b5aa765d61d8327deb882cf99
@@ -41,8 +45,40 @@ INSERT INTO `campagne_participant` (`campagne_id`, `user_id`, `statut`) VALUES
 
 -- Personnages de test associés
 INSERT INTO `personnages` (
-    `id`, `user_id`, `campagne_id`, `name`, `concept`, `avatar`, `publicDescription`, `privateDescription`, `technical`, `statut`
+    `id`, `user_id`, `campagne_id`, `name`, `concept`, `avatar`, `publicDescription`, `privateDescription`, `technical`, `statut`, `widgets`
 ) VALUES
-(1, 2, 1, 'Kaelen l''Erudit', 'Mage de bataille', '', 'Un jeune érudit curieux mais prudent.', '', '', 0),
-(2, 1, 3, 'Vex Netrunner', 'Spécialiste intrusion matricielle', '', 'Solitaire adepte des connexions neurales.', '', '', 0),
-(3, 1, 4, 'Professeur Armitage', 'Enquêteur universitaire', '', 'Spécialiste des langues occultes anciennes.', '', '', 0);
+(1, 2, 1, 'Kaelen l''Erudit', 'Mage de bataille', '', 'Un jeune érudit curieux mais prudent.', '', '', 0, '[]'),
+(2, 1, 3, 'Vex Netrunner', 'Spécialiste intrusion matricielle', '', 'Solitaire adepte des connexions neurales.', '', '', 0, '[]'),
+(3, 1, 4, 'Professeur Armitage', 'Enquêteur universitaire', '', 'Spécialiste des langues occultes anciennes.', '', '', 0, '[]');
+
+-- Sections de forum de test pour la campagne 1 (La Malédiction de Strahd)
+INSERT INTO `sections` (`id`, `campagne_id`, `title`, `ordre`, `default_collapse`, `banniere`) VALUES
+(1, 1, 'HRP & Informations de table', 1, 0, ''),
+(2, 1, 'Actes de jeu (RP)', 2, 0, ''),
+(3, 1, 'Archives du voyage', 3, 1, '');
+
+-- Topics de test pour la campagne 1
+INSERT INTO `topics` (`id`, `section_id`, `last_post_id`, `title`, `stickable`, `is_private`, `ordre`, `is_closed`) VALUES
+(1, 1, 2, 'Règles de vie et rythme des réponses', 1, 0, 1, 0),
+(2, 1, 3, 'Questions / Réponses HRP et discussions', 0, 0, 2, 0),
+(3, 2, 5, 'Chapitre 1 : L''Auberge des Terres Perdues', 1, 0, 1, 0),
+(4, 2, 6, 'Chapitre 2 : La Caravane vers les Brumes', 0, 0, 2, 0),
+(5, 3, 7, 'Prologue : La lettre du bourgmestre (Terminé)', 0, 0, 1, 1);
+
+-- Messages (posts) de test
+INSERT INTO `posts` (`id`, `topic_id`, `user_id`, `perso_id`, `content`, `create_date`, `editor`) VALUES
+(1, 1, 1, NULL, '<p>Bienvenue à tous sur la campagne ! Merci de respecter un rythme de 2 à 3 messages par semaine.</p>', '2026-09-10 10:00:00', 0),
+(2, 1, 2, NULL, '<p>C''est bien noté, très motivé pour cette aventure !</p>', '2026-09-10 11:30:00', 0),
+(3, 2, 3, NULL, '<p>Bonjour tout le monde ! Est-ce qu''on commence directement au niveau 3 ?</p>', '2026-09-11 14:15:00', 0),
+(4, 3, 1, NULL, '<p>La pluie frappe les vitres de la vieille auberge alors que la nuit tombe sur le village...</p>', '2026-09-12 09:00:00', 0),
+(5, 3, 2, 1, '<p>Kaelen resserre sa cape trempée et s''approche de la cheminée en observant la pièce du coin de l''œil.</p>', '2026-09-12 18:45:00', 0),
+(6, 4, 1, NULL, '<p>Au petit matin, les roues des chariots grincent sur le chemin brumeux menant vers la passe montagneuse.</p>', '2026-09-13 15:20:00', 0),
+(7, 5, 1, NULL, '<p>Extrait du journal de voyage : lettre scellée aux armoiries de Barovie.</p>', '2026-09-08 08:00:00', 0);
+
+-- Suivi des lectures de topics (read_post)
+INSERT INTO `read_post` (`topic_id`, `user_id`, `post_id`) VALUES
+(1, 2, 2),
+(3, 2, 4),
+(5, 2, 7);
+
+SET FOREIGN_KEY_CHECKS = 1;

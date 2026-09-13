@@ -20,9 +20,10 @@ import {
 
 interface AllCampaignsPageProps {
   onNavigate: (view: AppView) => void;
+  onSelectCampaign?: (campaignId: number) => void;
 }
 
-export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onNavigate }) => {
+export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onNavigate, onSelectCampaign }) => {
   const [includeArchived, setIncludeArchived] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
@@ -418,22 +419,27 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onNavigate }
                         ID #{campagne.id}
                       </div>
 
-                      {campagne.isRecrutementOpen && !campagne.isArchived ? (
+                      <div className="flex items-center gap-2">
+                        {campagne.isRecrutementOpen && !campagne.isArchived && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onNavigate('join-campaign');
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-xs transition"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            <span>Rejoindre</span>
+                          </button>
+                        )}
                         <button
-                          onClick={() => onNavigate('join-campaign')}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-lg text-xs transition"
+                          onClick={() => onSelectCampaign ? onSelectCampaign(campagne.id) : onNavigate('join-campaign')}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 font-semibold rounded-lg text-xs transition"
                         >
-                          <Sparkles className="w-3 h-3" />
-                          <span>Rejoindre</span>
+                          <BookOpen className="w-3 h-3" />
+                          <span>Voir le forum</span>
                         </button>
-                      ) : (
-                        <button
-                          onClick={() => onNavigate('join-campaign')}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg text-xs transition"
-                        >
-                          <span>Consulter</span>
-                        </button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>

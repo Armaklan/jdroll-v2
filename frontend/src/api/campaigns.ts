@@ -1,4 +1,4 @@
-import { CampaignSummary, CampaignRole } from '../types/campaign';
+import { CampaignSummary, CampaignRole, CampaignForumData } from '../types/campaign';
 import { getToken } from './auth';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -47,5 +47,9 @@ export const campaignsApi = {
 
     const result = await request<{ campaigns: CampaignSummary[] }>(`/api/campaigns?${params.toString()}`);
     return result.campaigns;
+  },
+
+  async getCampaignForum(campaignId: number): Promise<CampaignForumData> {
+    return request<CampaignForumData>(`/api/campaigns/${campaignId}/forum`);
   },
 };

@@ -23,6 +23,12 @@ export class UserNotFoundError extends DomainError {
   }
 }
 
+export class CampaignNotFoundError extends DomainError {
+  constructor(message = 'Campagne introuvable') {
+    super(message);
+  }
+}
+
 export class ValidationError extends DomainError {
   public details?: unknown;
 

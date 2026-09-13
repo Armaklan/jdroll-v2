@@ -20,9 +20,10 @@ import {
 
 interface MyCampaignsPageProps {
   onNavigate: (view: AppView) => void;
+  onSelectCampaign?: (campaignId: number) => void;
 }
 
-export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate }) => {
+export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, onSelectCampaign }) => {
   const { isAuthenticated } = useAuth();
   const [role, setRole] = useState<CampaignRole>('master');
   const [includeArchived, setIncludeArchived] = useState<boolean>(false);
@@ -347,23 +348,33 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate }) 
               </div>
 
               {/* Card Footer */}
-              <div className="p-5 pt-0 border-t border-slate-100 mt-2 flex items-center justify-between text-xs text-slate-500">
-                <div className="flex items-center gap-1.5 pt-3">
-                  <Users className="w-3.5 h-3.5 text-slate-400" />
-                  <span>
-                    <strong className="text-slate-800">{campaign.nbJoueursActuel}</strong> / {campaign.nbJoueurs} joueurs
-                  </span>
+              <div className="p-5 pt-0 border-t border-slate-100 mt-2 flex flex-col gap-3">
+                <div className="flex items-center justify-between text-xs text-slate-500 pt-3">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-slate-400" />
+                    <span>
+                      <strong className="text-slate-800">{campaign.nbJoueursActuel}</strong> / {campaign.nbJoueurs} joueurs
+                    </span>
+                  </div>
+
+                  <div>
+                    {campaign.isRecrutementOpen ? (
+                      <span className="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                        Recrutement ouvert
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-slate-400">Complet</span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="pt-3">
-                  {campaign.isRecrutementOpen ? (
-                    <span className="text-[11px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      Recrutement ouvert
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-slate-400">Complet</span>
-                  )}
-                </div>
+                <button
+                  onClick={() => onSelectCampaign ? onSelectCampaign(campaign.id) : null}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl text-xs sm:text-sm transition shadow-2xs"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Accéder au forum</span>
+                </button>
               </div>
             </div>
           ))}

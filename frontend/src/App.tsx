@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { MyCampaignsPage } from './pages/MyCampaignsPage';
 import { AllCampaignsPage } from './pages/AllCampaignsPage';
+import { CampaignForumPage } from './pages/CampaignForumPage';
 import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
 import {
   Mail,
@@ -17,6 +18,14 @@ import {
 
 export function AppContent() {
   const [currentView, setCurrentView] = useState<AppView>('home');
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null);
+  const [previousCampaignView, setPreviousCampaignView] = useState<AppView>('my-campaigns');
+
+  const handleOpenCampaignForum = (campaignId: number, fromView: AppView = 'my-campaigns') => {
+    setSelectedCampaignId(campaignId);
+    setPreviousCampaignView(fromView);
+    setCurrentView('campaign-forum');
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
@@ -68,7 +77,10 @@ export function AppContent() {
 
         {/* Jouer Sub-items */}
         {currentView === 'my-campaigns' && (
-          <MyCampaignsPage onNavigate={(view) => setCurrentView(view)} />
+          <MyCampaignsPage
+            onNavigate={(view) => setCurrentView(view)}
+            onSelectCampaign={(id) => handleOpenCampaignForum(id, 'my-campaigns')}
+          />
         )}
 
         {currentView === 'join-campaign' && (
@@ -82,7 +94,19 @@ export function AppContent() {
         )}
 
         {currentView === 'all-campaigns' && (
-          <AllCampaignsPage onNavigate={(view) => setCurrentView(view)} />
+          <AllCampaignsPage
+            onNavigate={(view) => setCurrentView(view)}
+            onSelectCampaign={(id) => handleOpenCampaignForum(id, 'all-campaigns')}
+          />
+        )}
+
+        {/* Campaign Forum View */}
+        {currentView === 'campaign-forum' && selectedCampaignId && (
+          <CampaignForumPage
+            campaignId={selectedCampaignId}
+            onNavigate={(view) => setCurrentView(view)}
+            onBack={() => setCurrentView(previousCampaignView)}
+          />
         )}
 
         {/* Forum */}

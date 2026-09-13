@@ -35,6 +35,11 @@ class MockCampaignRepository implements ICampaignRepository {
       return true;
     });
   }
+
+  async findById(id: number): Promise<CampaignSummary | null> {
+    const all = [...this.mastered, ...this.player, ...this.allCampaigns];
+    return all.find((c) => c.id === id) || null;
+  }
 }
 
 describe('CampaignQueries', () => {

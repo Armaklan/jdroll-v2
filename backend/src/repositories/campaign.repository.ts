@@ -5,6 +5,7 @@ export interface ICampaignRepository {
   findMasteredCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findPlayerCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findAllCampaigns(options?: { includeArchived?: boolean; search?: string }): Promise<CampaignSummary[]>;
+  findById(id: number): Promise<CampaignSummary | null>;
 }
 
 export class MysqlCampaignRepository implements ICampaignRepository {
@@ -228,6 +229,74 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       rythme: row.rythme ?? undefined,
       rp: row.rp ?? undefined,
     }));
+  }
+
+  async findById(id: number): Promise<CampaignSummary | null> {
+    const sql = `
+      SELECT 
+        c.id,
+        c.mj_id AS mjId,
+        u.username AS mjUsername,
+        u.avatar AS mjAvatar,
+        c.nb_joueurs AS nbJoueurs,
+        c.nb_joueurs_actuel AS nbJoueursActuel,
+        c.name,
+        c.banniere,
+        c.systeme,
+        c.univers,
+        c.description,
+        c.statut,
+        c.is_recrutement_open AS isRecrutementOpen,
+        c.rythme,
+        c.rp
+      FROM campagne c
+      JOIN user u ON c.mj_id = u.id
+      WHERE c.id = ?
+      LIMIT 1
+    `;
+
+    interface RawCampaignRow {
+      id: number;
+      mjId: number;
+      mjUsername: string;
+      mjAvatar: string | null;
+      nbJoueurs: number;
+      nbJoueursActuel: number;
+      name: string;
+      banniere: string | null;
+      systeme: string;
+      univers: string;
+      description: string;
+      statut: number;
+      isRecrutementOpen: number;
+      rythme: number | null;
+      rp: number | null;
+    }
+
+    const rows = await query<RawCampaignRow>(sql, [id]);
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const row = rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      mjId: row.mjId,
+      mjUsername: row.mjUsername,
+      mjAvatar: row.mjAvatar || '',
+      nbJoueurs: row.nbJoueurs,
+      nbJoueursActuel: row.nbJoueursActuel,
+      banniere: row.banniere || '',
+      systeme: row.systeme,
+      univers: row.univers,
+      description: row.description,
+      statut: row.statut,
+      isArchived: row.statut === 2,
+      isRecrutementOpen: Boolean(row.isRecrutementOpen),
+      rythme: row.rythme ?? undefined,
+      rp: row.rp ?? undefined,
+    };
   }
 }
 
