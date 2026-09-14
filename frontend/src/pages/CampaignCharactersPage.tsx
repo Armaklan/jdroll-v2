@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
+import { CampaignHeader } from '../components/CampaignHeader';
 import {
   CampaignCharactersData,
   CampaignCharacter,
@@ -14,16 +15,11 @@ import {
 import {
   ArrowLeft,
   Users,
-  Crown,
   ChevronDown,
   ChevronUp,
   RefreshCw,
-  Archive,
-  CheckCircle2,
   AlertCircle,
   FolderOpen,
-  MessageCircle,
-  BookOpen,
   X,
   User,
   Search,
@@ -40,7 +36,6 @@ import {
   Upload,
   Link as LinkIcon,
   Loader2,
-  Dices,
 } from 'lucide-react';
 
 interface CampaignCharactersPageProps {
@@ -414,8 +409,6 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
     };
   }).filter((cat) => !query || cat.characters.length > 0);
 
-  const totalCharactersCount = categories.reduce((sum, cat) => sum + cat.characters.length, 0);
-
   // Available defined categories for the form (excluding virtual ones)
   const availableCategories = categories.filter((c) => c.id !== null);
 
@@ -475,26 +468,6 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           )}
 
           <button
-            onClick={handleGoToForum}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-indigo-600 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer"
-            title="Accéder au forum de la campagne"
-          >
-            <MessageCircle className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Forum de la campagne</span>
-          </button>
-
-          {isCampaignMember && (
-            <button
-              onClick={() => setIsDiceTowerOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-indigo-600 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer"
-              title="Ouvrir la tour à dés de la campagne"
-            >
-              <Dices className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Tour à dé</span>
-            </button>
-          )}
-
-          <button
             onClick={fetchCharacters}
             disabled={isLoading}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-medium transition shadow-2xs"
@@ -506,86 +479,12 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
         </div>
       </div>
 
-      {/* Campaign Header Banner Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-        <div className="h-40 sm:h-48 relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900">
-          {campaign.banniereForum || campaign.banniere ? (
-            <img
-              src={campaign.banniereForum || campaign.banniere || undefined}
-              alt={campaign.name}
-              className="w-full h-full object-cover opacity-100"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center opacity-20">
-              <BookOpen className="w-24 h-24 text-white" />
-            </div>
-          )}
-
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-6">
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-600 text-white shadow-xs">
-                {campaign.systeme || 'Système libre'}
-              </span>
-              {campaign.univers && (
-                <span className="px-2.5 py-0.5 rounded-md text-xs font-medium bg-slate-800/80 backdrop-blur-md text-slate-200 border border-slate-700/50">
-                  {campaign.univers}
-                </span>
-              )}
-              {campaign.isArchived ? (
-                <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-950/80 backdrop-blur-md text-amber-300 border border-amber-500/40 flex items-center gap-1">
-                  <Archive className="w-3 h-3" /> Archivée
-                </span>
-              ) : (
-                <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-950/80 backdrop-blur-md text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> En cours
-                </span>
-              )}
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              {campaign.name}
-            </h1>
-          </div>
-        </div>
-
-        {/* Campaign Meta Bar */}
-        <div className="p-4 sm:px-6 bg-slate-50/70 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm text-slate-600">
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-            <div className="flex items-center gap-2">
-              <Crown className="w-4 h-4 text-amber-500" />
-              <span>
-                MJ : <strong className="text-slate-800 font-semibold">{campaign.mjUsername}</strong>
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-indigo-500" />
-              <span>
-                Joueurs : <strong className="text-slate-800 font-semibold">{campaign.nbJoueursActuel}</strong>
-                {campaign.nbJoueurs > 0 && <span> / {campaign.nbJoueurs}</span>}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-purple-500" />
-              <span>
-                Personnages : <strong className="text-slate-800 font-semibold">{totalCharactersCount}</strong>
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {isMj && (
-              <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
-                <Crown className="w-3 h-3" /> Vous êtes le Maître du Jeu
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* Campaign Header */}
+      <CampaignHeader
+        campaign={campaign}
+        activeTab="characters"
+        onOpenDiceTower={() => setIsDiceTowerOpen(true)}
+      />
 
       {/* Filter and Search Bar */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">

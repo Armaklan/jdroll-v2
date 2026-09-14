@@ -239,6 +239,7 @@ export interface TopicDetail {
   userRole?: 'mj' | 'player' | 'user' | null;
   availableCharacters: CharacterSummary[];
   posts: ForumPost[];
+  campaign?: CampaignSummary | null;
   dialogueColor?: string | null;
   penseeColor?: string | null;
   rp1Color?: string | null;

@@ -6,6 +6,7 @@ import { AppView, viewToPath } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
+import { CampaignHeader } from '../components/CampaignHeader';
 import { parseDiceInHtml } from '../utils/dice-parser';
 import {
   ArrowLeft,
@@ -281,6 +282,15 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
   return (
     <div className="space-y-6" style={campaignStyles}>
+      {/* Campaign Header */}
+      {topicDetail.campaign && (
+        <CampaignHeader
+          campaign={topicDetail.campaign}
+          activeTab="topic"
+          onOpenDiceTower={() => setIsDiceTowerOpen(true)}
+        />
+      )}
+
       {/* Navigation / Fil d'Ariane & En-tête */}
       <div
         className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs"
@@ -310,22 +320,6 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            {Boolean(topicDetail.campagneId && (topicDetail.userRole === 'mj' || topicDetail.userRole === 'player')) && (
-              <button
-                onClick={() => setIsDiceTowerOpen(true)}
-                style={{
-                  backgroundColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.1)' : undefined,
-                  color: topicDetail.linkSidebarColor || undefined,
-                  borderColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.2)' : undefined,
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition shadow-2xs cursor-pointer"
-                title="Ouvrir la tour à dés de la campagne"
-              >
-                <Dices className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Tour à dé</span>
-              </button>
-            )}
-
             <button
               onClick={handleBackToForum}
               style={{

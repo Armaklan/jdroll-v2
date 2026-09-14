@@ -1,6 +1,6 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
-import { CampaignForumData, GeneralForumData, TopicDetail, CharacterSummary } from '../types/index.js';
+import { CampaignForumData, GeneralForumData, TopicDetail, CharacterSummary, CampaignSummary } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
 
 export class ForumQueries {
@@ -137,6 +137,17 @@ export class ForumQueries {
       }
     }
 
+    let campaign: CampaignSummary | null = null;
+    if (topic.campagneId && topic.campagneId > 0) {
+      const foundCampaign = await this.campaignRepo.findById(topic.campagneId);
+      if (foundCampaign) {
+        campaign = {
+          ...foundCampaign,
+          userRole: userRole === 'mj' || userRole === 'player' ? userRole : foundCampaign.userRole,
+        };
+      }
+    }
+
     return {
       id: topic.id,
       sectionId: topic.sectionId,
@@ -157,6 +168,7 @@ export class ForumQueries {
       userRole,
       availableCharacters,
       posts: mappedPosts,
+      campaign,
       dialogueColor: topic.dialogueColor || null,
       penseeColor: topic.penseeColor || null,
       rp1Color: topic.rp1Color || null,
