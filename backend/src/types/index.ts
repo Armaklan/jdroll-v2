@@ -67,6 +67,7 @@ export interface CampaignSummary {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  hasUnread?: boolean;
 }
 
 export type CampaignRole = 'all' | 'master' | 'player';

@@ -137,7 +137,21 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.text_color AS textColor,
         cc.link_color AS linkColor,
         cc.link_sidebar_color AS linkSidebarColor,
-        cc.banniere AS banniereForum
+        cc.banniere AS banniereForum,
+        EXISTS (
+          SELECT 1
+          FROM sections s
+          JOIN topics t ON t.section_id = s.id
+          LEFT JOIN (
+            SELECT topic_id, MAX(post_id) AS post_id
+            FROM read_post
+            WHERE user_id = ?
+            GROUP BY topic_id
+          ) rp ON rp.topic_id = t.id
+          WHERE s.campagne_id = c.id
+            AND t.last_post_id IS NOT NULL
+            AND (rp.post_id IS NULL OR rp.post_id < t.last_post_id)
+        ) AS hasUnread
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
@@ -174,9 +188,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       textColor: string | null;
       linkColor: string | null;
       linkSidebarColor: string | null;
+      hasUnread?: number | boolean;
     }
 
-    const rows = await query<RawCampaignRow>(sql, [userId]);
+    const rows = await query<RawCampaignRow>(sql, [userId, userId]);
 
     return rows.map((row) => ({
       id: row.id,
@@ -208,6 +223,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       linkColor: row.linkColor || null,
       linkSidebarColor: row.linkSidebarColor || null,
       userRole: 'mj',
+      hasUnread: Boolean(row.hasUnread),
     }));
   }
 
@@ -243,7 +259,21 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.link_sidebar_color AS linkSidebarColor,
         cc.banniere AS banniereForum,
         p.name AS characterName,
-        p.avatar AS characterAvatar
+        p.avatar AS characterAvatar,
+        EXISTS (
+          SELECT 1
+          FROM sections s
+          JOIN topics t ON t.section_id = s.id
+          LEFT JOIN (
+            SELECT topic_id, MAX(post_id) AS post_id
+            FROM read_post
+            WHERE user_id = ?
+            GROUP BY topic_id
+          ) rp ON rp.topic_id = t.id
+          WHERE s.campagne_id = c.id
+            AND t.last_post_id IS NOT NULL
+            AND (rp.post_id IS NULL OR rp.post_id < t.last_post_id)
+        ) AS hasUnread
       FROM campagne_participant cp
       JOIN campagne c ON cp.campagne_id = c.id
       JOIN user u ON c.mj_id = u.id
@@ -284,9 +314,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       linkSidebarColor: string | null;
       characterName: string | null;
       characterAvatar: string | null;
+      hasUnread?: number | boolean;
     }
 
-    const rows = await query<RawPlayerCampaignRow>(sql, [userId]);
+    const rows = await query<RawPlayerCampaignRow>(sql, [userId, userId]);
 
     return rows.map((row) => ({
       id: row.id,
@@ -320,6 +351,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       userRole: 'player',
       characterName: row.characterName || null,
       characterAvatar: row.characterAvatar || null,
+      hasUnread: Boolean(row.hasUnread),
     }));
   }
 

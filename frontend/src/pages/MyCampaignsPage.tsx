@@ -307,6 +307,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
             <CampaignCard
               key={campaign.id}
               campaign={campaign}
+              cardClickAction="forum"
               onOpenDetail={handleOpenDetail}
               onSelectCampaign={handleSelectCampaign}
               onConfigure={() => navigate(`/campaigns/${campaign.id}/edit`)}

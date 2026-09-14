@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   UserCheck,
   Loader2,
+  MessageSquare,
 } from 'lucide-react';
 
 export interface CampaignCardProps {
@@ -27,6 +28,7 @@ export interface CampaignCardProps {
   onConfigure?: (campaignId: number) => void;
   roleContext?: CampaignRole | null;
   showRoleBadge?: boolean;
+  cardClickAction?: 'forum' | 'detail';
 }
 
 export const CampaignCard: React.FC<CampaignCardProps> = ({
@@ -38,6 +40,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   onConfigure,
   roleContext,
   showRoleBadge = true,
+  cardClickAction,
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -54,12 +57,24 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   const rpLabel = getRpLabel(campaign.rp);
 
   const handleCardClick = () => {
-    if (onOpenDetail) {
-      onOpenDetail(campaign);
-    } else if (onSelectCampaign) {
-      onSelectCampaign(campaign.id);
+    if (cardClickAction === 'forum') {
+      if (onSelectCampaign) {
+        onSelectCampaign(campaign.id);
+      } else {
+        navigate(`/campaigns/${campaign.id}`);
+      }
+    } else if (cardClickAction === 'detail') {
+      if (onOpenDetail) {
+        onOpenDetail(campaign);
+      }
     } else {
-      navigate(`/campaigns/${campaign.id}`);
+      if (onOpenDetail) {
+        onOpenDetail(campaign);
+      } else if (onSelectCampaign) {
+        onSelectCampaign(campaign.id);
+      } else {
+        navigate(`/campaigns/${campaign.id}`);
+      }
     }
   };
 
@@ -101,6 +116,8 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
       className={`bg-white border rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer ${
         isArchived
           ? 'border-slate-300 opacity-85 hover:opacity-100'
+          : campaign.hasUnread
+          ? 'border-rose-300 ring-1 ring-rose-200/70 hover:border-rose-400'
           : 'border-slate-200 hover:border-indigo-300'
       }`}
     >
@@ -176,6 +193,14 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
         <div className="p-5 space-y-3">
           {/* Tags : Système & Univers */}
           <div className="flex flex-wrap items-center gap-1.5">
+            {campaign.hasUnread && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
+                <MessageSquare className="w-3 h-3 text-rose-600" />
+                Nouveau message
+              </span>
+            )}
+
             {campaign.systeme ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
                 <Dice5 className="w-3 h-3 text-indigo-500" />

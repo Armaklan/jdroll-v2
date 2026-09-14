@@ -321,6 +321,7 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
             <CampaignCard
               key={campagne.id}
               campaign={campagne}
+              cardClickAction="detail"
               onOpenDetail={handleOpenDetail}
               onSelectCampaign={(id) => navigate(`/campaigns/${id}`)}
               onJoin={handleDirectJoin}
