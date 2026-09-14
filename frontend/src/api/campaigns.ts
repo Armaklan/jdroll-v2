@@ -1,5 +1,7 @@
 import {
   CampaignSummary,
+  CreateCampaignPayload,
+  UpdateCampaignPayload,
   CampaignRole,
   CampaignForumData,
   GeneralForumData,
@@ -63,6 +65,27 @@ export const campaignsApi = {
 
     const result = await request<{ campaigns: CampaignSummary[] }>(`/api/campaigns?${params.toString()}`);
     return result.campaigns;
+  },
+
+  async getCampaign(campaignId: number): Promise<CampaignSummary> {
+    const result = await request<{ campaign: CampaignSummary }>(`/api/campaigns/${campaignId}`);
+    return result.campaign;
+  },
+
+  async createCampaign(payload: CreateCampaignPayload): Promise<CampaignSummary> {
+    const result = await request<{ campaign: CampaignSummary }>('/api/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return result.campaign;
+  },
+
+  async updateCampaign(campaignId: number, payload: UpdateCampaignPayload): Promise<CampaignSummary> {
+    const result = await request<{ campaign: CampaignSummary }>(`/api/campaigns/${campaignId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    return result.campaign;
   },
 
   async getCampaignForum(campaignId: number): Promise<CampaignForumData> {

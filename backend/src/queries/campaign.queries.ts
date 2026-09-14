@@ -180,6 +180,33 @@ export class CampaignQueries {
   }
 
   /**
+   * Récupère une campagne par son identifiant avec le rôle de l'utilisateur
+   */
+  async getCampaignById(campaignId: number, currentUserId?: number): Promise<CampaignSummary> {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) {
+      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
+    }
+
+    let userRole: 'mj' | 'player' | undefined = undefined;
+    if (currentUserId) {
+      if (campaign.mjId === currentUserId) {
+        userRole = 'mj';
+      } else {
+        const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, currentUserId);
+        if (isParticipant) {
+          userRole = 'player';
+        }
+      }
+    }
+
+    return {
+      ...campaign,
+      userRole: userRole ?? campaign.userRole,
+    };
+  }
+
+  /**
    * Récupère les 20 derniers jets de dés de la campagne
    * - MJ : tous les jets de la campagne
    * - Joueur : uniquement ses propres jets de la campagne

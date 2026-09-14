@@ -1,11 +1,70 @@
 import { query, queryOne, execute } from '../db/mysql.js';
 import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow, CampaignParticipant } from '../types/index.js';
 
+export interface CreateCampaignData {
+  mjId: number;
+  name: string;
+  systeme: string;
+  univers: string;
+  description: string;
+  nbJoueurs: number;
+  banniere?: string;
+  statut?: number;
+  isRecrutementOpen?: boolean;
+  rythme?: number;
+  rp?: number;
+  isMultiCharacter?: boolean;
+  dialogueColor?: string | null;
+  penseeColor?: string | null;
+  rp1Color?: string | null;
+  rp2Color?: string | null;
+  quoteColor?: string | null;
+  sidebarColor?: string | null;
+  oddLineColor?: string | null;
+  evenLineColor?: string | null;
+  textColor?: string | null;
+  linkColor?: string | null;
+  linkSidebarColor?: string | null;
+  hr?: string | null;
+  width?: string | null;
+  defaultDice?: string | null;
+}
+
+export interface UpdateCampaignData {
+  name?: string;
+  systeme?: string;
+  univers?: string;
+  description?: string;
+  nbJoueurs?: number;
+  banniere?: string;
+  statut?: number;
+  isRecrutementOpen?: boolean;
+  rythme?: number;
+  rp?: number;
+  isMultiCharacter?: boolean;
+  dialogueColor?: string | null;
+  penseeColor?: string | null;
+  rp1Color?: string | null;
+  rp2Color?: string | null;
+  quoteColor?: string | null;
+  sidebarColor?: string | null;
+  oddLineColor?: string | null;
+  evenLineColor?: string | null;
+  textColor?: string | null;
+  linkColor?: string | null;
+  linkSidebarColor?: string | null;
+  hr?: string | null;
+  width?: string | null;
+  defaultDice?: string | null;
+}
+
 export interface ICampaignRepository {
   findMasteredCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findPlayerCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findAllCampaigns(options?: { includeArchived?: boolean; search?: string }): Promise<CampaignSummary[]>;
   findById(id: number): Promise<CampaignSummary | null>;
+  createCampaign(data: CreateCampaignData): Promise<number>;
+  updateCampaign(id: number, data: UpdateCampaignData): Promise<void>;
   findCampaignCharacters(campaignId: number): Promise<RawCampaignCharacterRow[]>;
   findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]>;
   findCharacterById(id: number): Promise<RawCampaignCharacterRow | null>;
@@ -386,6 +445,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.is_recrutement_open AS isRecrutementOpen,
         c.rythme,
         c.rp,
+        c.is_multi_character AS isMultiCharacter,
         cc.dialogue_color AS dialogueColor,
         cc.pensee_color AS penseeColor,
         cc.rp1_color AS rp1Color,
@@ -396,7 +456,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.even_line_color AS evenLineColor,
         cc.text_color AS textColor,
         cc.link_color AS linkColor,
-        cc.link_sidebar_color AS linkSidebarColor
+        cc.link_sidebar_color AS linkSidebarColor,
+        cc.hr,
+        cc.width,
+        cc.default_dice AS defaultDice
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
@@ -420,6 +483,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: number;
       rythme: number | null;
       rp: number | null;
+      isMultiCharacter: number | null;
       dialogueColor: string | null;
       penseeColor: string | null;
       rp1Color: string | null;
@@ -431,6 +495,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       textColor: string | null;
       linkColor: string | null;
       linkSidebarColor: string | null;
+      hr: string | null;
+      width: string | null;
+      defaultDice: string | null;
     }
 
     const rows = await query<RawCampaignRow>(sql, [id]);
@@ -456,6 +523,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       isRecrutementOpen: Boolean(row.isRecrutementOpen),
       rythme: row.rythme ?? undefined,
       rp: row.rp ?? undefined,
+      isMultiCharacter: Boolean(row.isMultiCharacter),
       dialogueColor: row.dialogueColor || null,
       penseeColor: row.penseeColor || null,
       rp1Color: row.rp1Color || null,
@@ -467,7 +535,185 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       textColor: row.textColor || null,
       linkColor: row.linkColor || null,
       linkSidebarColor: row.linkSidebarColor || null,
+      hr: row.hr || null,
+      width: row.width || null,
+      defaultDice: row.defaultDice || null,
     };
+  }
+
+  async createCampaign(data: CreateCampaignData): Promise<number> {
+    const campagneSql = `
+      INSERT INTO campagne (
+        mj_id, nb_joueurs, nb_joueurs_actuel, name, banniere,
+        systeme, univers, description, statut, is_recrutement_open,
+        rythme, rp, is_admin_open, is_multi_character
+      ) VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+    `;
+
+    const res = await execute(campagneSql, [
+      data.mjId,
+      data.nbJoueurs,
+      data.name,
+      data.banniere || '',
+      data.systeme,
+      data.univers,
+      data.description,
+      data.statut ?? 0,
+      data.isRecrutementOpen !== false ? 1 : 0,
+      data.rythme ?? 2,
+      data.rp ?? 1,
+      data.isMultiCharacter ? 1 : 0,
+    ]);
+
+    const campaignId = res.insertId;
+
+    const configSql = `
+      INSERT INTO campagne_config (
+        campagne_id, banniere, hr, odd_line_color, even_line_color,
+        sidebar_color, link_color, template, sidebar_text, link_sidebar_color,
+        text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
+        quote_color, width, widgets, default_dice
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?, ?, ?, ?, '', ?)
+    `;
+
+    await execute(configSql, [
+      campaignId,
+      data.banniere || null,
+      data.hr || null,
+      data.oddLineColor || null,
+      data.evenLineColor || null,
+      data.sidebarColor || null,
+      data.linkColor || null,
+      data.linkSidebarColor || '',
+      data.textColor || null,
+      data.dialogueColor || '#4488cc',
+      data.penseeColor || '#8844cc',
+      data.rp1Color || '#ff6600',
+      data.rp2Color || '#5eff6c',
+      data.quoteColor || null,
+      data.width || '800px',
+      data.defaultDice || '1d20',
+    ]);
+
+    return campaignId;
+  }
+
+  async updateCampaign(id: number, data: UpdateCampaignData): Promise<void> {
+    const campagneFields: string[] = [];
+    const campagneParams: any[] = [];
+
+    if (data.name !== undefined) {
+      campagneFields.push('name = ?');
+      campagneParams.push(data.name);
+    }
+    if (data.systeme !== undefined) {
+      campagneFields.push('systeme = ?');
+      campagneParams.push(data.systeme);
+    }
+    if (data.univers !== undefined) {
+      campagneFields.push('univers = ?');
+      campagneParams.push(data.univers);
+    }
+    if (data.description !== undefined) {
+      campagneFields.push('description = ?');
+      campagneParams.push(data.description);
+    }
+    if (data.nbJoueurs !== undefined) {
+      campagneFields.push('nb_joueurs = ?');
+      campagneParams.push(data.nbJoueurs);
+    }
+    if (data.banniere !== undefined) {
+      campagneFields.push('banniere = ?');
+      campagneParams.push(data.banniere);
+    }
+    if (data.statut !== undefined) {
+      campagneFields.push('statut = ?');
+      campagneParams.push(data.statut);
+    }
+    if (data.isRecrutementOpen !== undefined) {
+      campagneFields.push('is_recrutement_open = ?');
+      campagneParams.push(data.isRecrutementOpen ? 1 : 0);
+    }
+    if (data.rythme !== undefined) {
+      campagneFields.push('rythme = ?');
+      campagneParams.push(data.rythme);
+    }
+    if (data.rp !== undefined) {
+      campagneFields.push('rp = ?');
+      campagneParams.push(data.rp);
+    }
+    if (data.isMultiCharacter !== undefined) {
+      campagneFields.push('is_multi_character = ?');
+      campagneParams.push(data.isMultiCharacter ? 1 : 0);
+    }
+
+    if (campagneFields.length > 0) {
+      campagneParams.push(id);
+      await execute(`UPDATE campagne SET ${campagneFields.join(', ')} WHERE id = ?`, campagneParams);
+    }
+
+    const hasConfigField =
+      data.dialogueColor !== undefined ||
+      data.penseeColor !== undefined ||
+      data.rp1Color !== undefined ||
+      data.rp2Color !== undefined ||
+      data.quoteColor !== undefined ||
+      data.sidebarColor !== undefined ||
+      data.oddLineColor !== undefined ||
+      data.evenLineColor !== undefined ||
+      data.textColor !== undefined ||
+      data.linkColor !== undefined ||
+      data.linkSidebarColor !== undefined ||
+      data.hr !== undefined ||
+      data.width !== undefined ||
+      data.defaultDice !== undefined ||
+      data.banniere !== undefined;
+
+    if (hasConfigField) {
+      const configUpsertSql = `
+        INSERT INTO campagne_config (
+          campagne_id, banniere, hr, odd_line_color, even_line_color,
+          sidebar_color, link_color, template, sidebar_text, link_sidebar_color,
+          text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
+          quote_color, width, widgets, default_dice
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?, ?, ?, ?, '', ?)
+        ON DUPLICATE KEY UPDATE
+          banniere = COALESCE(VALUES(banniere), banniere),
+          hr = COALESCE(VALUES(hr), hr),
+          odd_line_color = VALUES(odd_line_color),
+          even_line_color = VALUES(even_line_color),
+          sidebar_color = VALUES(sidebar_color),
+          link_color = VALUES(link_color),
+          link_sidebar_color = VALUES(link_sidebar_color),
+          text_color = VALUES(text_color),
+          dialogue_color = VALUES(dialogue_color),
+          pensee_color = VALUES(pensee_color),
+          rp1_color = VALUES(rp1_color),
+          rp2_color = VALUES(rp2_color),
+          quote_color = VALUES(quote_color),
+          width = COALESCE(VALUES(width), width),
+          default_dice = COALESCE(VALUES(default_dice), default_dice)
+      `;
+
+      await execute(configUpsertSql, [
+        id,
+        data.banniere ?? null,
+        data.hr ?? null,
+        data.oddLineColor ?? null,
+        data.evenLineColor ?? null,
+        data.sidebarColor ?? null,
+        data.linkColor ?? null,
+        data.linkSidebarColor ?? '',
+        data.textColor ?? null,
+        data.dialogueColor ?? '#4488cc',
+        data.penseeColor ?? '#8844cc',
+        data.rp1Color ?? '#ff6600',
+        data.rp2Color ?? '#5eff6c',
+        data.quoteColor ?? null,
+        data.width ?? '800px',
+        data.defaultDice ?? '1d20',
+      ]);
+    }
   }
 
   async findCampaignCharacters(campaignId: number): Promise<RawCampaignCharacterRow[]> {

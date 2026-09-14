@@ -64,15 +64,10 @@ describe('UploadSectionBannerUseCase', () => {
     };
 
     mockFileStorage = {
-      saveUserAvatar: async () => '',
       saveCampaignFile: async (campaignId, filename, content) => {
         savedFiles.push({ campaignId, filename, content });
         return `/files/campaigns/${campaignId}/${filename}`;
       },
-      savePostAttachment: async () => '',
-      deleteCampaignFile: async () => {},
-      deleteUserAvatar: async () => {},
-      deletePostAttachment: async () => {},
     };
 
     useCase = new UploadSectionBannerUseCase(mockForumRepo, mockFileStorage);

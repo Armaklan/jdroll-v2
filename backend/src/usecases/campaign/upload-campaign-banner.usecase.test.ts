@@ -43,6 +43,10 @@ class MockCampaignRepository implements ICampaignRepository {
     return 1;
   }
   async updateCharacter(): Promise<void> {}
+  async createCampaign(): Promise<number> {
+    return 1;
+  }
+  async updateCampaign(): Promise<void> {}
   async updateCampaignBanner(campagneId: number, bannerUrl: string): Promise<void> {
     this.updatedBanner = { campaignId: campagneId, bannerUrl };
     const c = this.campaigns.find((item) => item.id === campagneId);

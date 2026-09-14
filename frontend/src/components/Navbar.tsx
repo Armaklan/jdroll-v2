@@ -20,6 +20,7 @@ import {
   HelpCircle,
   Menu,
   X,
+  Plus,
 } from 'lucide-react';
 
 export type AppView =
@@ -29,6 +30,7 @@ export type AppView =
   | 'messages'
   | 'chat'
   | 'my-campaigns'
+  | 'create-campaign'
   | 'join-campaign'
   | 'all-campaigns'
   | 'campaign-forum'
@@ -50,6 +52,8 @@ export const viewToPath = (view: AppView): string => {
       return '/chat';
     case 'my-campaigns':
       return '/my-campaigns';
+    case 'create-campaign':
+      return '/campaigns/new';
     case 'join-campaign':
       return '/join-campaign';
     case 'all-campaigns':
@@ -101,6 +105,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
     if (path === '/messages') return 'messages';
     if (path === '/chat') return 'chat';
     if (path === '/my-campaigns') return 'my-campaigns';
+    if (path === '/campaigns/new' || path === '/create-campaign') return 'create-campaign';
     if (path === '/join-campaign') return 'join-campaign';
     if (path === '/all-campaigns' || path === '/campaigns') return 'all-campaigns';
     if (path.startsWith('/campaigns/')) return 'campaign-forum';
@@ -130,6 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
   const isCommunicateActive = activeView === 'messages' || activeView === 'chat';
   const isPlayActive =
     activeView === 'my-campaigns' ||
+    activeView === 'create-campaign' ||
     activeView === 'join-campaign' ||
     activeView === 'all-campaigns' ||
     activeView === 'campaign-forum';
@@ -264,6 +270,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                       <div className="text-xs text-slate-500">Parties en cours et personnages</div>
                     </div>
                   </button>
+
+                  {isAuthenticated && (
+                    <button
+                      onClick={() => handleNavigate('create-campaign')}
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
+                        activeView === 'create-campaign'
+                          ? 'bg-indigo-50 text-indigo-700 font-medium'
+                          : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <Plus className="w-4 h-4 text-emerald-500" />
+                      <div>
+                        <div className="font-medium">Créer une campagne</div>
+                        <div className="text-xs text-slate-500">Lancer une nouvelle table de jeu</div>
+                      </div>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => handleNavigate('join-campaign')}
@@ -484,6 +507,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                     <Compass className="w-3.5 h-3.5 text-indigo-500" />
                     <span>Mes campagnes</span>
                   </button>
+                  {isAuthenticated && (
+                    <button
+                      onClick={() => handleNavigate('create-campaign')}
+                      className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
+                        activeView === 'create-campaign'
+                          ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                          : 'text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Plus className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Créer une campagne</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => handleNavigate('join-campaign')}
                     className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${

@@ -48,6 +48,7 @@ export interface CampaignSummary {
   isRecrutementOpen: boolean;
   rythme?: number;
   rp?: number;
+  isMultiCharacter?: boolean;
   userRole?: 'mj' | 'player';
   characterName?: string | null;
   characterAvatar?: string | null;
@@ -62,6 +63,9 @@ export interface CampaignSummary {
   textColor?: string | null;
   linkColor?: string | null;
   linkSidebarColor?: string | null;
+  hr?: string | null;
+  width?: string | null;
+  defaultDice?: string | null;
 }
 
 export type CampaignRole = 'master' | 'player';

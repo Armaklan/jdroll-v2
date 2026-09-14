@@ -44,11 +44,14 @@ describe('CreateSectionUseCase', () => {
         if (id === 1) return { ...mockCampaign };
         return null;
       },
+      createCampaign: async () => 1,
+      updateCampaign: async () => {},
       findCampaignCharacters: async () => [],
       findCampaignPnjCategories: async () => [],
       findCharacterById: async () => null,
       createCharacter: async () => 1,
       updateCharacter: async () => {},
+      updateCampaignBanner: async () => {},
       findCampaignParticipants: async () => [],
     };
 
@@ -60,9 +63,11 @@ describe('CreateSectionUseCase', () => {
         createdSections.push({ id, ...data });
         return id;
       },
+      updateSection: async () => {},
       getMaxSectionOrdre: async () => createdSections.length,
       reorderSections: async () => {},
       createTopic: async () => 1,
+      updateTopic: async () => {},
       getMaxTopicOrdre: async () => 0,
       reorderTopics: async () => {},
       findTopicById: async () => null,

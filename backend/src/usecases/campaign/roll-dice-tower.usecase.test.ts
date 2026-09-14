@@ -16,16 +16,17 @@ describe('RollDiceTowerUseCase', () => {
     id: 10,
     mjId: 1,
     mjUsername: 'GM_User',
-    mjAvatar: null,
+    mjAvatar: '',
     nbJoueurs: 5,
     nbJoueursActuel: 3,
     name: 'Campagne de Test',
-    banniere: null,
+    banniere: '',
     systeme: 'D&D 5E',
     univers: 'Fantasy',
     description: 'Une grande aventure',
     statut: 0,
-    isRecrutementOpen: 1,
+    isArchived: false,
+    isRecrutementOpen: true,
     rythme: 1,
     rp: 1,
   };
@@ -35,6 +36,8 @@ describe('RollDiceTowerUseCase', () => {
     findMasteredCampaigns: async () => [],
     findPlayerCampaigns: async () => [],
     findAllCampaigns: async () => [],
+    createCampaign: async () => 1,
+    updateCampaign: async () => {},
     findCampaignCharacters: async () => [],
     findCampaignPnjCategories: async () => [],
     findCharacterById: async () => null,
@@ -44,32 +47,11 @@ describe('RollDiceTowerUseCase', () => {
     findCampaignParticipants: async () => [],
   });
 
-  const createMockForumRepo = (options: { isMj?: boolean; isParticipant?: boolean } = {}): IForumRepository => ({
-    isUserCampaignMj: async (_cId, userId) => (options.isMj !== undefined ? options.isMj : userId === 1),
-    isUserCampaignParticipant: async (_cId, userId) => (options.isParticipant !== undefined ? options.isParticipant : userId === 2),
-    findSectionsByCampaign: async () => [],
-    findTopicsBySection: async () => [],
-    findTopicById: async () => null,
-    getTopicPosts: async () => ({ posts: [], totalPosts: 0, totalPages: 1 }),
-    getPostById: async () => null,
-    createPost: async () => 999,
-    updateTopicLastPost: async () => {},
-    markTopicAsRead: async () => {},
-    findCampaignPersos: async () => [],
-    findUserCampaignPersos: async () => [],
-    findPersoById: async () => null,
-    findSectionById: async () => null,
-    createSection: async () => 1,
-    updateSection: async () => {},
-    updateSectionBanner: async () => {},
-    getMaxSectionOrdre: async () => 0,
-    createTopic: async () => 1,
-    updateTopic: async () => {},
-    getMaxTopicOrdre: async () => 0,
-    reorderSections: async () => {},
-    reorderTopics: async () => {},
-    findGeneralSections: async () => [],
-  });
+  const createMockForumRepo = (options: { isMj?: boolean; isParticipant?: boolean } = {}): IForumRepository =>
+    ({
+      isUserCampaignMj: async (_cId: number, userId: number) => (options.isMj !== undefined ? options.isMj : userId === 1),
+      isUserCampaignParticipant: async (_cId: number, userId: number) => (options.isParticipant !== undefined ? options.isParticipant : userId === 2),
+    } as any);
 
   const createMockDicerRepo = (): { repo: IDicerRepository; rolls: any[] } => {
     const rolls: any[] = [];

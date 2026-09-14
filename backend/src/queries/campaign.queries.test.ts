@@ -101,6 +101,14 @@ class MockCampaignRepository implements ICampaignRepository {
 
   async updateCharacter(id: number, character: any): Promise<void> {}
 
+  async createCampaign(data: any): Promise<number> {
+    return 1;
+  }
+
+  async updateCampaign(id: number, data: any): Promise<void> {}
+
+  async updateCampaignBanner(campagneId: number, bannerUrl: string): Promise<void> {}
+
   async findCampaignParticipants(campaignId: number): Promise<any[]> {
     return [];
   }

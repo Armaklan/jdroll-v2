@@ -48,11 +48,14 @@ describe('ReorderTopicsUseCase', () => {
         if (id === 1) return { ...mockCampaign };
         return null;
       },
+      createCampaign: async () => 1,
+      updateCampaign: async () => {},
       findCampaignCharacters: async () => [],
       findCampaignPnjCategories: async () => [],
       findCharacterById: async () => null,
       createCharacter: async () => 1,
       updateCharacter: async () => {},
+      updateCampaignBanner: async () => {},
       findCampaignParticipants: async () => [],
     };
 
@@ -82,9 +85,11 @@ describe('ReorderTopicsUseCase', () => {
         return null;
       },
       createSection: async () => 1,
+      updateSection: async () => {},
       getMaxSectionOrdre: async () => 0,
       reorderSections: async () => {},
       createTopic: async () => 1,
+      updateTopic: async () => {},
       getMaxTopicOrdre: async () => 0,
       reorderTopics: async (campaignId, sections) => {
         reorderedCampaignId = campaignId;

@@ -178,6 +178,11 @@ class MockCampaignRepository implements ICampaignRepository {
     return 1;
   }
   async updateCharacter(): Promise<void> {}
+  async createCampaign(): Promise<number> {
+    return 1;
+  }
+  async updateCampaign(): Promise<void> {}
+  async updateCampaignBanner(): Promise<void> {}
   async findCampaignParticipants(): Promise<any[]> {
     return [];
   }
@@ -284,6 +289,8 @@ class MockForumRepository implements IForumRepository {
     return 1;
   }
 
+  async updateSection(sectionId: number, data: any): Promise<void> {}
+
   async getMaxSectionOrdre(): Promise<number> {
     return 0;
   }
@@ -293,6 +300,8 @@ class MockForumRepository implements IForumRepository {
   async createTopic(): Promise<number> {
     return 1;
   }
+
+  async updateTopic(topicId: number, data: any): Promise<void> {}
 
   async getMaxTopicOrdre(): Promise<number> {
     return 0;

@@ -47,6 +47,7 @@ describe('CreateTopicUseCase', () => {
         return null;
       },
       createSection: async () => 1,
+      updateSection: async () => {},
       getMaxSectionOrdre: async () => 0,
       reorderSections: async () => {},
       createTopic: async (data) => {
@@ -54,6 +55,7 @@ describe('CreateTopicUseCase', () => {
         createdTopics.push({ id, ...data });
         return id;
       },
+      updateTopic: async () => {},
       getMaxTopicOrdre: async () => createdTopics.length,
       reorderTopics: async () => {},
       findTopicById: async () => null,

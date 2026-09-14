@@ -5,6 +5,8 @@ import { forumQueries, ForumQueries } from '../queries/forum.queries.js';
 import { createPostUseCase, CreatePostUseCase } from '../usecases/forum/create-post.usecase.js';
 import { rollDiceUseCase, RollDiceUseCase } from '../usecases/forum/roll-dice.usecase.js';
 import { rollDiceTowerUseCase, RollDiceTowerUseCase } from '../usecases/campaign/roll-dice-tower.usecase.js';
+import { createCampaignUseCase, CreateCampaignUseCase } from '../usecases/campaign/create-campaign.usecase.js';
+import { updateCampaignUseCase, UpdateCampaignUseCase } from '../usecases/campaign/update-campaign.usecase.js';
 import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/create-section.usecase.js';
 import { updateSectionUseCase, UpdateSectionUseCase } from '../usecases/forum/update-section.usecase.js';
 import { uploadSectionBannerUseCase, UploadSectionBannerUseCase } from '../usecases/forum/upload-section-banner.usecase.js';
@@ -50,6 +52,40 @@ const getAllCampaignsSchema = z.object({
     .default(false),
   search: z.string().optional(),
 });
+
+const getCampaignParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const createCampaignBodySchema = z.object({
+  name: z.string().min(1, 'Le nom de la campagne est requis').max(100, 'Le nom ne peut pas dépasser 100 caractères'),
+  systeme: z.string().min(1, 'Le système de jeu est requis').max(100, 'Le système ne peut pas dépasser 100 caractères'),
+  univers: z.string().min(1, 'L’univers est requis').max(100, 'L’univers ne peut pas dépasser 100 caractères'),
+  description: z.string().min(1, 'La description est requise'),
+  nbJoueurs: z.coerce.number().int().min(1, 'Il faut au moins 1 joueur').max(50, 'Le nombre de joueurs maximum est 50').default(4),
+  banniere: z.string().optional(),
+  statut: z.coerce.number().int().min(0).max(2).optional(),
+  isRecrutementOpen: z.boolean().optional(),
+  rythme: z.coerce.number().int().min(1).max(4).optional(),
+  rp: z.coerce.number().int().min(1).max(3).optional(),
+  isMultiCharacter: z.boolean().optional(),
+  dialogueColor: z.string().nullable().optional(),
+  penseeColor: z.string().nullable().optional(),
+  rp1Color: z.string().nullable().optional(),
+  rp2Color: z.string().nullable().optional(),
+  quoteColor: z.string().nullable().optional(),
+  sidebarColor: z.string().nullable().optional(),
+  oddLineColor: z.string().nullable().optional(),
+  evenLineColor: z.string().nullable().optional(),
+  textColor: z.string().nullable().optional(),
+  linkColor: z.string().nullable().optional(),
+  linkSidebarColor: z.string().nullable().optional(),
+  hr: z.string().nullable().optional(),
+  width: z.string().nullable().optional(),
+  defaultDice: z.string().nullable().optional(),
+});
+
+const updateCampaignBodySchema = createCampaignBodySchema.partial();
 
 const getCampaignForumParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -184,6 +220,8 @@ export class CampaignController {
     private readonly createPostUseCaseService: CreatePostUseCase = createPostUseCase,
     private readonly rollDiceUseCaseService: RollDiceUseCase = rollDiceUseCase,
     private readonly rollDiceTowerUseCaseService: RollDiceTowerUseCase = rollDiceTowerUseCase,
+    private readonly createCampaignUseCaseService: CreateCampaignUseCase = createCampaignUseCase,
+    private readonly updateCampaignUseCaseService: UpdateCampaignUseCase = updateCampaignUseCase,
     private readonly createSectionUseCaseService: CreateSectionUseCase = createSectionUseCase,
     private readonly updateSectionUseCaseService: UpdateSectionUseCase = updateSectionUseCase,
     private readonly uploadSectionBannerUseCaseService: UploadSectionBannerUseCase = uploadSectionBannerUseCase,
@@ -196,6 +234,116 @@ export class CampaignController {
     private readonly uploadCharacterAvatarUseCaseService: UploadCharacterAvatarUseCase = uploadCharacterAvatarUseCase,
     private readonly uploadCampaignBannerUseCaseService: UploadCampaignBannerUseCase = uploadCampaignBannerUseCase
   ) {}
+
+  /**
+   * GET /api/campaigns/:id
+   * Récupère les détails d'une campagne par son identifiant
+   */
+  async getCampaignById(request: FastifyRequest, reply: FastifyReply) {
+    const parseResult = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseResult.error.format(),
+      });
+    }
+
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      // Utilisateur anonyme
+    }
+
+    try {
+      const campaign = await this.campaignQueryService.getCampaignById(parseResult.data.id, userId);
+      return reply.status(200).send({ campaign });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération de la campagne' });
+    }
+  }
+
+  /**
+   * POST /api/campaigns
+   * Crée une nouvelle campagne avec sa configuration associée
+   */
+  async createCampaign(request: FastifyRequest, reply: FastifyReply) {
+    const parseResult = createCampaignBodySchema.safeParse(request.body);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Données de campagne invalides',
+        details: parseResult.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const campaign = await this.createCampaignUseCaseService.execute({
+        mjId: user.id,
+        ...parseResult.data,
+      });
+
+      return reply.status(201).send({ campaign });
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la création de la campagne' });
+    }
+  }
+
+  /**
+   * PUT /api/campaigns/:id
+   * Met à jour une campagne et sa configuration associée
+   */
+  async updateCampaign(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = updateCampaignBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de mise à jour invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const campaign = await this.updateCampaignUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        userId: user.id,
+        ...parseBody.data,
+      });
+
+      return reply.status(200).send({ campaign });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la mise à jour de la campagne' });
+    }
+  }
 
   /**
    * GET /api/campaigns/mine
@@ -1156,6 +1304,28 @@ export class CampaignController {
   registerRoutes(app: FastifyInstance) {
     // Route publique pour voir toutes les campagnes
     app.get('/api/campaigns', (req, rep) => this.getAllCampaigns(req, rep));
+
+    // Route pour voir les détails d'une campagne
+    app.get('/api/campaigns/:id', (req, rep) => this.getCampaignById(req, rep));
+
+    // Route authentifiée pour créer une campagne
+    app.post(
+      '/api/campaigns',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.createCampaign(req, rep)
+    );
+
+    // Routes authentifiées pour modifier une campagne (MJ)
+    app.put(
+      '/api/campaigns/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateCampaign(req, rep)
+    );
+    app.patch(
+      '/api/campaigns/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateCampaign(req, rep)
+    );
 
     // Route authentifiée pour voir ses propres campagnes
     app.get(

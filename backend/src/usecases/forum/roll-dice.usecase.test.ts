@@ -61,6 +61,8 @@ describe('RollDiceUseCase', () => {
           description: r.description,
         };
       },
+      getRollWithUserById: async () => null,
+      getRecentRollsByCampaign: async () => [],
     };
 
     mockForumRepo = {

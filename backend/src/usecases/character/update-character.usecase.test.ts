@@ -53,6 +53,11 @@ class MockCampaignRepository implements ICampaignRepository {
       Object.assign(existing, character);
     }
   }
+  async createCampaign(): Promise<number> {
+    return 1;
+  }
+  async updateCampaign(): Promise<void> {}
+  async updateCampaignBanner(): Promise<void> {}
   async findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]> {
     return [];
   }

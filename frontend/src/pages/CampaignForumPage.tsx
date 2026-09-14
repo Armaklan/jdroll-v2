@@ -974,8 +974,17 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => navigate(`/campaigns/${effectiveCampaignId}/edit`)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+              title="Modifier la configuration générale de la campagne"
+            >
+              <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+              <span>Configurer</span>
+            </button>
+
+            <button
               onClick={handleOpenCreateSection}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Créer une section</span>
@@ -1132,6 +1141,16 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {isAdminMode && (
+              <button
+                onClick={() => navigate(`/campaigns/${effectiveCampaignId}/edit`)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold text-xs border border-amber-200 shadow-2xs transition cursor-pointer"
+                title="Modifier la configuration de la campagne"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
+                <span>Configurer</span>
+              </button>
+            )}
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-semibold text-xs border border-indigo-100">
               <MessageCircle className="w-3.5 h-3.5" />
               <span>Forum de la campagne</span>

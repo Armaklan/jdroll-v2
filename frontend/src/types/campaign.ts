@@ -15,6 +15,7 @@ export interface CampaignSummary {
   isRecrutementOpen: boolean;
   rythme?: number;
   rp?: number;
+  isMultiCharacter?: boolean;
   userRole?: 'mj' | 'player';
   characterName?: string | null;
   characterAvatar?: string | null;
@@ -29,7 +30,40 @@ export interface CampaignSummary {
   textColor?: string | null;
   linkColor?: string | null;
   linkSidebarColor?: string | null;
+  hr?: string | null;
+  width?: string | null;
+  defaultDice?: string | null;
 }
+
+export interface CreateCampaignPayload {
+  name: string;
+  systeme: string;
+  univers: string;
+  description: string;
+  nbJoueurs?: number;
+  banniere?: string;
+  statut?: number;
+  isRecrutementOpen?: boolean;
+  rythme?: number;
+  rp?: number;
+  isMultiCharacter?: boolean;
+  dialogueColor?: string | null;
+  penseeColor?: string | null;
+  rp1Color?: string | null;
+  rp2Color?: string | null;
+  quoteColor?: string | null;
+  sidebarColor?: string | null;
+  oddLineColor?: string | null;
+  evenLineColor?: string | null;
+  textColor?: string | null;
+  linkColor?: string | null;
+  linkSidebarColor?: string | null;
+  hr?: string | null;
+  width?: string | null;
+  defaultDice?: string | null;
+}
+
+export type UpdateCampaignPayload = Partial<CreateCampaignPayload>;
 
 export type CampaignRole = 'master' | 'player';
 

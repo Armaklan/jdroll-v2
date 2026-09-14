@@ -9,6 +9,7 @@ import { MyCampaignsPage } from './pages/MyCampaignsPage';
 import { AllCampaignsPage } from './pages/AllCampaignsPage';
 import { CampaignForumPage } from './pages/CampaignForumPage';
 import { CampaignCharactersPage } from './pages/CampaignCharactersPage';
+import { CampaignFormPage } from './pages/CampaignFormPage';
 import { GeneralForumPage } from './pages/GeneralForumPage';
 import { TopicViewPage } from './pages/TopicViewPage';
 import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
@@ -80,6 +81,31 @@ export function AppContent() {
 
           {/* Jouer */}
           <Route path="/my-campaigns" element={<MyCampaignsPage />} />
+          <Route
+            path="/campaigns/new"
+            element={
+              <ProtectedRoute>
+                <CampaignFormPage mode="create" />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/create-campaign" element={<Navigate to="/campaigns/new" replace />} />
+          <Route
+            path="/campaigns/:campaignId/edit"
+            element={
+              <ProtectedRoute>
+                <CampaignFormPage mode="edit" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/campaigns/:campaignId/settings"
+            element={
+              <ProtectedRoute>
+                <CampaignFormPage mode="edit" />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/join-campaign"
             element={
