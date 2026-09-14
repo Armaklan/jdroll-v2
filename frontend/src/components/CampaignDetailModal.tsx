@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignSummary } from '../types/campaign';
+import { getRythmeLabel, getRpLabel } from '../utils/campaign-helpers';
 import {
   X,
   Compass,
@@ -45,36 +46,6 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
   const isMj = user && user.id === campaign.mjId;
   const isArchived = campaign.isArchived || campaign.statut === 2;
   const isRecruitmentOpen = campaign.isRecrutementOpen && !isArchived;
-
-  // Rhythm helper
-  const getRythmeLabel = (rythme?: number): string => {
-    switch (rythme) {
-      case 1:
-        return 'Rapide (1+ message par jour)';
-      case 2:
-        return 'Moyen (plusieurs messages par semaine)';
-      case 3:
-        return 'Posé (1 message par semaine)';
-      case 4:
-        return 'Lent / À son rythme';
-      default:
-        return 'Standard';
-    }
-  };
-
-  // RP style helper
-  const getRpLabel = (rp?: number): string => {
-    switch (rp) {
-      case 1:
-        return 'Narratif & Littéraire (textes longs, immersifs)';
-      case 2:
-        return 'Semi-Développé (paragraphes modérés)';
-      case 3:
-        return 'Direct & Court (actions rapides)';
-      default:
-        return 'Libre';
-    }
-  };
 
   const handleGoToForum = () => {
     onClose();
@@ -250,7 +221,7 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
                   Rythme attendu
                 </span>
                 <span className="text-xs font-semibold text-slate-900 leading-tight block mt-0.5">
-                  {getRythmeLabel(campaign.rythme)}
+                  {getRythmeLabel(campaign.rythme, true)}
                 </span>
               </div>
             </div>
@@ -265,7 +236,7 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
                   Format d'écriture & RP
                 </span>
                 <span className="text-xs font-semibold text-slate-900 leading-tight block mt-0.5">
-                  {getRpLabel(campaign.rp)}
+                  {getRpLabel(campaign.rp, true)}
                 </span>
               </div>
             </div>

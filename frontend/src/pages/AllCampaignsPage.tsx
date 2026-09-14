@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignSummary } from '../types/campaign';
 import { CampaignDetailModal } from '../components/CampaignDetailModal';
+import { CampaignCard } from '../components/CampaignCard';
+import { CampaignGridSkeleton } from '../components/CampaignCardSkeleton';
+import { FeedbackAlert } from '../components/FeedbackAlert';
+import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
 import { AppView } from '../components/Navbar';
 import {
@@ -10,17 +14,10 @@ import {
   Search,
   Archive,
   RefreshCw,
-  Users,
-  Sparkles,
   AlertCircle,
   X,
   Layers,
-  Crown,
-  BookOpen,
   Filter,
-  CheckCircle2,
-  FileText,
-  Dice5,
 } from 'lucide-react';
 
 interface AllCampaignsPageProps {
@@ -67,42 +64,12 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
   };
 
   useEffect(() => {
-    // Debounce search slightly to avoid excessive requests when typing
     const timer = setTimeout(() => {
       fetchCampaigns();
     }, 250);
 
     return () => clearTimeout(timer);
   }, [includeArchived, searchQuery]);
-
-
-  // Human readable Rhythm helper
-  const getRythmeLabel = (rythme?: number): string | null => {
-    switch (rythme) {
-      case 1:
-        return 'Rapide (1+ msg/jour)';
-      case 2:
-        return 'Moyen (plusieurs msg/semaine)';
-      case 3:
-        return 'Posé (1 msg/semaine)';
-      default:
-        return null;
-    }
-  };
-
-  // Human readable RP style helper
-  const getRpLabel = (rp?: number): string | null => {
-    switch (rp) {
-      case 1:
-        return 'RP Narratif / Littéraire';
-      case 2:
-        return 'RP Semi-Développé';
-      case 3:
-        return 'RP Direct / Court';
-      default:
-        return null;
-    }
-  };
 
   const handleResetSearch = () => {
     setSearchQuery('');
@@ -181,7 +148,7 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
         <button
           onClick={fetchCampaigns}
           disabled={isLoading}
-          className="inline-flex items-center gap-2 self-start md:self-auto px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-medium transition shadow-2xs disabled:opacity-50"
+          className="inline-flex items-center gap-2 self-start md:self-auto px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-medium transition shadow-2xs disabled:opacity-50 cursor-pointer"
           title="Actualiser la liste"
         >
           <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
@@ -191,28 +158,11 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
 
       {/* Global Action Feedback Alert */}
       {actionFeedback && (
-        <div
-          className={`border rounded-2xl p-4 flex items-start justify-between gap-3 animate-in fade-in duration-150 ${
-            actionFeedback.type === 'success'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-              : 'bg-red-50 border-red-200 text-red-900'
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            {actionFeedback.type === 'success' ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-            )}
-            <div className="text-sm font-medium">{actionFeedback.message}</div>
-          </div>
-          <button
-            onClick={() => setActionFeedback(null)}
-            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        <FeedbackAlert
+          type={actionFeedback.type}
+          message={actionFeedback.message}
+          onClose={() => setActionFeedback(null)}
+        />
       )}
 
       {/* Filter and Search Toolbar */}
@@ -231,7 +181,7 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
             {searchQuery && (
               <button
                 onClick={handleResetSearch}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 transition"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 rounded-full hover:bg-slate-200 transition cursor-pointer"
                 title="Effacer la recherche"
               >
                 <X className="w-4 h-4" />
@@ -248,7 +198,7 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
             <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
               <button
                 onClick={() => setIncludeArchived(false)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   !includeArchived
                     ? 'bg-white text-indigo-700 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
@@ -258,7 +208,7 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
               </button>
               <button
                 onClick={() => setIncludeArchived(true)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                   includeArchived
                     ? 'bg-white text-indigo-700 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
@@ -290,7 +240,7 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
             {searchQuery && (
               <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-md text-[11px] font-medium flex items-center gap-1">
                 Recherche : "{searchQuery}"
-                <button onClick={handleResetSearch} className="hover:text-indigo-900">
+                <button onClick={handleResetSearch} className="hover:text-indigo-900 cursor-pointer">
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -303,7 +253,7 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
                 setSearchQuery('');
                 setIncludeArchived(false);
               }}
-              className="text-indigo-600 hover:text-indigo-800 font-medium hover:underline text-xs"
+              className="text-indigo-600 hover:text-indigo-800 font-medium hover:underline text-xs cursor-pointer"
             >
               Réinitialiser tous les filtres
             </button>
@@ -321,7 +271,7 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
           </div>
           <button
             onClick={fetchCampaigns}
-            className="text-xs bg-red-100 hover:bg-red-200 text-red-900 px-3 py-1.5 rounded-lg font-medium transition"
+            className="text-xs bg-red-100 hover:bg-red-200 text-red-900 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer"
           >
             Réessayer
           </button>
@@ -329,231 +279,54 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onSelectCamp
       )}
 
       {/* Loading state */}
-      {isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((n) => (
-            <div
-              key={n}
-              className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs animate-pulse flex flex-col"
-            >
-              <div className="h-36 bg-slate-200" />
-              <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
-                <div className="space-y-2">
-                  <div className="h-5 bg-slate-200 rounded w-3/4" />
-                  <div className="h-4 bg-slate-100 rounded w-1/2" />
-                  <div className="h-12 bg-slate-100 rounded w-full mt-2" />
-                </div>
-                <div className="h-8 bg-slate-100 rounded mt-4" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {isLoading && <CampaignGridSkeleton count={6} />}
 
       {/* Empty State */}
       {!isLoading && !error && campaigns.length === 0 && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-10 text-center shadow-xs">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 mb-4 border border-indigo-100">
-            {searchQuery ? <Search className="w-7 h-7" /> : <Layers className="w-7 h-7" />}
-          </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">
-            {searchQuery ? 'Aucune campagne ne correspond à votre recherche' : 'Aucune campagne disponible'}
-          </h3>
-          <p className="text-sm text-slate-600 max-w-md mx-auto mb-6">
-            {searchQuery
+        <EmptyState
+          icon={searchQuery ? Search : Layers}
+          title={searchQuery ? 'Aucune campagne ne correspond à votre recherche' : 'Aucune campagne disponible'}
+          description={
+            searchQuery
               ? `Aucun résultat pour "${searchQuery}". Essayez avec d'autres termes (nom de campagne, système ou univers) ou affichez les archives.`
-              : 'Il n’y a pour le moment aucune campagne active sur la plateforme.'}
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {searchQuery && (
-              <button
-                onClick={handleResetSearch}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-xs sm:text-sm transition shadow-2xs"
-              >
-                Effacer la recherche
-              </button>
-            )}
-            {!includeArchived && (
-              <button
-                onClick={() => setIncludeArchived(true)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl text-xs sm:text-sm transition"
-              >
-                Inclure les campagnes archivées
-              </button>
-            )}
-          </div>
-        </div>
+              : 'Il n’y a pour le moment aucune campagne active sur la plateforme.'
+          }
+          actions={[
+            ...(searchQuery
+              ? [
+                  {
+                    label: 'Effacer la recherche',
+                    onClick: handleResetSearch,
+                    variant: 'primary' as const,
+                  },
+                ]
+              : []),
+            ...(!includeArchived
+              ? [
+                  {
+                    label: 'Inclure les campagnes archivées',
+                    onClick: () => setIncludeArchived(true),
+                    variant: 'secondary' as const,
+                  },
+                ]
+              : []),
+          ]}
+        />
       )}
 
       {/* Campaigns Grid */}
       {!isLoading && !error && campaigns.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {campaigns.map((campagne) => {
-            const rythmeLabel = getRythmeLabel(campagne.rythme);
-            const rpLabel = getRpLabel(campagne.rp);
-            const isUserMj = user && user.id === campagne.mjId;
-
-            return (
-              <div
-                key={campagne.id}
-                onClick={() => handleOpenDetail(campagne)}
-                className={`bg-white border rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col group cursor-pointer ${
-                  campagne.isArchived
-                    ? 'border-slate-300 opacity-85 hover:opacity-100'
-                    : 'border-slate-200 hover:border-indigo-300'
-                }`}
-              >
-                {/* Campaign Banner / Header Image */}
-                <div className="relative h-36 bg-slate-800 overflow-hidden">
-                  {campagne.banniere || campagne.banniereForum ? (
-                    <img
-                      src={campagne.banniere || campagne.banniereForum || undefined}
-                      alt={campagne.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        // Fallback on broken image
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-tr from-slate-900 via-indigo-950 to-slate-800 flex items-center justify-center">
-                      <BookOpen className="w-10 h-10 text-indigo-400/40" />
-                    </div>
-                  )}
-
-                  {/* Top Badges overlay */}
-                  <div className="absolute top-3 inset-x-3 flex items-center justify-between gap-2 pointer-events-none">
-                    {/* Status badge */}
-                    {campagne.isArchived ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/90 text-white backdrop-blur-md shadow-xs">
-                        <Archive className="w-3 h-3" />
-                        Archivée
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-600/90 text-white backdrop-blur-md shadow-xs">
-                        <CheckCircle2 className="w-3 h-3" />
-                        En cours
-                      </span>
-                    )}
-
-                    {/* Recruitment badge */}
-                    {campagne.isRecrutementOpen && !campagne.isArchived ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-600/90 text-white backdrop-blur-md shadow-xs">
-                        <Sparkles className="w-3 h-3" />
-                        Recrutement ouvert
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-900/70 text-slate-200 backdrop-blur-md">
-                        Complet / Fermé
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Bottom Gradient Fade */}
-                  <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
-
-                  {/* MJ Tag overlay */}
-                  <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-white text-xs font-medium">
-                    <div className="flex items-center gap-1.5 drop-shadow-sm">
-                      <Crown className="w-3.5 h-3.5 text-amber-400" />
-                      <span>MJ : <span className="font-semibold">{campagne.mjUsername}</span></span>
-                    </div>
-
-                    <div className="flex items-center gap-1 bg-black/40 backdrop-blur-xs px-2 py-0.5 rounded-md text-[11px]">
-                      <Users className="w-3 h-3 text-slate-300" />
-                      <span>{campagne.nbJoueursActuel} / {campagne.nbJoueurs} PJ</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Body Content */}
-                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                  <div className="space-y-2.5">
-                    {/* Tags : Système & Univers */}
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {campagne.systeme && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                          <Dice5 className="w-3 h-3 text-indigo-500" />
-                          {campagne.systeme}
-                        </span>
-                      )}
-                      {campagne.univers && (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-purple-50 text-purple-700 border border-purple-100">
-                          <Layers className="w-3 h-3 text-purple-500" />
-                          {campagne.univers}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Title */}
-                    <h2 className="text-base font-bold text-slate-900 line-clamp-2 group-hover:text-indigo-600 transition">
-                      {campagne.name}
-                    </h2>
-                  </div>
-
-                  {/* Footer metadata & Details */}
-                  <div className="pt-3 border-t border-slate-100 space-y-3">
-                    {/* Rhythm / RP Badges */}
-                    {(rythmeLabel || rpLabel) && (
-                      <div className="flex flex-wrap gap-1.5 text-[11px]">
-                        {rythmeLabel && (
-                          <span className="text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
-                            {rythmeLabel}
-                          </span>
-                        )}
-                        {rpLabel && (
-                          <span className="text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
-                            {rpLabel}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Actions buttons : Fiche détail, Voir le forum, Rejoindre */}
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenDetail(campagne);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg text-xs transition"
-                        title="Consulter la fiche détaillée"
-                      >
-                        <FileText className="w-3.5 h-3.5 text-slate-500" />
-                        <span>Fiche détail</span>
-                      </button>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleSelectCampaign(campagne.id);
-                          }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 font-semibold rounded-lg text-xs transition"
-                          title="Accéder au forum"
-                        >
-                          <BookOpen className="w-3.5 h-3.5" />
-                          <span>Forum</span>
-                        </button>
-
-                        {campagne.isRecrutementOpen && !campagne.isArchived && !isUserMj && (
-                          <button
-                            onClick={(e) => handleDirectJoin(campagne, e)}
-                            disabled={joiningId === campagne.id}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition shadow-2xs disabled:opacity-50"
-                            title="Rejoindre cette campagne"
-                          >
-                            <Sparkles className={`w-3.5 h-3.5 ${joiningId === campagne.id ? 'animate-spin' : ''}`} />
-                            <span>{joiningId === campagne.id ? '...' : 'Rejoindre'}</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {campaigns.map((campagne) => (
+            <CampaignCard
+              key={campagne.id}
+              campaign={campagne}
+              onOpenDetail={handleOpenDetail}
+              onSelectCampaign={handleSelectCampaign}
+              onJoin={handleDirectJoin}
+              isJoining={joiningId === campagne.id}
+            />
+          ))}
         </div>
       )}
 
