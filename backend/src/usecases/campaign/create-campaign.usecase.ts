@@ -5,11 +5,12 @@ import { ValidationError } from '../../errors/domain.errors.js';
 export interface CreateCampaignDTO {
   mjId: number;
   name: string;
-  systeme: string;
-  univers: string;
-  description: string;
+  systeme?: string;
+  univers?: string;
+  description?: string;
   nbJoueurs?: number;
   banniere?: string;
+  banniereForum?: string | null;
   statut?: number;
   isRecrutementOpen?: boolean;
   rythme?: number;
@@ -44,25 +45,16 @@ export class CreateCampaignUseCase {
     }
 
     const systeme = (dto.systeme || '').trim();
-    if (!systeme) {
-      throw new ValidationError('Le système de jeu est requis');
-    }
     if (systeme.length > 100) {
       throw new ValidationError('Le système de jeu ne peut pas dépasser 100 caractères');
     }
 
     const univers = (dto.univers || '').trim();
-    if (!univers) {
-      throw new ValidationError("L'univers de jeu est requis");
-    }
     if (univers.length > 100) {
       throw new ValidationError("L'univers de jeu ne peut pas dépasser 100 caractères");
     }
 
     const description = (dto.description || '').trim();
-    if (!description) {
-      throw new ValidationError('La description de la campagne est requise');
-    }
 
     const nbJoueurs = dto.nbJoueurs !== undefined ? Number(dto.nbJoueurs) : 4;
     if (isNaN(nbJoueurs) || nbJoueurs < 1 || nbJoueurs > 50) {
@@ -77,6 +69,7 @@ export class CreateCampaignUseCase {
       description,
       nbJoueurs,
       banniere: dto.banniere?.trim() || '',
+      banniereForum: dto.banniereForum !== undefined ? (dto.banniereForum?.trim() || null) : undefined,
       statut: dto.statut ?? 0,
       isRecrutementOpen: dto.isRecrutementOpen !== false,
       rythme: dto.rythme ?? 2,

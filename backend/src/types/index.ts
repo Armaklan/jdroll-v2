@@ -40,6 +40,7 @@ export interface CampaignSummary {
   nbJoueurs: number;
   nbJoueursActuel: number;
   banniere: string;
+  banniereForum?: string | null;
   systeme: string;
   univers: string;
   description: string;

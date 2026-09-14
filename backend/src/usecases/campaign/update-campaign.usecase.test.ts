@@ -52,6 +52,7 @@ describe('UpdateCampaignUseCase', () => {
           if (data.description !== undefined) c.description = data.description;
           if (data.nbJoueurs !== undefined) c.nbJoueurs = data.nbJoueurs;
           if (data.banniere !== undefined) c.banniere = data.banniere;
+          if (data.banniereForum !== undefined) c.banniereForum = data.banniereForum;
           if (data.statut !== undefined) {
             c.statut = data.statut;
             c.isArchived = data.statut === 2;

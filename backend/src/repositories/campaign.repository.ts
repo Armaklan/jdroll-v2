@@ -4,11 +4,12 @@ import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow, CampaignPa
 export interface CreateCampaignData {
   mjId: number;
   name: string;
-  systeme: string;
-  univers: string;
-  description: string;
+  systeme?: string;
+  univers?: string;
+  description?: string;
   nbJoueurs: number;
   banniere?: string;
+  banniereForum?: string | null;
   statut?: number;
   isRecrutementOpen?: boolean;
   rythme?: number;
@@ -37,6 +38,7 @@ export interface UpdateCampaignData {
   description?: string;
   nbJoueurs?: number;
   banniere?: string;
+  banniereForum?: string | null;
   statut?: number;
   isRecrutementOpen?: boolean;
   rythme?: number;
@@ -132,7 +134,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.even_line_color AS evenLineColor,
         cc.text_color AS textColor,
         cc.link_color AS linkColor,
-        cc.link_sidebar_color AS linkSidebarColor
+        cc.link_sidebar_color AS linkSidebarColor,
+        cc.banniere AS banniereForum
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
@@ -150,6 +153,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       nbJoueursActuel: number;
       name: string;
       banniere: string | null;
+      banniereForum: string | null;
       systeme: string;
       univers: string;
       description: string;
@@ -181,6 +185,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       nbJoueurs: row.nbJoueurs,
       nbJoueursActuel: row.nbJoueursActuel,
       banniere: row.banniere || '',
+      banniereForum: row.banniereForum || null,
       systeme: row.systeme,
       univers: row.univers,
       description: row.description,
@@ -234,6 +239,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.text_color AS textColor,
         cc.link_color AS linkColor,
         cc.link_sidebar_color AS linkSidebarColor,
+        cc.banniere AS banniereForum,
         p.name AS characterName,
         p.avatar AS characterAvatar
       FROM campagne_participant cp
@@ -255,6 +261,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       nbJoueursActuel: number;
       name: string;
       banniere: string | null;
+      banniereForum: string | null;
       systeme: string;
       univers: string;
       description: string;
@@ -288,6 +295,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       nbJoueurs: row.nbJoueurs,
       nbJoueursActuel: row.nbJoueursActuel,
       banniere: row.banniere || '',
+      banniereForum: row.banniereForum || null,
       systeme: row.systeme,
       univers: row.univers,
       description: row.description,
@@ -357,7 +365,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.even_line_color AS evenLineColor,
         cc.text_color AS textColor,
         cc.link_color AS linkColor,
-        cc.link_sidebar_color AS linkSidebarColor
+        cc.link_sidebar_color AS linkSidebarColor,
+        cc.banniere AS banniereForum
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
@@ -374,6 +383,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       nbJoueursActuel: number;
       name: string;
       banniere: string | null;
+      banniereForum: string | null;
       systeme: string;
       univers: string;
       description: string;
@@ -405,6 +415,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       nbJoueurs: row.nbJoueurs,
       nbJoueursActuel: row.nbJoueursActuel,
       banniere: row.banniere || '',
+      banniereForum: row.banniereForum || null,
       systeme: row.systeme,
       univers: row.univers,
       description: row.description,
@@ -459,7 +470,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.link_sidebar_color AS linkSidebarColor,
         cc.hr,
         cc.width,
-        cc.default_dice AS defaultDice
+        cc.default_dice AS defaultDice,
+        cc.banniere AS banniereForum
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
@@ -476,6 +488,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       nbJoueursActuel: number;
       name: string;
       banniere: string | null;
+      banniereForum: string | null;
       systeme: string;
       univers: string;
       description: string;
@@ -515,6 +528,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       nbJoueurs: row.nbJoueurs,
       nbJoueursActuel: row.nbJoueursActuel,
       banniere: row.banniere || '',
+      banniereForum: row.banniereForum || null,
       systeme: row.systeme,
       univers: row.univers,
       description: row.description,
@@ -555,9 +569,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       data.nbJoueurs,
       data.name,
       data.banniere || '',
-      data.systeme,
-      data.univers,
-      data.description,
+      data.systeme || '',
+      data.univers || '',
+      data.description || '',
       data.statut ?? 0,
       data.isRecrutementOpen !== false ? 1 : 0,
       data.rythme ?? 2,
@@ -578,7 +592,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
 
     await execute(configSql, [
       campaignId,
-      data.banniere || null,
+      data.banniereForum !== undefined ? data.banniereForum : (data.banniere || null),
       data.hr || null,
       data.oddLineColor || null,
       data.evenLineColor || null,
@@ -667,7 +681,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       data.hr !== undefined ||
       data.width !== undefined ||
       data.defaultDice !== undefined ||
-      data.banniere !== undefined;
+      data.banniereForum !== undefined;
 
     if (hasConfigField) {
       const configUpsertSql = `
@@ -697,7 +711,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
 
       await execute(configUpsertSql, [
         id,
-        data.banniere ?? null,
+        data.banniereForum ?? null,
         data.hr ?? null,
         data.oddLineColor ?? null,
         data.evenLineColor ?? null,
@@ -910,12 +924,13 @@ export class MysqlCampaignRepository implements ICampaignRepository {
   }
 
   async updateCampaignBanner(campagneId: number, bannerUrl: string): Promise<void> {
-    const sql = `
-      UPDATE campagne
-      SET banniere = ?
-      WHERE id = ?
+    const configUpsertSql = `
+      INSERT INTO campagne_config (campagne_id, banniere, template, sidebar_text, link_sidebar_color, widgets)
+      VALUES (?, ?, '', '', '', '')
+      ON DUPLICATE KEY UPDATE banniere = VALUES(banniere)
     `;
-    await execute(sql, [bannerUrl, campagneId]);
+    await execute(configUpsertSql, [campagneId, bannerUrl]);
+    await execute(`UPDATE campagne SET banniere = CASE WHEN banniere IS NULL OR banniere = '' THEN ? ELSE banniere END WHERE id = ?`, [bannerUrl, campagneId]);
   }
 
   async findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]> {

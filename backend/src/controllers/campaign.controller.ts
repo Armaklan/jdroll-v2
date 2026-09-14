@@ -59,11 +59,12 @@ const getCampaignParamsSchema = z.object({
 
 const createCampaignBodySchema = z.object({
   name: z.string().min(1, 'Le nom de la campagne est requis').max(100, 'Le nom ne peut pas dépasser 100 caractères'),
-  systeme: z.string().min(1, 'Le système de jeu est requis').max(100, 'Le système ne peut pas dépasser 100 caractères'),
-  univers: z.string().min(1, 'L’univers est requis').max(100, 'L’univers ne peut pas dépasser 100 caractères'),
-  description: z.string().min(1, 'La description est requise'),
+  systeme: z.string().max(100, 'Le système ne peut pas dépasser 100 caractères').optional().default(''),
+  univers: z.string().max(100, 'L’univers ne peut pas dépasser 100 caractères').optional().default(''),
+  description: z.string().optional().default(''),
   nbJoueurs: z.coerce.number().int().min(1, 'Il faut au moins 1 joueur').max(50, 'Le nombre de joueurs maximum est 50').default(4),
   banniere: z.string().optional(),
+  banniereForum: z.string().nullable().optional(),
   statut: z.coerce.number().int().min(0).max(2).optional(),
   isRecrutementOpen: z.boolean().optional(),
   rythme: z.coerce.number().int().min(1).max(4).optional(),

@@ -12,6 +12,7 @@ export interface UpdateCampaignDTO {
   description?: string;
   nbJoueurs?: number;
   banniere?: string;
+  banniereForum?: string | null;
   statut?: number;
   isRecrutementOpen?: boolean;
   rythme?: number;
@@ -62,9 +63,6 @@ export class UpdateCampaignUseCase {
 
     if (dto.systeme !== undefined) {
       const trimmed = dto.systeme.trim();
-      if (!trimmed) {
-        throw new ValidationError('Le système de jeu ne peut pas être vide');
-      }
       if (trimmed.length > 100) {
         throw new ValidationError('Le système de jeu ne peut pas dépasser 100 caractères');
       }
@@ -72,18 +70,8 @@ export class UpdateCampaignUseCase {
 
     if (dto.univers !== undefined) {
       const trimmed = dto.univers.trim();
-      if (!trimmed) {
-        throw new ValidationError("L'univers de jeu ne peut pas être vide");
-      }
       if (trimmed.length > 100) {
         throw new ValidationError("L'univers de jeu ne peut pas dépasser 100 caractères");
-      }
-    }
-
-    if (dto.description !== undefined) {
-      const trimmed = dto.description.trim();
-      if (!trimmed) {
-        throw new ValidationError('La description de la campagne ne peut pas être vide');
       }
     }
 
@@ -101,6 +89,7 @@ export class UpdateCampaignUseCase {
       description: dto.description !== undefined ? dto.description.trim() : undefined,
       nbJoueurs: dto.nbJoueurs !== undefined ? Number(dto.nbJoueurs) : undefined,
       banniere: dto.banniere !== undefined ? dto.banniere.trim() : undefined,
+      banniereForum: dto.banniereForum !== undefined ? (dto.banniereForum ? dto.banniereForum.trim() : null) : undefined,
       statut: dto.statut !== undefined ? Number(dto.statut) : undefined,
       isRecrutementOpen: dto.isRecrutementOpen,
       rythme: dto.rythme !== undefined ? Number(dto.rythme) : undefined,

@@ -52,6 +52,7 @@ class MockCampaignRepository implements ICampaignRepository {
     const c = this.campaigns.find((item) => item.id === campagneId);
     if (c) {
       c.banniere = bannerUrl;
+      c.banniereForum = bannerUrl;
     }
   }
   async findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]> {

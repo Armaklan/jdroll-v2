@@ -7,24 +7,21 @@ import { WysiwygEditor } from '../components/WysiwygEditor';
 import {
   ArrowLeft,
   Save,
-  Sparkles,
   BookOpen,
   Users,
   Shield,
   Palette,
-  Layers,
   Image as ImageIcon,
   Upload,
   Link as LinkIcon,
   AlertCircle,
   Loader2,
   Dices,
-  Eye,
   RefreshCw,
   Clock,
-  Feather,
   X,
   Sliders,
+  LayoutTemplate,
 } from 'lucide-react';
 
 interface CampaignFormPageProps {
@@ -88,13 +85,21 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const [description, setDescription] = useState<string>('');
   const [nbJoueurs, setNbJoueurs] = useState<number>(4);
 
-  // Banner fields
-  const [bannerMode, setBannerMode] = useState<'upload' | 'url'>('url');
-  const [banniereUrl, setBanniereUrl] = useState<string>('');
-  const [bannerFile, setBannerFile] = useState<File | null>(null);
-  const [bannerPreview, setBannerPreview] = useState<string | null>(null);
-  const [isDraggingBanner, setIsDraggingBanner] = useState<boolean>(false);
-  const bannerInputRef = useRef<HTMLInputElement>(null);
+  // 1. Vignette (Table campagne.banniere - pour l'aperçu / cartes dans les listes)
+  const [vignetteMode, setVignetteMode] = useState<'upload' | 'url'>('url');
+  const [vignetteUrl, setVignetteUrl] = useState<string>('');
+  const [vignetteFile, setVignetteFile] = useState<File | null>(null);
+  const [vignettePreview, setVignettePreview] = useState<string | null>(null);
+  const [isDraggingVignette, setIsDraggingVignette] = useState<boolean>(false);
+  const vignetteInputRef = useRef<HTMLInputElement>(null);
+
+  // 2. Bannière du Forum (Table campagne_config.banniere - en-tête du forum de jeu)
+  const [forumBannerMode, setForumBannerMode] = useState<'upload' | 'url'>('url');
+  const [forumBannerUrl, setForumBannerUrl] = useState<string>('');
+  const [forumBannerFile, setForumBannerFile] = useState<File | null>(null);
+  const [forumBannerPreview, setForumBannerPreview] = useState<string | null>(null);
+  const [isDraggingForumBanner, setIsDraggingForumBanner] = useState<boolean>(false);
+  const forumBannerInputRef = useRef<HTMLInputElement>(null);
 
   // Game rules & options
   const [statut, setStatut] = useState<number>(0);
@@ -142,9 +147,16 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         setUnivers(campaign.univers || '');
         setDescription(campaign.description || '');
         setNbJoueurs(campaign.nbJoueurs || 4);
-        setBanniereUrl(campaign.banniere || '');
-        setBannerPreview(campaign.banniere || null);
-        setBannerMode(campaign.banniere?.startsWith('/files/') ? 'upload' : 'url');
+
+        // Vignette (campagne.banniere)
+        setVignetteUrl(campaign.banniere || '');
+        setVignettePreview(campaign.banniere || null);
+        setVignetteMode(campaign.banniere?.startsWith('/files/') ? 'upload' : 'url');
+
+        // Bannière Forum (campagne_config.banniere)
+        setForumBannerUrl(campaign.banniereForum || '');
+        setForumBannerPreview(campaign.banniereForum || null);
+        setForumBannerMode(campaign.banniereForum?.startsWith('/files/') ? 'upload' : 'url');
 
         setStatut(campaign.statut ?? 0);
         setIsRecrutementOpen(Boolean(campaign.isRecrutementOpen));
@@ -174,36 +186,71 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
     fetchCampaignData();
   }, [isEditMode, campaignId, user]);
 
-  const handleBannerFileSelect = (file: File) => {
+  // Handlers for Vignette (Campagne)
+  const handleVignetteFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      setFormError('Le fichier sélectionné doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).');
+      setFormError('Le fichier de la vignette doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).');
       return;
     }
     setFormError(null);
-    setBannerFile(file);
+    setVignetteFile(file);
     const objectUrl = URL.createObjectURL(file);
-    setBannerPreview(objectUrl);
-    setBannerMode('upload');
+    setVignettePreview(objectUrl);
+    setVignetteMode('upload');
   };
 
-  const handleBannerDragOver = (e: React.DragEvent) => {
+  const handleVignetteDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDraggingBanner(true);
+    setIsDraggingVignette(true);
   };
 
-  const handleBannerDragLeave = (e: React.DragEvent) => {
+  const handleVignetteDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDraggingBanner(false);
+    setIsDraggingVignette(false);
   };
 
-  const handleBannerDrop = (e: React.DragEvent) => {
+  const handleVignetteDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDraggingBanner(false);
+    setIsDraggingVignette(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleBannerFileSelect(e.dataTransfer.files[0]);
+      handleVignetteFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
+  // Handlers for Forum Banner (Campagne Config)
+  const handleForumBannerFileSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setFormError('Le fichier de la bannière de forum doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).');
+      return;
+    }
+    setFormError(null);
+    setForumBannerFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setForumBannerPreview(objectUrl);
+    setForumBannerMode('upload');
+  };
+
+  const handleForumBannerDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingForumBanner(true);
+  };
+
+  const handleForumBannerDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingForumBanner(false);
+  };
+
+  const handleForumBannerDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingForumBanner(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleForumBannerFileSelect(e.dataTransfer.files[0]);
     }
   };
 
@@ -238,25 +285,20 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
     }
 
     const trimmedSysteme = systeme.trim();
-    if (!trimmedSysteme) {
-      setFormError('Le système de jeu est obligatoire.');
+    if (trimmedSysteme.length > 100) {
+      setFormError('Le système de jeu ne peut pas dépasser 100 caractères.');
       setActiveTab('general');
       return;
     }
 
     const trimmedUnivers = univers.trim();
-    if (!trimmedUnivers) {
-      setFormError("L'univers de jeu est obligatoire.");
+    if (trimmedUnivers.length > 100) {
+      setFormError("L'univers de jeu ne peut pas dépasser 100 caractères.");
       setActiveTab('general');
       return;
     }
 
     const trimmedDescription = description.trim();
-    if (!trimmedDescription) {
-      setFormError('La description de la campagne est obligatoire.');
-      setActiveTab('general');
-      return;
-    }
 
     if (isNaN(nbJoueurs) || nbJoueurs < 1 || nbJoueurs > 50) {
       setFormError('Le nombre de joueurs doit être compris entre 1 et 50.');
@@ -267,6 +309,20 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
     setIsSubmitting(true);
 
     try {
+      const initialBanniere =
+        vignetteMode === 'url'
+          ? vignetteUrl.trim()
+          : isEditMode && !vignetteFile
+          ? vignetteUrl
+          : '';
+
+      const initialBanniereForum =
+        forumBannerMode === 'url'
+          ? forumBannerUrl.trim() || null
+          : isEditMode && !forumBannerFile
+          ? forumBannerUrl || null
+          : null;
+
       if (isEditMode) {
         // Update payload
         const payload: UpdateCampaignPayload = {
@@ -275,7 +331,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           univers: trimmedUnivers,
           description: trimmedDescription,
           nbJoueurs,
-          banniere: bannerMode === 'url' ? banniereUrl.trim() : banniereUrl,
+          banniere: initialBanniere,
+          banniereForum: initialBanniereForum,
           statut,
           isRecrutementOpen,
           rythme,
@@ -297,12 +354,22 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
         const updated = await campaignsApi.updateCampaign(campaignId, payload);
 
-        // If a new banner file was selected, upload it now
-        if (bannerFile) {
+        // Upload vignette file if provided
+        if (vignetteFile) {
           try {
-            await campaignsApi.uploadCampaignBanner(campaignId, bannerFile);
+            const vignetteRes = await campaignsApi.uploadCampaignImage(campaignId, vignetteFile);
+            await campaignsApi.updateCampaign(campaignId, { banniere: vignetteRes.url });
           } catch (uploadErr) {
-            console.error('Erreur lors du téléversement de la bannière:', uploadErr);
+            console.error('Erreur lors du téléversement de la vignette:', uploadErr);
+          }
+        }
+
+        // Upload forum banner file if provided
+        if (forumBannerFile) {
+          try {
+            await campaignsApi.uploadCampaignBanner(campaignId, forumBannerFile);
+          } catch (uploadErr) {
+            console.error('Erreur lors du téléversement de la bannière de forum:', uploadErr);
           }
         }
 
@@ -315,7 +382,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           univers: trimmedUnivers,
           description: trimmedDescription,
           nbJoueurs,
-          banniere: bannerMode === 'url' ? banniereUrl.trim() : '',
+          banniere: initialBanniere,
+          banniereForum: initialBanniereForum,
           statut,
           isRecrutementOpen,
           rythme,
@@ -337,12 +405,22 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
         const created = await campaignsApi.createCampaign(payload);
 
-        // If banner file was provided, upload it to the newly created campaign
-        if (bannerFile) {
+        // Upload vignette file if provided
+        if (vignetteFile) {
           try {
-            await campaignsApi.uploadCampaignBanner(created.id, bannerFile);
+            const vignetteRes = await campaignsApi.uploadCampaignImage(created.id, vignetteFile);
+            await campaignsApi.updateCampaign(created.id, { banniere: vignetteRes.url });
           } catch (uploadErr) {
-            console.error('Erreur lors du téléversement de la bannière:', uploadErr);
+            console.error('Erreur lors du téléversement de la vignette:', uploadErr);
+          }
+        }
+
+        // Upload forum banner file if provided
+        if (forumBannerFile) {
+          try {
+            await campaignsApi.uploadCampaignBanner(created.id, forumBannerFile);
+          } catch (uploadErr) {
+            console.error('Erreur lors du téléversement de la bannière de forum:', uploadErr);
           }
         }
 
@@ -383,7 +461,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         <div className="pt-4 flex justify-center gap-3">
           <button
             onClick={() => navigate('/my-campaigns')}
-            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition shadow-xs"
+            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition shadow-xs cursor-pointer"
           >
             Retour à mes campagnes
           </button>
@@ -399,7 +477,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <button
             onClick={handleCancel}
-            className="inline-flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 font-medium transition"
+            className="inline-flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 font-medium transition cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>{isEditMode ? 'Retour à la campagne' : 'Retour à mes campagnes'}</span>
@@ -415,7 +493,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
             type="button"
             onClick={handleCancel}
             disabled={isSubmitting}
-            className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition shadow-2xs disabled:opacity-50"
+            className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition shadow-2xs disabled:opacity-50 cursor-pointer"
           >
             Annuler
           </button>
@@ -449,8 +527,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
               {isEditMode
-                ? 'Ajustez les informations générales, les règles de recrutement, le rythme de jeu et l’ambiance visuelle du forum de votre campagne.'
-                : 'Configurez votre nouvelle aventure sur table virtuelle : système de jeu, univers, synopsis, rythme et options de personnalisation.'}
+                ? 'Ajustez les informations générales, les règles de recrutement, le rythme de jeu, la vignette d’aperçu et la bannière du forum.'
+                : 'Configurez votre nouvelle aventure sur table virtuelle : système, univers, synopsis, vignette d’aperçu et bannière de forum.'}
             </p>
           </div>
 
@@ -459,40 +537,45 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
               <span className="block text-xl font-bold text-indigo-400">
                 {nbJoueurs}
               </span>
-              <span className="text-[11px] text-slate-300 uppercase tracking-wider font-semibold">
-                Joueurs max
+              <span className="text-[11px] uppercase tracking-wider text-slate-400">Joueurs max</span>
+            </div>
+            <div className="text-center p-3.5 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-xs">
+              <span className="block text-xl font-bold text-emerald-400">
+                {isRecrutementOpen ? 'Ouvert' : 'Fermé'}
               </span>
+              <span className="text-[11px] uppercase tracking-wider text-slate-400">Recrutement</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Error Alert */}
+      {/* Global Form Error Alert */}
       {formError && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 text-red-800 animate-in fade-in">
-          <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <h4 className="text-sm font-bold">Veuillez vérifier les informations</h4>
-            <p className="text-xs text-red-700 mt-0.5">{formError}</p>
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4 flex items-start gap-3 animate-in fade-in">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="flex-1 text-xs sm:text-sm">
+            <strong className="font-bold">Attention : </strong>
+            <span>{formError}</span>
           </div>
           <button
+            type="button"
             onClick={() => setFormError(null)}
-            className="text-red-400 hover:text-red-700 text-sm font-bold"
+            className="text-rose-500 hover:text-rose-700 font-bold ml-2 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Tabs Toolbar */}
-      <div className="flex items-center gap-2 p-1 bg-white border border-slate-200 rounded-2xl shadow-xs overflow-x-auto">
+      {/* Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-px overflow-x-auto">
         <button
           type="button"
           onClick={() => setActiveTab('general')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold rounded-t-2xl border-b-2 transition whitespace-nowrap cursor-pointer ${
             activeTab === 'general'
-              ? 'bg-indigo-50 text-indigo-700 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <BookOpen className="w-4 h-4" />
@@ -502,10 +585,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         <button
           type="button"
           onClick={() => setActiveTab('gameplay')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold rounded-t-2xl border-b-2 transition whitespace-nowrap cursor-pointer ${
             activeTab === 'gameplay'
-              ? 'bg-indigo-50 text-indigo-700 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <Sliders className="w-4 h-4" />
@@ -515,143 +598,154 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         <button
           type="button"
           onClick={() => setActiveTab('appearance')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition shrink-0 ${
+          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold rounded-t-2xl border-b-2 transition whitespace-nowrap cursor-pointer ${
             activeTab === 'appearance'
-              ? 'bg-indigo-50 text-indigo-700 shadow-2xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
           }`}
         >
           <Palette className="w-4 h-4" />
-          <span>Bannière & Thème Visuel</span>
+          <span>Bannières & Apparence</span>
         </button>
       </div>
 
+      {/* Form Body */}
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* TAB 1: General Info */}
         {activeTab === 'general' && (
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="border-b border-slate-100 pb-4">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-indigo-600" />
-                <span>Présentation de la Campagne</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Renseignez les détails fondamentaux pour identifier votre aventure.
-              </p>
-            </div>
-
-            <div className="space-y-6">
-              {/* Campaign Name */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Nom de la campagne <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: La Malédiction de Strahd, Ombres sur Néo-Paris..."
-                  maxLength={100}
-                  required
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
-                />
-                <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-                  <span>Titre évocateur qui apparaîtra dans les listes et en tête de forum.</span>
-                  <span>{name.length} / 100</span>
-                </div>
+          <div className="space-y-8">
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-indigo-600" />
+                  <span>Présentation de la Table</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Renseignez le nom de votre campagne ainsi que son cadre de jeu.
+                </p>
               </div>
 
-              {/* Game System & Universe (2 Columns) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* System */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Système de jeu <span className="text-red-500">*</span>
+              <div className="space-y-6">
+                {/* Campaign Name */}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                    Nom de la campagne <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    value={systeme}
-                    onChange={(e) => setSysteme(e.target.value)}
-                    placeholder="Ex: D&D 5E, Cthulhu 7E, Système Libre..."
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ex: La Malédiction de Strahd, Ombres sur Néo-Paris..."
                     maxLength={100}
                     required
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
                   />
-                  {/* Preset pills */}
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {SYSTEM_PRESETS.map((sys) => (
-                      <button
-                        key={sys}
-                        type="button"
-                        onClick={() => setSysteme(sys)}
-                        className={`text-[11px] px-2 py-0.5 rounded-lg border transition font-medium cursor-pointer ${
-                          systeme === sys
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                        }`}
-                      >
-                        {sys}
-                      </button>
-                    ))}
+                  <div className="flex justify-between text-[11px] text-slate-400 mt-1">
+                    <span>Titre principal qui apparaîtra dans les listes et en tête de forum.</span>
+                    <span>{name.length} / 100</span>
                   </div>
                 </div>
 
-                {/* Universe */}
+                {/* Game System & Universe (2 Columns) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* System */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                        Système de jeu
+                      </label>
+                      <span className="text-[11px] text-slate-400 font-medium">(optionnel)</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={systeme}
+                      onChange={(e) => setSysteme(e.target.value)}
+                      placeholder="Ex: D&D 5E, Cthulhu 7E, Système Libre..."
+                      maxLength={100}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
+                    />
+                    {/* Preset pills */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {SYSTEM_PRESETS.map((sys) => (
+                        <button
+                          key={sys}
+                          type="button"
+                          onClick={() => setSysteme(sys)}
+                          className={`text-[11px] px-2 py-0.5 rounded-lg border transition font-medium cursor-pointer ${
+                            systeme === sys
+                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                        >
+                          {sys}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Universe */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                        Univers / Cadre
+                      </label>
+                      <span className="text-[11px] text-slate-400 font-medium">(optionnel)</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={univers}
+                      onChange={(e) => setUnivers(e.target.value)}
+                      placeholder="Ex: Médiéval-Fantastique, Cyberpunk, Années 1920..."
+                      maxLength={100}
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
+                    />
+                    {/* Preset pills */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {UNIVERSE_PRESETS.map((univ) => (
+                        <button
+                          key={univ}
+                          type="button"
+                          onClick={() => setUnivers(univ)}
+                          className={`text-[11px] px-2 py-0.5 rounded-lg border transition font-medium cursor-pointer ${
+                            univers === univ
+                              ? 'bg-indigo-600 text-white border-indigo-600'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                        >
+                          {univ}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Campaign Description with WysiwygEditor */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Univers / Cadre <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={univers}
-                    onChange={(e) => setUnivers(e.target.value)}
-                    placeholder="Ex: Médiéval-Fantastique, Cyberpunk, Années 1920..."
-                    maxLength={100}
-                    required
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
-                  />
-                  {/* Preset pills */}
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {UNIVERSE_PRESETS.map((univ) => (
-                      <button
-                        key={univ}
-                        type="button"
-                        onClick={() => setUnivers(univ)}
-                        className={`text-[11px] px-2 py-0.5 rounded-lg border transition font-medium cursor-pointer ${
-                          univers === univ
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:text-slate-900'
-                        }`}
-                      >
-                        {univ}
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Description & Synopsis
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-slate-400 font-medium">(optionnel)</span>
+                      <span className="text-slate-300">&bull;</span>
+                      <span className="text-xs text-slate-400">Riche / HTML & Mise en forme supportés</span>
+                    </div>
                   </div>
+                  <WysiwygEditor
+                    value={description}
+                    onChange={(val) => setDescription(val)}
+                    placeholder="Présentez l'accroche de votre campagne, le contexte général de l'histoire, les attentes envers les joueurs..."
+                    minHeight="220px"
+                    onUploadImage={
+                      isEditMode && campaignId
+                        ? async (file) => {
+                            const res = await campaignsApi.uploadCampaignImage(campaignId, file);
+                            return res.url;
+                          }
+                        : undefined
+                    }
+                  />
                 </div>
-              </div>
-
-              {/* Campaign Description with WysiwygEditor */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Description & Synopsis <span className="text-red-500">*</span>
-                  </label>
-                  <span className="text-xs text-slate-400">Riche / HTML & Mise en forme supportés</span>
-                </div>
-                <WysiwygEditor
-                  value={description}
-                  onChange={(val) => setDescription(val)}
-                  placeholder="Présentez l'accroche de votre campagne, le contexte général de l'histoire, les attentes envers les joueurs..."
-                  minHeight="220px"
-                  onUploadImage={
-                    isEditMode && campaignId
-                      ? async (file) => {
-                          const res = await campaignsApi.uploadCampaignImage(campaignId, file);
-                          return res.url;
-                        }
-                      : undefined
-                  }
-                />
               </div>
             </div>
           </div>
@@ -659,297 +753,430 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
         {/* TAB 2: Rules, Gameplay & Recruitment */}
         {activeTab === 'gameplay' && (
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8">
-            <div className="border-b border-slate-100 pb-4">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-indigo-600" />
-                <span>Règles de Jeu, Recrutement & Statut</span>
-              </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Gérez la capacité de votre table, les exigences de jeu et l'ouverture aux inscriptions.
-              </p>
-            </div>
-
-            <div className="space-y-6">
-              {/* Campaign Status selector */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                  Statut de la campagne
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setStatut(0)}
-                    className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between gap-2 cursor-pointer ${
-                      statut === 0
-                        ? 'border-emerald-500 bg-emerald-50/70 ring-2 ring-emerald-200'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-800 uppercase tracking-wide">
-                        Active
-                      </span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-sm">En cours</div>
-                      <div className="text-xs text-slate-500 mt-0.5">La campagne se joue activement.</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setStatut(1)}
-                    className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between gap-2 cursor-pointer ${
-                      statut === 1
-                        ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-200'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-800 uppercase tracking-wide">
-                        En pause
-                      </span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-sm">Suspendue</div>
-                      <div className="text-xs text-slate-500 mt-0.5">Temporairement en attente ou arrêtée.</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setStatut(2)}
-                    className={`p-4 rounded-2xl border text-left transition flex flex-col justify-between gap-2 cursor-pointer ${
-                      statut === 2
-                        ? 'border-slate-500 bg-slate-100 ring-2 ring-slate-300'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-                        Archivée
-                      </span>
-                      <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                    </div>
-                    <div>
-                      <div className="font-bold text-slate-900 text-sm">Terminée</div>
-                      <div className="text-xs text-slate-500 mt-0.5">Aventure conclue, en consultation.</div>
-                    </div>
-                  </button>
-                </div>
+          <div className="space-y-8">
+            {/* Recruitment and Status */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-600" />
+                  <span>Statut & Recrutement</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Définissez la capacité d'accueil et la visibilité des candidatures.
+                </p>
               </div>
 
-              {/* Number of Players & Recruitment Toggle */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                {/* Max players */}
-                <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                      <Users className="w-4 h-4 text-indigo-600" />
-                      <span>Nombre maximum de joueurs</span>
-                    </label>
-                    <span className="text-base font-extrabold text-indigo-700 bg-white px-3 py-0.5 rounded-lg border border-slate-200 shadow-2xs">
-                      {nbJoueurs}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Max Players */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Nombre maximum de joueurs
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={nbJoueurs}
+                      onChange={(e) => setNbJoueurs(parseInt(e.target.value, 10) || 1)}
+                      className="w-32 px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-bold text-slate-900 outline-hidden transition"
+                    />
+                    <span className="text-xs text-slate-500">
+                      Recommandé : entre 3 et 6 joueurs pour une table optimale.
                     </span>
                   </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={20}
-                    value={nbJoueurs}
-                    onChange={(e) => setNbJoueurs(parseInt(e.target.value, 10))}
-                    className="w-full accent-indigo-600 cursor-pointer"
-                  />
-                  <div className="flex justify-between text-[11px] text-slate-400 font-medium">
-                    <span>1 joueur (Solo/Duo)</span>
-                    <span>4 joueurs</span>
-                    <span>20 joueurs (Grande table)</span>
-                  </div>
                 </div>
 
-                {/* Recruitment toggle */}
-                <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-4">
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                      <Sparkles className="w-4 h-4 text-emerald-600" />
-                      <span>Recrutement de joueurs</span>
-                    </label>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {isRecrutementOpen
-                        ? 'Les candidatures et créations de fiches sont ouvertes aux membres.'
-                        : 'La table est complète, recrutement fermé.'}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsRecrutementOpen(!isRecrutementOpen)}
-                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                      isRecrutementOpen ? 'bg-emerald-600' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        isRecrutementOpen ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Rhythm of play */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-indigo-600" />
-                  <span>Rythme de publication attendu</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {[
-                    { id: 1, title: 'Très rapide', desc: 'Plusieurs posts par jour' },
-                    { id: 2, title: 'Quotidien', desc: '1 post par jour' },
-                    { id: 3, title: 'Régulier', desc: '2 à 3 posts par semaine' },
-                    { id: 4, title: 'Tranquille', desc: '1 post par semaine ou moins' },
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setRythme(item.id)}
-                      className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
-                        rythme === item.id
-                          ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-200'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div className="font-bold text-slate-900 text-xs sm:text-sm">{item.title}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">{item.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* RP Level */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Feather className="w-4 h-4 text-indigo-600" />
-                  <span>Niveau de Roleplay & Style</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    { id: 1, title: 'Débutant bienvenu', desc: 'Accessible, apprentissage encouragé' },
-                    { id: 2, title: 'Intermédiaire', desc: 'Bonne qualité narrative et écriture soignée' },
-                    { id: 3, title: 'Exigeant / Littéraire', desc: 'Roleplay poussé et textes immersifs' },
-                  ].map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setRp(item.id)}
-                      className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
-                        rp === item.id
-                          ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-200'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div className="font-bold text-slate-900 text-xs sm:text-sm">{item.title}</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">{item.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Multi Character & Default Dice Formula */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                {/* Multi-Character toggle */}
-                <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-4">
-                  <div>
-                    <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                      <Layers className="w-4 h-4 text-indigo-600" />
-                      <span>Multi-personnages</span>
-                    </label>
-                    <p className="text-xs text-slate-500 mt-1">
-                      {isMultiCharacter
-                        ? 'Les joueurs peuvent créer et incarner plusieurs personnages.'
-                        : 'Un seul personnage principal par joueur.'}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsMultiCharacter(!isMultiCharacter)}
-                    className={`relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden ${
-                      isMultiCharacter ? 'bg-indigo-600' : 'bg-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
-                        isMultiCharacter ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Default Dice */}
-                <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                    <Dices className="w-4 h-4 text-indigo-600" />
-                    <span>Formule de dé par défaut</span>
+                {/* Campaign Status */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    État de la campagne
                   </label>
+                  <select
+                    value={statut}
+                    onChange={(e) => setStatut(parseInt(e.target.value, 10))}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 bg-white outline-hidden transition cursor-pointer"
+                  >
+                    <option value={0}>En préparation (non démarrée)</option>
+                    <option value={1}>En cours (partie active)</option>
+                    <option value={2}>Archivée (terminée ou en pause)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Recruitment Toggle Card */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <span className="text-sm font-bold text-slate-900 block">
+                    Ouvrir les candidatures aux joueurs
+                  </span>
+                  <span className="text-xs text-slate-500 block">
+                    Permet aux aventuriers de postuler pour rejoindre votre table depuis les annonces et recherches.
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isRecrutementOpen}
+                    onChange={(e) => setIsRecrutementOpen(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              {/* Multi-Characters Toggle Card */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <span className="text-sm font-bold text-slate-900 block">
+                    Autoriser plusieurs personnages par joueur
+                  </span>
+                  <span className="text-xs text-slate-500 block">
+                    Active la gestion de plusieurs fiches de héros ou comparses pour chaque participant.
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isMultiCharacter}
+                    onChange={(e) => setIsMultiCharacter(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* Rhythm and RP Level */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-indigo-600" />
+                  <span>Rythme & Style d'Écriture</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Indiquez vos attentes de fréquence de publication et d'exigence narrative.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Game Rhythm */}
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Fréquence / Rythme de jeu
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      { val: 1, label: 'Rapide', desc: 'Au moins un post par jour' },
+                      { val: 2, label: 'Régulier', desc: 'Plusieurs posts par semaine (défaut)' },
+                      { val: 3, label: 'Modéré', desc: '1 à 2 posts par semaine' },
+                      { val: 4, label: 'Lent / Posé', desc: 'Quelques posts par mois' },
+                    ].map((r) => (
+                      <label
+                        key={r.val}
+                        onClick={() => setRythme(r.val)}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition cursor-pointer ${
+                          rythme === r.val
+                            ? 'border-indigo-600 bg-indigo-50/60 shadow-2xs'
+                            : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="rythme"
+                          value={r.val}
+                          checked={rythme === r.val}
+                          onChange={() => setRythme(r.val)}
+                          className="text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div>
+                          <span className="block text-xs font-bold text-slate-900">{r.label}</span>
+                          <span className="block text-[11px] text-slate-500">{r.desc}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* RP Exigence Level */}
+                <div className="space-y-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Niveau d'exigence RP
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      { val: 1, label: 'Débutant / Libre', desc: 'Accessible à tous, posts courts acceptés' },
+                      { val: 2, label: 'Standard / Soigné', desc: 'Orthographe et style narratif appréciés' },
+                      { val: 3, label: 'Littéraire / Exigeant', desc: 'Développement littéraire approfondi' },
+                    ].map((lvl) => (
+                      <label
+                        key={lvl.val}
+                        onClick={() => setRp(lvl.val)}
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition cursor-pointer ${
+                          rp === lvl.val
+                            ? 'border-indigo-600 bg-indigo-50/60 shadow-2xs'
+                            : 'border-slate-200 bg-white hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="rp"
+                          value={lvl.val}
+                          checked={rp === lvl.val}
+                          onChange={() => setRp(lvl.val)}
+                          className="text-indigo-600 focus:ring-indigo-500"
+                        />
+                        <div>
+                          <span className="block text-xs font-bold text-slate-900">{lvl.label}</span>
+                          <span className="block text-[11px] text-slate-500">{lvl.desc}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Default Dice Formula */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Dices className="w-5 h-5 text-indigo-600" />
+                  <span>Formule de Dés par Défaut</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Pré-remplit automatiquement le lanceur de dés lors de la rédaction de messages.
+                </p>
+              </div>
+
+              <div className="space-y-3 max-w-md">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Formule rapide
+                </label>
+                <div className="flex items-center gap-2">
                   <input
                     type="text"
                     value={defaultDice}
                     onChange={(e) => setDefaultDice(e.target.value)}
-                    placeholder="Ex: 1d20, 3d6, 1d100..."
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-mono text-slate-900 bg-white outline-hidden transition"
+                    placeholder="1d20, 3d6, 1d100, 4df..."
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-mono font-bold text-indigo-700 outline-hidden transition"
                   />
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {DICE_PRESETS.map((dp) => (
-                      <button
-                        key={dp.formula}
-                        type="button"
-                        onClick={() => setDefaultDice(dp.formula)}
-                        className={`text-[10px] px-2 py-0.5 rounded-md border font-mono transition cursor-pointer ${
-                          defaultDice === dp.formula
-                            ? 'bg-indigo-600 text-white border-indigo-600'
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                        }`}
-                      >
-                        {dp.formula}
-                      </button>
-                    ))}
-                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {DICE_PRESETS.map((p) => (
+                    <button
+                      key={p.formula}
+                      type="button"
+                      onClick={() => setDefaultDice(p.formula)}
+                      className={`text-xs px-2.5 py-1 rounded-lg border font-mono transition cursor-pointer ${
+                        defaultDice === p.formula
+                          ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
+                          : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: Visual Appearance & Theme Colors */}
+        {/* TAB 3: Visual Appearance, Banners & Theme Colors */}
         {activeTab === 'appearance' && (
           <div className="space-y-8">
-            {/* Banner Config Card */}
+            {/* 1. VIGNETTE DE LA CAMPAGNE (Table campagne) */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
               <div className="border-b border-slate-100 pb-4">
-                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <ImageIcon className="w-5 h-5 text-indigo-600" />
-                  <span>Bannière de la Campagne</span>
-                </h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Illustrez le haut du forum de votre campagne avec une image d'ambiance.
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold text-xs border border-indigo-200">
+                    Vignette d'aperçu
+                  </span>
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <LayoutTemplate className="w-5 h-5 text-indigo-600" />
+                    <span>Vignette de la Campagne</span>
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Cette image est utilisée comme <strong>vignette de présentation</strong> sur les cartes de la page « Mes campagnes » et « Toutes les campagnes » (format carte / miniature).
                 </p>
               </div>
 
-              {/* Banner Live Preview */}
+              {/* Vignette Live Preview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div className="space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                    Aperçu sur carte de campagne
+                  </span>
+                  <div className="w-full max-w-sm border border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-white">
+                    <div className="h-36 relative overflow-hidden bg-gradient-to-r from-slate-800 to-indigo-950">
+                      {vignettePreview || (vignetteMode === 'url' && vignetteUrl) ? (
+                        <img
+                          src={vignettePreview || vignetteUrl}
+                          alt="Aperçu vignette"
+                          className="w-full h-full object-cover opacity-85"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center opacity-30">
+                          <BookOpen className="w-16 h-16 text-white" />
+                        </div>
+                      )}
+                      <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 text-indigo-950 shadow-2xs">
+                          {systeme || 'Système libre'}
+                        </span>
+                        {univers && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-900/80 text-slate-200">
+                            {univers}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-4 space-y-1">
+                      <h4 className="font-bold text-sm text-slate-900 truncate">
+                        {name || 'Titre de la campagne'}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 line-clamp-2">
+                        {description ? description.replace(/<[^>]*>/g, '') : 'Synopsis de présentation...'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vignette source selector: Upload vs URL */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl max-w-xs">
+                    <button
+                      type="button"
+                      onClick={() => setVignetteMode('upload')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                        vignetteMode === 'upload'
+                          ? 'bg-white text-indigo-700 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Fichier image</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVignetteMode('url')}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
+                        vignetteMode === 'url'
+                          ? 'bg-white text-indigo-700 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <LinkIcon className="w-3.5 h-3.5" />
+                      <span>Lien URL</span>
+                    </button>
+                  </div>
+
+                  {vignetteMode === 'upload' ? (
+                    <div>
+                      <input
+                        ref={vignetteInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleVignetteFileSelect(file);
+                        }}
+                      />
+                      <div
+                        onDragOver={handleVignetteDragOver}
+                        onDragEnter={handleVignetteDragOver}
+                        onDragLeave={handleVignetteDragLeave}
+                        onDrop={handleVignetteDrop}
+                        onClick={() => vignetteInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 ${
+                          isDraggingVignette
+                            ? 'border-indigo-600 bg-indigo-50/70'
+                            : 'border-slate-300 hover:border-indigo-500 bg-slate-50/50 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                          <Upload className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-800">
+                            {vignetteFile ? vignetteFile.name : 'Choisir une image de vignette'}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            PNG, JPG, WebP jusqu’à 10 Mo
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          value={vignetteUrl}
+                          onChange={(e) => {
+                            setVignetteUrl(e.target.value);
+                            setVignettePreview(e.target.value);
+                          }}
+                          placeholder="https://example.com/images/vignette.jpg"
+                          className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
+                        />
+                        {vignetteUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setVignetteUrl('');
+                              setVignettePreview(null);
+                            }}
+                            className="p-2.5 text-slate-400 hover:text-rose-600 rounded-xl border border-slate-200 hover:bg-rose-50 transition cursor-pointer"
+                            title="Effacer l'URL"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        Insérez l'URL directe vers l'image de la vignette (format carte).
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 2. BANNIÈRE DU FORUM (Table campagne_config) */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold text-xs border border-purple-200">
+                    En-tête de Forum
+                  </span>
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <ImageIcon className="w-5 h-5 text-purple-600" />
+                    <span>Bannière du Forum de la Campagne</span>
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Cette <strong>bannière panoramique</strong> est affichée tout en haut de la page du forum de votre campagne (table campagne_config).
+                </p>
+              </div>
+
+              {/* Forum Banner Live Preview */}
               <div className="space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                  Aperçu de la bannière
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                  Aperçu de l'en-tête du forum
                 </span>
-                <div className="h-44 sm:h-52 rounded-2xl overflow-hidden bg-gradient-to-r from-slate-900 to-indigo-950 relative border border-slate-200 shadow-inner flex flex-col justify-end p-6">
-                  {bannerPreview || (bannerMode === 'url' && banniereUrl) ? (
+                <div className="h-44 sm:h-52 rounded-2xl overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 relative border border-slate-200 shadow-inner flex flex-col justify-end p-6">
+                  {forumBannerPreview || (forumBannerMode === 'url' && forumBannerUrl) ? (
                     <img
-                      src={bannerPreview || banniereUrl}
-                      alt="Aperçu bannière"
+                      src={forumBannerPreview || forumBannerUrl}
+                      alt="Aperçu bannière forum"
                       className="absolute inset-0 w-full h-full object-cover opacity-75"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
@@ -959,7 +1186,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     <div className="absolute inset-0 flex items-center justify-center text-slate-500">
                       <div className="text-center space-y-1">
                         <ImageIcon className="w-12 h-12 mx-auto opacity-30 text-white" />
-                        <span className="text-xs font-medium text-slate-400">Aucune bannière configurée</span>
+                        <span className="text-xs font-medium text-slate-400">Aucune bannière de forum configurée</span>
                       </div>
                     </div>
                   )}
@@ -968,9 +1195,13 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
                   <div className="relative z-10 space-y-1">
                     <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-md text-white text-[11px] font-semibold">
-                      <span>{systeme || 'Système de jeu'}</span>
-                      <span>&bull;</span>
-                      <span>{univers || 'Univers'}</span>
+                      <span>{systeme || 'Système libre'}</span>
+                      {univers && (
+                        <>
+                          <span>&bull;</span>
+                          <span>{univers}</span>
+                        </>
+                      )}
                     </div>
                     <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight drop-shadow-sm">
                       {name || 'Titre de votre campagne'}
@@ -979,14 +1210,14 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                 </div>
               </div>
 
-              {/* Banner source selector: Upload vs URL */}
+              {/* Forum Banner source selector: Upload vs URL */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl max-w-xs">
                   <button
                     type="button"
-                    onClick={() => setBannerMode('upload')}
+                    onClick={() => setForumBannerMode('upload')}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                      bannerMode === 'upload'
+                      forumBannerMode === 'upload'
                         ? 'bg-white text-indigo-700 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -996,9 +1227,9 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBannerMode('url')}
+                    onClick={() => setForumBannerMode('url')}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-lg transition cursor-pointer ${
-                      bannerMode === 'url'
+                      forumBannerMode === 'url'
                         ? 'bg-white text-indigo-700 shadow-2xs'
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
@@ -1008,26 +1239,26 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </button>
                 </div>
 
-                {bannerMode === 'upload' ? (
+                {forumBannerMode === 'upload' ? (
                   <div>
                     <input
-                      ref={bannerInputRef}
+                      ref={forumBannerInputRef}
                       type="file"
                       accept="image/*"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
-                        if (file) handleBannerFileSelect(file);
+                        if (file) handleForumBannerFileSelect(file);
                       }}
                     />
                     <div
-                      onDragOver={handleBannerDragOver}
-                      onDragEnter={handleBannerDragOver}
-                      onDragLeave={handleBannerDragLeave}
-                      onDrop={handleBannerDrop}
-                      onClick={() => bannerInputRef.current?.click()}
+                      onDragOver={handleForumBannerDragOver}
+                      onDragEnter={handleForumBannerDragOver}
+                      onDragLeave={handleForumBannerDragLeave}
+                      onDrop={handleForumBannerDrop}
+                      onClick={() => forumBannerInputRef.current?.click()}
                       className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition flex flex-col items-center justify-center gap-2 ${
-                        isDraggingBanner
+                        isDraggingForumBanner
                           ? 'border-indigo-600 bg-indigo-50/70'
                           : 'border-slate-300 hover:border-indigo-500 bg-slate-50/50 hover:bg-slate-50'
                       }`}
@@ -1037,217 +1268,367 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                       </div>
                       <div>
                         <p className="text-sm font-bold text-slate-800">
-                          {bannerFile ? bannerFile.name : 'Cliquez pour choisir une image ou glissez-déposez-la ici'}
+                          {forumBannerFile ? forumBannerFile.name : 'Choisir une bannière panoramique ou glissez-déposez-la ici'}
                         </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          Format recommandé : JPG, PNG ou WebP panoramique (ex: 1200x350px)
+                        <p className="text-xs text-slate-400 mt-1">
+                          PNG, JPG, WebP, GIF, SVG, AVIF jusqu’à 10 Mo (recommandé : 1200x300 px)
                         </p>
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                      URL directe de l'image de bannière
-                    </label>
-                    <div className="flex gap-2">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
                       <input
                         type="url"
-                        value={banniereUrl}
+                        value={forumBannerUrl}
                         onChange={(e) => {
-                          setBanniereUrl(e.target.value);
-                          setBannerPreview(e.target.value);
+                          setForumBannerUrl(e.target.value);
+                          setForumBannerPreview(e.target.value);
                         }}
-                        placeholder="https://example.com/images/ma-banniere.jpg"
+                        placeholder="https://example.com/images/ma-banniere-forum.jpg"
                         className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
                       />
-                      {banniereUrl && (
+                      {forumBannerUrl && (
                         <button
                           type="button"
                           onClick={() => {
-                            setBanniereUrl('');
-                            setBannerPreview(null);
+                            setForumBannerUrl('');
+                            setForumBannerPreview(null);
                           }}
-                          className="px-3 py-2.5 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-xl"
+                          className="p-2.5 text-slate-400 hover:text-rose-600 rounded-xl border border-slate-200 hover:bg-rose-50 transition cursor-pointer"
+                          title="Effacer l'URL"
                         >
                           <X className="w-4 h-4" />
                         </button>
                       )}
                     </div>
+                    <p className="text-[11px] text-slate-400">
+                      Entrez l'URL directe d'une image hébergée en ligne pour le haut du forum.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Custom Forum Colors & Styles Card */}
+            {/* 3. PALETTE DE COULEURS & THEME */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div className="border-b border-slate-100 pb-4 flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <Palette className="w-5 h-5 text-indigo-600" />
-                    <span>Couleurs & Thème du Forum</span>
+                    <span>Palette de Couleurs & Thème du Forum</span>
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Personnalisez les balises de dialogue, pensées et éléments de mise en page des messages de jeu.
+                    Personnalisez le rendu visuel des messages, dialogues, pensées et sections du forum.
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleResetColors}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer self-start sm:self-auto"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold transition shadow-2xs cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Rétablir les couleurs par défaut</span>
+                  <span>Réinitialiser les couleurs</span>
                 </button>
               </div>
 
-              {/* Color Pickers Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Dialogue */}
-                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800">Dialogues</label>
-                    <span className="text-[11px] font-mono text-slate-500">{dialogueColor}</span>
+              {/* RP Dialogue & Pensée Colors */}
+              <div className="space-y-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                  Couleurs Roleplay des Messages
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Dialogue Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Paroles / Dialogue
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={dialogueColor}
+                        onChange={(e) => setDialogueColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={dialogueColor}
+                        onChange={(e) => setDialogueColor(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={dialogueColor.startsWith('#') ? dialogueColor : DEFAULT_DIALOGUE_COLOR}
-                      onChange={(e) => setDialogueColor(e.target.value)}
-                      className="w-10 h-10 rounded-xl border border-slate-300 p-0.5 cursor-pointer bg-white"
-                    />
-                    <input
-                      type="text"
-                      value={dialogueColor}
-                      onChange={(e) => setDialogueColor(e.target.value)}
-                      placeholder="#4488CC"
-                      className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono"
-                    />
-                  </div>
-                </div>
 
-                {/* Pensée */}
-                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800">Pensées</label>
-                    <span className="text-[11px] font-mono text-slate-500">{penseeColor}</span>
+                  {/* Pensee Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Pensée / Intériorité
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={penseeColor}
+                        onChange={(e) => setPenseeColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={penseeColor}
+                        onChange={(e) => setPenseeColor(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={penseeColor.startsWith('#') ? penseeColor : DEFAULT_PENSEE_COLOR}
-                      onChange={(e) => setPenseeColor(e.target.value)}
-                      className="w-10 h-10 rounded-xl border border-slate-300 p-0.5 cursor-pointer bg-white"
-                    />
-                    <input
-                      type="text"
-                      value={penseeColor}
-                      onChange={(e) => setPenseeColor(e.target.value)}
-                      placeholder="#8844CC"
-                      className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono"
-                    />
-                  </div>
-                </div>
 
-                {/* RP 1 */}
-                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800">Texte RP 1</label>
-                    <span className="text-[11px] font-mono text-slate-500">{rp1Color}</span>
+                  {/* RP1 Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Emphase RP 1
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={rp1Color}
+                        onChange={(e) => setRp1Color(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={rp1Color}
+                        onChange={(e) => setRp1Color(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={rp1Color.startsWith('#') ? rp1Color : DEFAULT_RP1_COLOR}
-                      onChange={(e) => setRp1Color(e.target.value)}
-                      className="w-10 h-10 rounded-xl border border-slate-300 p-0.5 cursor-pointer bg-white"
-                    />
-                    <input
-                      type="text"
-                      value={rp1Color}
-                      onChange={(e) => setRp1Color(e.target.value)}
-                      placeholder="#FF6600"
-                      className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono"
-                    />
-                  </div>
-                </div>
 
-                {/* RP 2 */}
-                <div className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-800">Texte RP 2</label>
-                    <span className="text-[11px] font-mono text-slate-500">{rp2Color}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={rp2Color.startsWith('#') ? rp2Color : DEFAULT_RP2_COLOR}
-                      onChange={(e) => setRp2Color(e.target.value)}
-                      className="w-10 h-10 rounded-xl border border-slate-300 p-0.5 cursor-pointer bg-white"
-                    />
-                    <input
-                      type="text"
-                      value={rp2Color}
-                      onChange={(e) => setRp2Color(e.target.value)}
-                      placeholder="#5EFF6C"
-                      className="flex-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono"
-                    />
+                  {/* RP2 Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Emphase RP 2
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={rp2Color}
+                        onChange={(e) => setRp2Color(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={rp2Color}
+                        onChange={(e) => setRp2Color(e.target.value)}
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Live Preview of formatted post with campaign colors */}
-              <div className="space-y-2 pt-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Eye className="w-4 h-4 text-indigo-600" />
-                  <span>Aperçu en direct du rendu forum</span>
+              {/* Forum Structure Colors */}
+              <div className="space-y-4 pt-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                  Couleurs d'Ambiance du Forum (Optionnelles)
                 </span>
-                <div className="bg-slate-900 text-slate-100 p-5 rounded-2xl border border-slate-800 shadow-inner space-y-3 font-sans text-sm">
-                  <p className="text-slate-300 italic text-xs">
-                    Extrait simulé d'un post dans les topics de cette campagne :
-                  </p>
-                  <p style={{ color: dialogueColor }}>
-                    « Ne vous avancez pas plus loin ! La porte des cryptes est piégée... » murmura le voleur.
-                  </p>
-                  <p style={{ color: penseeColor }}>
-                    (Si seulement nous avions apporté plus de torches avant de descendre ici...)
-                  </p>
-                  <p style={{ color: rp1Color }}>
-                    [ L'obscurité se fait plus dense alors qu'un souffle froid traverse le couloir ]
-                  </p>
-                  <p style={{ color: rp2Color }}>
-                    [ Un cliquetis métallique résonne soudain sous vos pas ]
-                  </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Quote Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Fond des Citations
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={quoteColor || '#ffffff'}
+                        onChange={(e) => setQuoteColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={quoteColor}
+                        onChange={(e) => setQuoteColor(e.target.value)}
+                        placeholder="Ex: #f8fafc"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sidebar Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Fond Barre Latérale
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={sidebarColor || '#ffffff'}
+                        onChange={(e) => setSidebarColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={sidebarColor}
+                        onChange={(e) => setSidebarColor(e.target.value)}
+                        placeholder="Ex: #f1f5f9"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Odd Line Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Lignes Impaires (Alternance)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={oddLineColor || '#ffffff'}
+                        onChange={(e) => setOddLineColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={oddLineColor}
+                        onChange={(e) => setOddLineColor(e.target.value)}
+                        placeholder="Ex: #f8fafc"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Even Line Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Lignes Paires (Alternance)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={evenLineColor || '#ffffff'}
+                        onChange={(e) => setEvenLineColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={evenLineColor}
+                        onChange={(e) => setEvenLineColor(e.target.value)}
+                        placeholder="Ex: #ffffff"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Text Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Couleur Principale du Texte
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={textColor || '#1e293b'}
+                        onChange={(e) => setTextColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={textColor}
+                        onChange={(e) => setTextColor(e.target.value)}
+                        placeholder="Ex: #0f172a"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Link Color */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                    <label className="block text-xs font-bold text-slate-800">
+                      Couleur des Liens Hypertextes
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={linkColor || '#4f46e5'}
+                        onChange={(e) => setLinkColor(e.target.value)}
+                        className="w-9 h-9 rounded-lg border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={linkColor}
+                        onChange={(e) => setLinkColor(e.target.value)}
+                        placeholder="Ex: #4f46e5"
+                        className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Post Simulation Preview */}
+              <div className="pt-4 border-t border-slate-100 space-y-3">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                  Aperçu en direct d'un message avec votre palette
+                </span>
+                <div
+                  className="rounded-2xl p-5 border transition shadow-xs space-y-3"
+                  style={{
+                    backgroundColor: oddLineColor || '#ffffff',
+                    color: textColor || '#1e293b',
+                    borderColor: '#e2e8f0',
+                  }}
+                >
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2 text-xs">
+                    <span className="font-bold">Eldrin l'Érudit</span>
+                    <span className="text-slate-400">Il y a 10 minutes</span>
+                  </div>
+                  <div className="space-y-2 text-sm leading-relaxed">
+                    <p>
+                      Le vent soufflait violemment contre les murailles de pierre ancienne.
+                    </p>
+                    <p style={{ color: dialogueColor }}>
+                      « Regardez ces inscriptions au-dessus de l'arche, elles ne sont pas de facture humaine ! »
+                    </p>
+                    <p style={{ color: penseeColor, fontStyle: 'italic' }}>
+                      *Pourvu que les gardes de la nuit ne nous aient pas aperçus...*
+                    </p>
+                    <p>
+                      D'un geste précis, il leva sa torche (
+                      <span style={{ color: rp1Color, fontWeight: 'bold' }}>action héroïque</span>).
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Footer Actions */}
-        <div className="flex items-center justify-between border-t border-slate-200 pt-6">
+        {/* Action Bottom Bar */}
+        <div className="sticky bottom-4 z-20 bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl p-4 shadow-lg flex items-center justify-between gap-4">
           <button
             type="button"
             onClick={handleCancel}
             disabled={isSubmitting}
-            className="px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition shadow-2xs disabled:opacity-50"
+            className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition cursor-pointer disabled:opacity-50"
           >
             Annuler
           </button>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition shadow-md disabled:opacity-50 cursor-pointer"
-          >
-            {isSubmitting ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            <span>{isEditMode ? 'Enregistrer les modifications' : 'Créer la campagne'}</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-sm transition shadow-xs disabled:opacity-50 cursor-pointer"
+            >
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              <span>{isEditMode ? 'Enregistrer les modifications' : 'Créer la campagne'}</span>
+            </button>
+          </div>
         </div>
       </form>
     </div>

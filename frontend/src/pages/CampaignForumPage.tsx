@@ -134,7 +134,8 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
               ...prev,
               campaign: {
                 ...prev.campaign,
-                banniere: res.url,
+                banniereForum: res.url,
+                banniere: prev.campaign.banniere || res.url,
               },
             }
           : prev
@@ -1027,9 +1028,9 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
           }}
           title={isAdminMode ? 'Glissez-déposez ou cliquez pour modifier la bannière' : undefined}
         >
-          {campaign.banniere ? (
+          {campaign.banniereForum || campaign.banniere ? (
             <img
-              src={campaign.banniere}
+              src={campaign.banniereForum || campaign.banniere || undefined}
               alt={campaign.name}
               className="w-full h-full object-cover opacity-75"
               onError={(e) => {

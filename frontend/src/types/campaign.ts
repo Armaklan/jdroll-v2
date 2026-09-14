@@ -7,6 +7,7 @@ export interface CampaignSummary {
   nbJoueurs: number;
   nbJoueursActuel: number;
   banniere: string;
+  banniereForum?: string | null;
   systeme: string;
   univers: string;
   description: string;
@@ -37,11 +38,12 @@ export interface CampaignSummary {
 
 export interface CreateCampaignPayload {
   name: string;
-  systeme: string;
-  univers: string;
-  description: string;
+  systeme?: string;
+  univers?: string;
+  description?: string;
   nbJoueurs?: number;
   banniere?: string;
+  banniereForum?: string | null;
   statut?: number;
   isRecrutementOpen?: boolean;
   rythme?: number;

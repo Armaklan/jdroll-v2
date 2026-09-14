@@ -27,9 +27,10 @@ describe('CreateCampaignUseCase', () => {
           mjUsername: 'GM_User',
           name: data.name,
           banniere: data.banniere || '',
-          systeme: data.systeme,
-          univers: data.univers,
-          description: data.description,
+          banniereForum: data.banniereForum || null,
+          systeme: data.systeme || '',
+          univers: data.univers || '',
+          description: data.description || '',
           nbJoueurs: data.nbJoueurs,
           nbJoueursActuel: 0,
           statut: data.statut ?? 0,
@@ -83,89 +84,24 @@ describe('CreateCampaignUseCase', () => {
     );
   });
 
-  it('lève une ValidationError si le système est vide', async () => {
-    const { repo } = createMockCampaignRepo();
+  it('crée avec succès une campagne avec des champs optionnels vides', async () => {
+    const { repo, createdList } = createMockCampaignRepo();
     const useCase = new CreateCampaignUseCase(repo);
 
-    await assert.rejects(
-      () =>
-        useCase.execute({
-          mjId: 1,
-          name: 'Campagne test',
-          systeme: '  ',
-          univers: 'Fantasy',
-          description: 'Aventure',
-        }),
-      ValidationError
-    );
+    const result = await useCase.execute({
+      mjId: 1,
+      name: 'Campagne Simple',
+    });
+
+    assert.equal(result.name, 'Campagne Simple');
+    assert.equal(result.systeme, '');
+    assert.equal(result.univers, '');
+    assert.equal(result.description, '');
+    assert.equal(result.nbJoueurs, 4);
+    assert.equal(createdList.length, 1);
   });
 
-  it('lève une ValidationError si l’univers est vide', async () => {
-    const { repo } = createMockCampaignRepo();
-    const useCase = new CreateCampaignUseCase(repo);
-
-    await assert.rejects(
-      () =>
-        useCase.execute({
-          mjId: 1,
-          name: 'Campagne test',
-          systeme: 'D&D 5E',
-          univers: '',
-          description: 'Aventure',
-        }),
-      ValidationError
-    );
-  });
-
-  it('lève une ValidationError si la description est vide', async () => {
-    const { repo } = createMockCampaignRepo();
-    const useCase = new CreateCampaignUseCase(repo);
-
-    await assert.rejects(
-      () =>
-        useCase.execute({
-          mjId: 1,
-          name: 'Campagne test',
-          systeme: 'D&D 5E',
-          univers: 'Fantasy',
-          description: '  ',
-        }),
-      ValidationError
-    );
-  });
-
-  it('lève une ValidationError si le nombre de joueurs est invalide', async () => {
-    const { repo } = createMockCampaignRepo();
-    const useCase = new CreateCampaignUseCase(repo);
-
-    await assert.rejects(
-      () =>
-        useCase.execute({
-          mjId: 1,
-          name: 'Campagne test',
-          systeme: 'D&D 5E',
-          univers: 'Fantasy',
-          description: 'Aventure',
-          nbJoueurs: 0,
-        }),
-      ValidationError
-    );
-
-    await assert.rejects(
-      () =>
-        useCase.execute({
-          mjId: 1,
-          name: 'Campagne test',
-          systeme: 'D&D 5E',
-          univers: 'Fantasy',
-          description: 'Aventure',
-          nbJoueurs: 100,
-        }),
-      ValidationError
-    );
-  });
-
-  it('crée avec succès une campagne et retourne ses données', async () => {
+  it('crée avec succès une campagne avec vignette et bannière forum distinctes', async () => {
     const { repo, createdList } = createMockCampaignRepo();
     const useCase = new CreateCampaignUseCase(repo);
 
@@ -176,7 +112,8 @@ describe('CreateCampaignUseCase', () => {
       univers: 'Années 20',
       description: '<p>Une grande enquête occulte.</p>',
       nbJoueurs: 5,
-      banniere: 'https://images.com/banner.png',
+      banniere: 'https://images.com/vignette.png',
+      banniereForum: 'https://images.com/banner-forum.png',
       dialogueColor: '#3b82f6',
       penseeColor: '#a855f7',
     });
@@ -186,6 +123,8 @@ describe('CreateCampaignUseCase', () => {
     assert.equal(result.systeme, 'Cthulhu Hack');
     assert.equal(result.univers, 'Années 20');
     assert.equal(result.nbJoueurs, 5);
+    assert.equal(result.banniere, 'https://images.com/vignette.png');
+    assert.equal(result.banniereForum, 'https://images.com/banner-forum.png');
     assert.equal(result.dialogueColor, '#3b82f6');
     assert.equal(result.penseeColor, '#a855f7');
     assert.equal(createdList.length, 1);

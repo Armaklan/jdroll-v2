@@ -322,9 +322,9 @@ export const AllCampaignsPage: React.FC<AllCampaignsPageProps> = ({ onNavigate, 
               >
                 {/* Campaign Banner / Header Image */}
                 <div className="relative h-36 bg-slate-800 overflow-hidden">
-                  {campagne.banniere ? (
+                  {campagne.banniere || campagne.banniereForum ? (
                     <img
-                      src={campagne.banniere}
+                      src={campagne.banniere || campagne.banniereForum || undefined}
                       alt={campagne.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => {

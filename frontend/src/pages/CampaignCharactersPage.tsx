@@ -509,9 +509,9 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       {/* Campaign Header Banner Card */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
         <div className="h-40 sm:h-48 relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900">
-          {campaign.banniere ? (
+          {campaign.banniereForum || campaign.banniere ? (
             <img
-              src={campaign.banniere}
+              src={campaign.banniereForum || campaign.banniere || undefined}
               alt={campaign.name}
               className="w-full h-full object-cover opacity-75"
               onError={(e) => {
