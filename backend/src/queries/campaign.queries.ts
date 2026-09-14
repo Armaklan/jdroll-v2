@@ -1,4 +1,6 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
+import { IDicerRepository, dicerRepository, DicerRollWithUser } from '../repositories/dicer.repository.js';
+import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
 import {
   CampaignSummary,
   CampaignRole,
@@ -6,10 +8,14 @@ import {
   CampaignCharacterCategory,
   CampaignCharacter,
 } from '../types/index.js';
-import { CampaignNotFoundError } from '../errors/domain.errors.js';
+import { CampaignNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
 export class CampaignQueries {
-  constructor(private readonly campaignRepo: ICampaignRepository = campaignRepository) {}
+  constructor(
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly dicerRepo: IDicerRepository = dicerRepository,
+    private readonly forumRepo: IForumRepository = forumRepository
+  ) {}
 
   /**
    * Récupère les campagnes maîtrisées par un utilisateur (MJ)
@@ -51,7 +57,19 @@ export class CampaignQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
     }
 
-    const isMj = Boolean(currentUserId && campaign.mjId === currentUserId);
+    let userRole: 'mj' | 'player' | undefined = undefined;
+    if (currentUserId) {
+      if (campaign.mjId === currentUserId) {
+        userRole = 'mj';
+      } else {
+        const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, currentUserId);
+        if (isParticipant) {
+          userRole = 'player';
+        }
+      }
+    }
+
+    const isMj = userRole === 'mj';
     const rawCategories = await this.campaignRepo.findCampaignPnjCategories(campaignId);
     const rawCharacters = await this.campaignRepo.findCampaignCharacters(campaignId);
 
@@ -144,7 +162,7 @@ export class CampaignQueries {
     return {
       campaign: {
         ...campaign,
-        userRole: isMj ? 'mj' : campaign.userRole,
+        userRole: userRole ?? campaign.userRole,
       },
       categories,
     };
@@ -159,6 +177,31 @@ export class CampaignQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
     }
     return this.campaignRepo.findCampaignParticipants(campaignId);
+  }
+
+  /**
+   * Récupère les 20 derniers jets de dés de la campagne
+   * - MJ : tous les jets de la campagne
+   * - Joueur : uniquement ses propres jets de la campagne
+   */
+  async getCampaignDiceRolls(campaignId: number, userId: number): Promise<DicerRollWithUser[]> {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) {
+      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
+    }
+
+    const isMj = campaign.mjId === userId || (await this.forumRepo.isUserCampaignMj(campaignId, userId));
+    const isParticipant = isMj ? true : await this.forumRepo.isUserCampaignParticipant(campaignId, userId);
+
+    if (!isMj && !isParticipant) {
+      throw new ForbiddenError("Vous n'êtes pas autorisé à consulter la tour à dés de cette campagne");
+    }
+
+    if (isMj) {
+      return this.dicerRepo.getRecentRollsByCampaign(campaignId, 20);
+    }
+
+    return this.dicerRepo.getRecentRollsByCampaign(campaignId, 20, userId);
   }
 }
 

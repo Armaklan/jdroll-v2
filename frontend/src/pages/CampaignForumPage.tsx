@@ -4,6 +4,7 @@ import { campaignsApi } from '../api/campaigns';
 import { CampaignForumData, ForumSectionSummary, ForumTopicSummary } from '../types/campaign';
 import { AppView } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
+import { DiceTowerModal } from '../components/DiceTowerModal';
 import {
   ArrowLeft,
   MessageSquare,
@@ -34,6 +35,7 @@ import {
   Link as LinkIcon,
   Pencil,
   Image as ImageIcon,
+  Dices,
 } from 'lucide-react';
 
 interface CampaignForumPageProps {
@@ -57,6 +59,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
+  const [isDiceTowerOpen, setIsDiceTowerOpen] = useState<boolean>(false);
 
   // Mode Administration state
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
@@ -873,6 +876,8 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
 
   const { campaign, sections } = forumData;
   const isMj = Boolean(user && (campaign.mjId === user.id || campaign.userRole === 'mj'));
+  const isPlayer = Boolean(user && campaign.userRole === 'player');
+  const isCampaignMember = isMj || isPlayer;
 
   const campaignStyles = {
     '--pensee-color': campaign.penseeColor || '#8844CC',
@@ -1133,12 +1138,22 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
             </span>
             <button
               onClick={() => navigate(`/campaigns/${effectiveCampaignId}/characters`)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 font-semibold text-xs border border-slate-200 shadow-2xs transition"
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
               title="Accéder à la galerie de personnages de la campagne"
             >
               <Users className="w-3.5 h-3.5 text-indigo-500" />
               <span>Galerie de personnages</span>
             </button>
+            {isCampaignMember && (
+              <button
+                onClick={() => setIsDiceTowerOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
+                title="Ouvrir la tour à dés de la campagne"
+              >
+                <Dices className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Tour à dé</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -2142,6 +2157,16 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
             </form>
           </div>
         </div>
+      )}
+      {/* Modal: Tour à dés */}
+      {isCampaignMember && (
+        <DiceTowerModal
+          isOpen={isDiceTowerOpen}
+          onClose={() => setIsDiceTowerOpen(false)}
+          campaignId={effectiveCampaignId}
+          campaignName={forumData?.campaign?.name}
+          isMj={isMj}
+        />
       )}
     </div>
   );

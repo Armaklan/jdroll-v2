@@ -5,6 +5,8 @@ import { TopicDetail, CharacterSummary } from '../types/campaign';
 import { AppView, viewToPath } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { WysiwygEditor } from '../components/WysiwygEditor';
+import { DiceTowerModal } from '../components/DiceTowerModal';
+import { parseDiceInHtml } from '../utils/dice-parser';
 import {
   ArrowLeft,
   Pin,
@@ -24,6 +26,11 @@ import {
   Eye,
   User as UserIcon,
   CheckCircle2,
+  Dices,
+  Sparkles,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 interface TopicViewPageProps {
@@ -60,6 +67,15 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
+  // Formulaire de jet de dés
+  const [diceFormula, setDiceFormula] = useState<string>('');
+  const [diceDescription, setDiceDescription] = useState<string>('');
+  const [isRollingDice, setIsRollingDice] = useState<boolean>(false);
+  const [diceError, setDiceError] = useState<string | null>(null);
+  const [diceSuccess, setDiceSuccess] = useState<string | null>(null);
+  const [showDiceHelp, setShowDiceHelp] = useState<boolean>(false);
+  const [isDiceTowerOpen, setIsDiceTowerOpen] = useState<boolean>(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -161,6 +177,43 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     }
   };
 
+  const handleRollDice = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setDiceError(null);
+    setDiceSuccess(null);
+
+    if (!diceFormula.trim()) {
+      setDiceError('Veuillez saisir une formule de dés (ex: 3d6, 3d8g2, 4df...)');
+      return;
+    }
+
+    setIsRollingDice(true);
+    try {
+      const res = await campaignsApi.rollDice(effectiveTopicId, {
+        formula: diceFormula.trim(),
+        description: diceDescription.trim(),
+      });
+
+      setDiceFormula('');
+      setDiceDescription('');
+      setDiceSuccess(
+        `Jet de dé effectué avec succès ! Résultat : ${res.evaluation.total}${res.evaluation.isSuccessCount ? ' succès' : ''}`
+      );
+
+      // Recharger sur la page 1 (les messages récents) pour afficher le jet
+      setSearchParams({ page: '1' });
+      await fetchTopic(1);
+
+      setTimeout(() => {
+        setDiceSuccess(null);
+      }, 5000);
+    } catch (err: any) {
+      setDiceError(err.message || 'Erreur lors du lancer de dé.');
+    } finally {
+      setIsRollingDice(false);
+    }
+  };
+
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'Date inconnue';
     try {
@@ -256,18 +309,36 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             </span>
           </div>
 
-          <button
-            onClick={handleBackToForum}
-            style={{
-              backgroundColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.1)' : undefined,
-              color: topicDetail.linkSidebarColor || undefined,
-              borderColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.2)' : undefined,
-            }}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition shadow-2xs"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Retour au forum</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {Boolean(topicDetail.campagneId && (topicDetail.userRole === 'mj' || topicDetail.userRole === 'player')) && (
+              <button
+                onClick={() => setIsDiceTowerOpen(true)}
+                style={{
+                  backgroundColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.1)' : undefined,
+                  color: topicDetail.linkSidebarColor || undefined,
+                  borderColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.2)' : undefined,
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition shadow-2xs cursor-pointer"
+                title="Ouvrir la tour à dés de la campagne"
+              >
+                <Dices className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Tour à dé</span>
+              </button>
+            )}
+
+            <button
+              onClick={handleBackToForum}
+              style={{
+                backgroundColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.1)' : undefined,
+                color: topicDetail.linkSidebarColor || undefined,
+                borderColor: topicDetail.sidebarColor ? 'rgba(255, 255, 255, 0.2)' : undefined,
+              }}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition shadow-2xs cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Retour au forum</span>
+            </button>
+          </div>
         </div>
 
         {/* Titre du sujet et badges */}
@@ -393,9 +464,10 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
         <div className="space-y-4">
           {topicDetail.posts.map((post, postIdx) => {
             const isLastRead = topicDetail.lastReadPostId === post.id;
-            const authorName = post.perso?.name || post.user.username;
+            const isSystem = !post.perso && (!post.user || !post.user.id || post.user.id === 0 || post.user.username === 'Système');
+            const authorName = post.perso?.name || (isSystem ? 'Jet de dés' : post.user.username);
             const avatarUrl = post.perso?.avatar || post.user.avatar;
-            const isGm = post.user.profil === 1;
+            const isGm = !isSystem && post.user.profil === 1;
 
             const isOdd = postIdx % 2 === 0;
             const postBg = isOdd
@@ -452,7 +524,11 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                   <div className="md:col-span-3 flex md:flex-col items-center md:items-start gap-3 md:gap-2 pb-3 md:pb-0 md:border-r border-slate-100 md:pr-4">
                     {/* Avatar */}
                     <div className="relative">
-                      {avatarUrl ? (
+                      {isSystem ? (
+                        <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border-2 border-indigo-400 flex items-center justify-center font-bold text-2xl shadow-xs">
+                          <Dices className="w-7 h-7" />
+                        </div>
+                      ) : avatarUrl ? (
                         <img
                           src={avatarUrl}
                           alt={authorName}
@@ -483,13 +559,19 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                         {authorName}
                       </h4>
 
+                      {isSystem && (
+                        <span className="inline-block text-[11px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                          Système
+                        </span>
+                      )}
+
                       {post.perso?.concept && (
                         <p className="text-xs font-medium italic opacity-90" style={{ color: postTextColor || undefined }}>
                           {post.perso.concept}
                         </p>
                       )}
 
-                      {post.perso && (
+                      {!isSystem && post.perso && (
                         <p className="text-[11px] opacity-75" style={{ color: postTextColor || undefined }}>
                           Joueur :{' '}
                           <span className="font-medium" style={{ color: postLinkColor || postTextColor || undefined }}>
@@ -498,7 +580,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                         </p>
                       )}
 
-                      {!post.perso && post.user.titre && (
+                      {!isSystem && !post.perso && post.user.titre && (
                         <p className="text-[11px] font-medium opacity-80" style={{ color: postTextColor || undefined }}>
                           {post.user.titre}
                         </p>
@@ -518,7 +600,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                         '--tw-prose-bold': postTextColor || 'inherit',
                         '--tw-prose-quotes': postTextColor || 'inherit',
                       } as React.CSSProperties}
-                      dangerouslySetInnerHTML={{ __html: post.content }}
+                      dangerouslySetInnerHTML={{ __html: parseDiceInHtml(post.content) }}
                     />
                   </div>
                 </div>
@@ -595,7 +677,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                 <div className="md:col-span-9 min-w-0">
                   <div
                     className="text-slate-900 text-sm sm:text-base leading-relaxed space-y-3 prose prose-slate max-w-none break-words"
-                    dangerouslySetInnerHTML={{ __html: postContent }}
+                    dangerouslySetInnerHTML={{ __html: parseDiceInHtml(postContent) }}
                   />
                 </div>
               </div>
@@ -668,7 +750,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
       )}
 
       {/* Bloc de réponse WYSIWYG / Formulaire de publication */}
-      <div ref={formRef} className="pt-2">
+      <div ref={formRef} className="pt-2 space-y-4">
         {topicDetail.isClosed ? (
           <div className="bg-slate-100 border border-slate-200 rounded-2xl p-6 text-center text-slate-600">
             <Lock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
@@ -683,7 +765,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             <div>
               <h4 className="font-bold text-sm text-slate-800">Participer à la discussion</h4>
               <p className="text-xs text-slate-500 mt-1">
-                Vous devez être connecté pour pouvoir publier un message.
+                Vous devez être connecté pour pouvoir publier un message ou lancer des dés.
               </p>
             </div>
             <button
@@ -702,10 +784,178 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             </p>
           </div>
         ) : (
-          <form
-            onSubmit={handleSubmitPost}
-            className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4"
-          >
+          <>
+            {/* Section Lancer un jet de dé */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                    <Dices className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900">Demander un jet de dé</h3>
+                    <p className="text-xs text-slate-500">
+                      Saisissez une formule et une description pour effectuer un jet immédiat
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDiceHelp(!showDiceHelp)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 transition"
+                >
+                  <HelpCircle className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>{showDiceHelp ? 'Masquer les syntaxes' : 'Syntaxes supportées'}</span>
+                  {showDiceHelp ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+              </div>
+
+              {/* Aide aux syntaxes de dés */}
+              {showDiceHelp && (
+                <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 text-xs text-slate-700 space-y-2.5">
+                  <div className="font-bold text-indigo-900 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Guide des formules de dés supportées :</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 font-mono text-[11px]">
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">3d6</span> : Lance 3 dés à 6 faces
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">3du</span> : Lance 3 dés ubiquity (0 ou 1)
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">4df</span> : Lance 4 dés fudge (-1, 0, +1)
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">3d6 + 3</span> : Lance 3 dés à 6 faces et ajoute 3
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">1d8 + 2d10</span> : Lance 1 dé à 8 faces et 2 dés à 10 faces, puis les ajoute
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">3d8g2</span> : Lance 3 dés à 8 faces et conserve les 2 meilleurs (great)
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">3d8l2</span> : Lance 3 dés à 8 faces et conserve les 2 moins bons (less)
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">(1d8 + 2d6)g1</span> : Lance 1 dé à 8 faces et 2 dés à 6 faces, puis conserve le meilleur
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">3d10&gt;7</span> : Lance 3 dés à 10 faces et compte les résultats &gt; 7
+                    </div>
+                    <div className="p-2 bg-white rounded-lg border border-indigo-100">
+                      <span className="font-bold text-indigo-600">3d10&lt;7</span> : Lance 3 dés à 10 faces et compte les résultats &lt; 7
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notification succès jet de dé */}
+              {diceSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{diceSuccess}</span>
+                </div>
+              )}
+
+              {/* Notification erreur jet de dé */}
+              {diceError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{diceError}</span>
+                </div>
+              )}
+
+              {/* Formulaire de saisie du jet */}
+              <form onSubmit={handleRollDice} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div className="sm:col-span-4">
+                    <label htmlFor="dice-formula" className="block text-xs font-bold text-slate-700 mb-1">
+                      Formule <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      id="dice-formula"
+                      type="text"
+                      value={diceFormula}
+                      onChange={(e) => setDiceFormula(e.target.value)}
+                      placeholder="ex: 3d6+3, 3d8g2, 4df..."
+                      disabled={isRollingDice}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-8">
+                    <label htmlFor="dice-description" className="block text-xs font-bold text-slate-700 mb-1">
+                      Description du jet
+                    </label>
+                    <input
+                      id="dice-description"
+                      type="text"
+                      value={diceDescription}
+                      onChange={(e) => setDiceDescription(e.target.value)}
+                      placeholder="ex: Jet de perception, Attaque à l'épée..."
+                      disabled={isRollingDice}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:bg-white transition"
+                    />
+                  </div>
+                </div>
+
+                {/* Raccourcis de formules courantes */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                  <span className="text-[11px] font-semibold text-slate-500 mr-1">Raccourcis :</span>
+                  {[
+                    '3d6',
+                    '3du',
+                    '4df',
+                    '3d6 + 3',
+                    '1d8 + 2d10',
+                    '3d8g2',
+                    '3d8l2',
+                    '(1d8 + 2d6)g1',
+                    '3d10>7',
+                    '3d10<7',
+                  ].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setDiceFormula(preset)}
+                      className="px-2 py-0.5 rounded-lg text-[11px] font-mono font-medium bg-slate-100 border border-slate-200 text-slate-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition"
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="submit"
+                    disabled={isRollingDice || !diceFormula.trim()}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-bold shadow-xs disabled:cursor-not-allowed transition"
+                  >
+                    {isRollingDice ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Lancement en cours...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Dices className="w-3.5 h-3.5" />
+                        <span>Lancer les dés</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Formulaire de publication WYSIWYG */}
+            <form
+              onSubmit={handleSubmitPost}
+              className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4"
+            >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-indigo-600" />
@@ -803,6 +1053,16 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
               </button>
             </div>
           </form>
+          </>
+        )}
+        {topicDetail && Boolean(topicDetail.campagneId && (topicDetail.userRole === 'mj' || topicDetail.userRole === 'player')) && (
+          <DiceTowerModal
+            isOpen={isDiceTowerOpen}
+            onClose={() => setIsDiceTowerOpen(false)}
+            campaignId={topicDetail.campagneId!}
+            campaignName={topicDetail.campaignTitle}
+            isMj={topicDetail.userRole === 'mj'}
+          />
         )}
       </div>
     </div>

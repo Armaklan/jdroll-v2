@@ -137,6 +137,17 @@ export interface CampaignCharacterCategory {
   characters: CampaignCharacter[];
 }
 
+export interface CampaignDiceRoll {
+  id: number;
+  userId: number;
+  campagneId: number;
+  createDate: string;
+  result: string;
+  description: string;
+  username: string;
+  userAvatar?: string | null;
+}
+
 export interface CampaignCharactersData {
   campaign: CampaignSummary;
   categories: CampaignCharacterCategory[];

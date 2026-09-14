@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { campaignQueries, CampaignQueries } from '../queries/campaign.queries.js';
 import { forumQueries, ForumQueries } from '../queries/forum.queries.js';
 import { createPostUseCase, CreatePostUseCase } from '../usecases/forum/create-post.usecase.js';
+import { rollDiceUseCase, RollDiceUseCase } from '../usecases/forum/roll-dice.usecase.js';
+import { rollDiceTowerUseCase, RollDiceTowerUseCase } from '../usecases/campaign/roll-dice-tower.usecase.js';
 import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/create-section.usecase.js';
 import { updateSectionUseCase, UpdateSectionUseCase } from '../usecases/forum/update-section.usecase.js';
 import { uploadSectionBannerUseCase, UploadSectionBannerUseCase } from '../usecases/forum/upload-section-banner.usecase.js';
@@ -68,6 +70,15 @@ const createPostParamsSchema = z.object({
 const createPostBodySchema = z.object({
   content: z.string().min(1, 'Le message ne peut pas être vide'),
   persoId: z.number().int().positive().nullable().optional(),
+});
+
+const rollDiceParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const rollDiceBodySchema = z.object({
+  formula: z.string().min(1, 'La formule de dé est requise'),
+  description: z.string().optional(),
 });
 
 const createSectionParamsSchema = z.object({
@@ -171,6 +182,8 @@ export class CampaignController {
     private readonly campaignQueryService: CampaignQueries = campaignQueries,
     private readonly forumQueryService: ForumQueries = forumQueries,
     private readonly createPostUseCaseService: CreatePostUseCase = createPostUseCase,
+    private readonly rollDiceUseCaseService: RollDiceUseCase = rollDiceUseCase,
+    private readonly rollDiceTowerUseCaseService: RollDiceTowerUseCase = rollDiceTowerUseCase,
     private readonly createSectionUseCaseService: CreateSectionUseCase = createSectionUseCase,
     private readonly updateSectionUseCaseService: UpdateSectionUseCase = updateSectionUseCase,
     private readonly uploadSectionBannerUseCaseService: UploadSectionBannerUseCase = uploadSectionBannerUseCase,
@@ -422,6 +435,140 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la création du message' });
+    }
+  }
+
+  /**
+   * POST /api/topics/:id/dice-roll
+   * Lance un jet de dés dans un sujet
+   */
+  async rollDice(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = rollDiceParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de sujet invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = rollDiceBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de jet de dé invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: topicId } = parseParams.data;
+    const { formula, description } = parseBody.data;
+
+    try {
+      const result = await this.rollDiceUseCaseService.execute({
+        topicId,
+        userId: user.id,
+        formula,
+        description,
+      });
+
+      return reply.status(201).send(result);
+    } catch (error) {
+      if (error instanceof TopicNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof TopicClosedError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de l’exécution du jet de dés' });
+    }
+  }
+
+  /**
+   * GET /api/campaigns/:id/dice-rolls
+   * Récupère les 20 derniers jets de dés de la campagne (Tour à dés)
+   * - MJ : tous les jets de la campagne
+   * - Joueur : uniquement ses propres jets de la campagne
+   */
+  async getCampaignDiceRolls(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignForumParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: campaignId } = parseParams.data;
+
+    try {
+      const rolls = await this.campaignQueryService.getCampaignDiceRolls(campaignId, user.id);
+      return reply.status(200).send({ rolls });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération des jets de dés' });
+    }
+  }
+
+  /**
+   * POST /api/campaigns/:id/dice-rolls
+   * Lance un jet de dés dans la tour à dés de la campagne (sans créer de post)
+   */
+  async rollDiceTower(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignForumParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = rollDiceBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de jet de dé invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: campaignId } = parseParams.data;
+    const { formula, description } = parseBody.data;
+
+    try {
+      const result = await this.rollDiceTowerUseCaseService.execute({
+        campaignId,
+        userId: user.id,
+        formula,
+        description,
+      });
+
+      return reply.status(201).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de l’exécution du jet de dés' });
     }
   }
 
@@ -1092,6 +1239,35 @@ export class CampaignController {
       '/api/topics/:id/posts',
       { preHandler: [app.authenticate] },
       (req, rep) => this.createPost(req, rep)
+    );
+
+    // Route authentifiée pour lancer des dés dans un sujet
+    app.post(
+      '/api/topics/:id/dice-roll',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.rollDice(req, rep)
+    );
+    app.post(
+      '/api/topics/:id/roll-dice',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.rollDice(req, rep)
+    );
+
+    // Routes pour la Tour à dés de la campagne
+    app.get(
+      '/api/campaigns/:id/dice-rolls',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCampaignDiceRolls(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/dice-rolls',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.rollDiceTower(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/dice-roll',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.rollDiceTower(req, rep)
     );
 
     // Routes authentifiées d'administration du forum de campagne (pour le MJ)

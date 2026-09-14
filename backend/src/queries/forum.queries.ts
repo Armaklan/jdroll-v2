@@ -115,24 +115,24 @@ export class ForumQueries {
 
     const isClosed = Boolean(topic.isClosed);
 
-    if (userId && !isClosed) {
+    if (userId) {
       if (topic.campagneId && topic.campagneId > 0) {
         const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, userId);
         if (isMj) {
-          canPost = true;
           userRole = 'mj';
+          if (!isClosed) canPost = true;
           availableCharacters = await this.forumRepo.findCampaignPersos(topic.campagneId);
         } else {
           const isParticipant = await this.forumRepo.isUserCampaignParticipant(topic.campagneId, userId);
           if (isParticipant) {
-            canPost = true;
             userRole = 'player';
+            if (!isClosed) canPost = true;
             availableCharacters = await this.forumRepo.findUserCampaignPersos(topic.campagneId, userId);
           }
         }
       } else {
-        canPost = true;
         userRole = 'user';
+        if (!isClosed) canPost = true;
         availableCharacters = [];
       }
     }

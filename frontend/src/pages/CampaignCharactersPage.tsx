@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { WysiwygEditor } from '../components/WysiwygEditor';
+import { DiceTowerModal } from '../components/DiceTowerModal';
 import {
   CampaignCharactersData,
   CampaignCharacter,
@@ -39,6 +40,7 @@ import {
   Upload,
   Link as LinkIcon,
   Loader2,
+  Dices,
 } from 'lucide-react';
 
 interface CampaignCharactersPageProps {
@@ -84,6 +86,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [selectedCharacter, setSelectedCharacter] = useState<CampaignCharacter | null>(null);
+  const [isDiceTowerOpen, setIsDiceTowerOpen] = useState<boolean>(false);
 
   // Modal form state
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
@@ -134,6 +137,8 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
   const isMj = Boolean(
     data?.campaign?.userRole === 'mj' || (user && data?.campaign?.mjId === user.id)
   );
+  const isPlayer = Boolean(user && data?.campaign?.userRole === 'player');
+  const isCampaignMember = isMj || isPlayer;
 
   const canEditCharacter = (char: CampaignCharacter): boolean => {
     if (!user) return false;
@@ -471,12 +476,23 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
 
           <button
             onClick={handleGoToForum}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-indigo-600 rounded-xl text-xs font-semibold transition shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-indigo-600 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer"
             title="Accéder au forum de la campagne"
           >
             <MessageCircle className="w-3.5 h-3.5 text-indigo-500" />
             <span>Forum de la campagne</span>
           </button>
+
+          {isCampaignMember && (
+            <button
+              onClick={() => setIsDiceTowerOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-indigo-600 rounded-xl text-xs font-semibold transition shadow-2xs cursor-pointer"
+              title="Ouvrir la tour à dés de la campagne"
+            >
+              <Dices className="w-3.5 h-3.5 text-indigo-500" />
+              <span>Tour à dé</span>
+            </button>
+          )}
 
           <button
             onClick={fetchCharacters}
@@ -1370,6 +1386,16 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
             </form>
           </div>
         </div>
+      )}
+      {/* Modal: Tour à dés */}
+      {isCampaignMember && (
+        <DiceTowerModal
+          isOpen={isDiceTowerOpen}
+          onClose={() => setIsDiceTowerOpen(false)}
+          campaignId={effectiveCampaignId}
+          campaignName={data?.campaign?.name}
+          isMj={isMj}
+        />
       )}
     </div>
   );

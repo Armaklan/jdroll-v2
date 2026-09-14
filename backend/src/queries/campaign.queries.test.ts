@@ -2,8 +2,47 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { CampaignQueries } from './campaign.queries.js';
 import { ICampaignRepository } from '../repositories/campaign.repository.js';
+import { IDicerRepository, DicerRollWithUser } from '../repositories/dicer.repository.js';
+import { IForumRepository } from '../repositories/forum.repository.js';
 import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow } from '../types/index.js';
-import { CampaignNotFoundError } from '../errors/domain.errors.js';
+import { CampaignNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
+
+class MockDicerRepository implements IDicerRepository {
+  constructor(private rolls: DicerRollWithUser[] = []) {}
+
+  async createRoll(): Promise<number> {
+    return 1;
+  }
+
+  async getRollById(): Promise<any> {
+    return null;
+  }
+
+  async getRollWithUserById(): Promise<any> {
+    return null;
+  }
+
+  async getRecentRollsByCampaign(campagneId: number, limit = 20, userId?: number): Promise<DicerRollWithUser[]> {
+    return this.rolls
+      .filter((r) => r.campagneId === campagneId && (userId === undefined || r.userId === userId))
+      .slice(0, limit);
+  }
+}
+
+class MockForumRepository implements Partial<IForumRepository> {
+  constructor(
+    private mjList: Array<{ campaignId: number; userId: number }> = [],
+    private participantList: Array<{ campaignId: number; userId: number }> = []
+  ) {}
+
+  async isUserCampaignMj(campagneId: number, userId: number): Promise<boolean> {
+    return this.mjList.some((item) => item.campaignId === campagneId && item.userId === userId);
+  }
+
+  async isUserCampaignParticipant(campagneId: number, userId: number): Promise<boolean> {
+    return this.participantList.some((item) => item.campaignId === campagneId && item.userId === userId);
+  }
+}
 
 class MockCampaignRepository implements ICampaignRepository {
   constructor(
@@ -386,6 +425,125 @@ describe('CampaignQueries', () => {
 
       const catNoblesse = data.categories.find((c) => c.name === 'Noblesse de Barovie')!;
       assert.equal(catNoblesse.characters[0].privateDescription, undefined);
+    });
+  });
+
+  describe('getCampaignDiceRolls', () => {
+    const campaign1: CampaignSummary = {
+      id: 10,
+      name: 'Campagne avec Tour à dés',
+      mjId: 1, // GM is user 1
+      mjUsername: 'mj_user',
+      nbJoueurs: 4,
+      nbJoueursActuel: 2,
+      banniere: '',
+      systeme: 'D&D 5',
+      univers: 'Fantasy',
+      description: 'Campagne de test dés',
+      statut: 0,
+      isArchived: false,
+      isRecrutementOpen: true,
+      userRole: 'mj',
+    };
+
+    const rolls: DicerRollWithUser[] = [
+      {
+        id: 1,
+        userId: 1,
+        campagneId: 10,
+        createDate: '2026-09-14T10:00:00Z',
+        result: 'd20 ( 18 )',
+        description: 'Jet MJ',
+        username: 'mj_user',
+        userAvatar: null,
+      },
+      {
+        id: 2,
+        userId: 2,
+        campagneId: 10,
+        createDate: '2026-09-14T10:05:00Z',
+        result: 'd6 ( 4 ) + d6 ( 5 ) = 9',
+        description: 'Attaque Joueur 1',
+        username: 'joueur1',
+        userAvatar: null,
+      },
+      {
+        id: 3,
+        userId: 3,
+        campagneId: 10,
+        createDate: '2026-09-14T10:10:00Z',
+        result: 'd100 ( 42 )',
+        description: 'Chance Joueur 2',
+        username: 'joueur2',
+        userAvatar: null,
+      },
+    ];
+
+    it('lève CampaignNotFoundError si la campagne n’existe pas', async () => {
+      const campaignRepo = new MockCampaignRepository();
+      const dicerRepo = new MockDicerRepository(rolls);
+      const forumRepo = new MockForumRepository() as any;
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo);
+
+      await assert.rejects(
+        () => queries.getCampaignDiceRolls(999, 1),
+        CampaignNotFoundError
+      );
+    });
+
+    it('lève ForbiddenError si l’utilisateur n’est ni MJ ni joueur', async () => {
+      const campaignRepo = new MockCampaignRepository([campaign1]);
+      const dicerRepo = new MockDicerRepository(rolls);
+      const forumRepo = new MockForumRepository(
+        [{ campaignId: 10, userId: 1 }],
+        [{ campaignId: 10, userId: 2 }]
+      ) as any;
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo);
+
+      // Utilisateur 99 n'est ni MJ ni joueur
+      await assert.rejects(
+        () => queries.getCampaignDiceRolls(10, 99),
+        ForbiddenError
+      );
+    });
+
+    it('retourne TOUS les jets de dés si l’utilisateur est le MJ', async () => {
+      const campaignRepo = new MockCampaignRepository([campaign1]);
+      const dicerRepo = new MockDicerRepository(rolls);
+      const forumRepo = new MockForumRepository(
+        [{ campaignId: 10, userId: 1 }],
+        [{ campaignId: 10, userId: 2 }]
+      ) as any;
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo);
+
+      const result = await queries.getCampaignDiceRolls(10, 1);
+      assert.equal(result.length, 3);
+      assert.deepEqual(result.map((r) => r.id), [1, 2, 3]);
+    });
+
+    it('retourne UNIQUEMENT ses propres jets de dés si l’utilisateur est un joueur', async () => {
+      const campaignRepo = new MockCampaignRepository([campaign1]);
+      const dicerRepo = new MockDicerRepository(rolls);
+      const forumRepo = new MockForumRepository(
+        [{ campaignId: 10, userId: 1 }],
+        [
+          { campaignId: 10, userId: 2 },
+          { campaignId: 10, userId: 3 },
+        ]
+      ) as any;
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo);
+
+      const resultUser2 = await queries.getCampaignDiceRolls(10, 2);
+      assert.equal(resultUser2.length, 1);
+      assert.equal(resultUser2[0].id, 2);
+      assert.equal(resultUser2[0].userId, 2);
+      assert.equal(resultUser2[0].description, 'Attaque Joueur 1');
+
+      const resultUser3 = await queries.getCampaignDiceRolls(10, 3);
+      assert.equal(resultUser3.length, 1);
+      assert.equal(resultUser3[0].id, 3);
+      assert.equal(resultUser3[0].userId, 3);
+      assert.equal(resultUser3[0].description, 'Chance Joueur 2');
     });
   });
 });

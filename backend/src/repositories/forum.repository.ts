@@ -25,7 +25,7 @@ export interface IForumRepository {
   getUserLastReadPostId(topicId: number, userId: number): Promise<number | null>;
   countPostsAfterPostId(topicId: number, postId: number): Promise<number>;
   getPostById(postId: number, userId?: number): Promise<ForumPost | null>;
-  createPost(data: { topicId: number; userId: number; persoId: number | null; content: string; editor?: number }): Promise<number>;
+  createPost(data: { topicId: number; userId: number | null; persoId: number | null; content: string; editor?: number }): Promise<number>;
   updateTopicLastPost(topicId: number, postId: number): Promise<void>;
   markTopicAsRead(topicId: number, userId: number, postId: number): Promise<void>;
   findCampaignPersos(campagneId: number): Promise<CharacterSummary[]>;
@@ -443,7 +443,7 @@ export class MysqlForumRepository implements IForumRepository {
 
   async createPost(data: {
     topicId: number;
-    userId: number;
+    userId: number | null;
     persoId: number | null;
     content: string;
     editor?: number;
@@ -455,7 +455,7 @@ export class MysqlForumRepository implements IForumRepository {
 
     const result = await execute(sql, [
       data.topicId,
-      data.userId,
+      data.userId ?? null,
       data.persoId ?? null,
       data.content,
       data.editor ?? 0,

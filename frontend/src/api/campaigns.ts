@@ -9,6 +9,7 @@ import {
   CreateCharacterPayload,
   UpdateCharacterPayload,
   CampaignCharacter,
+  CampaignDiceRoll,
 } from '../types/campaign';
 import { getToken } from './auth';
 
@@ -158,6 +159,28 @@ export const campaignsApi = {
         content,
         persoId: persoId ?? null,
       }),
+    });
+  },
+
+  async rollDice(topicId: number, data: { formula: string; description?: string }) {
+    return request<{ post: any; rollId: number; evaluation: any }>(`/api/topics/${topicId}/dice-roll`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getCampaignDiceRolls(campaignId: number): Promise<CampaignDiceRoll[]> {
+    const result = await request<{ rolls: CampaignDiceRoll[] }>(`/api/campaigns/${campaignId}/dice-rolls`);
+    return result.rolls;
+  },
+
+  async rollCampaignDice(
+    campaignId: number,
+    data: { formula: string; description?: string }
+  ): Promise<{ roll: CampaignDiceRoll; evaluation: any }> {
+    return request<{ roll: CampaignDiceRoll; evaluation: any }>(`/api/campaigns/${campaignId}/dice-rolls`, {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   },
 
