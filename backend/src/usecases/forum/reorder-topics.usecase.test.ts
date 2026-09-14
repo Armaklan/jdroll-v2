@@ -57,6 +57,8 @@ describe('ReorderTopicsUseCase', () => {
       updateCharacter: async () => {},
       updateCampaignBanner: async () => {},
       findCampaignParticipants: async () => [],
+      isUserCampaignParticipant: async () => false,
+      addCampaignParticipant: async () => {},
     };
 
     mockForumRepo = {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignSummary, CampaignRole } from '../types/campaign';
+import { CampaignDetailModal } from '../components/CampaignDetailModal';
 import { AppView, viewToPath } from '../components/Navbar';
 import {
   Crown,
@@ -19,6 +20,7 @@ import {
   Lock,
   Plus,
   SlidersHorizontal,
+  FileText,
 } from 'lucide-react';
 
 interface MyCampaignsPageProps {
@@ -35,6 +37,10 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Detail Modal State
+  const [selectedCampaign, setSelectedCampaign] = useState<CampaignSummary | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
   const handleNavigate = (view: AppView) => {
     if (onNavigate) onNavigate(view);
     else navigate(viewToPath(view));
@@ -43,6 +49,15 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
   const handleSelectCampaign = (campaignId: number) => {
     if (onSelectCampaign) onSelectCampaign(campaignId);
     else navigate(`/campaigns/${campaignId}`);
+  };
+
+  const handleOpenDetail = (campaign: CampaignSummary) => {
+    setSelectedCampaign(campaign);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
   };
 
   const fetchCampaigns = async () => {
@@ -65,14 +80,6 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
     }
   }, [role, includeArchived, isAuthenticated]);
 
-  // Strip HTML for campaign description preview
-  const formatDescription = (html: string): string => {
-    if (!html) return '';
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const text = tempDiv.textContent || tempDiv.innerText || '';
-    return text.length > 160 ? text.substring(0, 160) + '...' : text;
-  };
 
   if (!isAuthenticated) {
     return (
@@ -343,7 +350,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
                 </div>
 
                 {/* Body Content */}
-                <div className="p-5 space-y-4">
+                <div className="p-5 space-y-2">
                   <div>
                     <h3 className="font-bold text-lg text-slate-900 leading-snug group-hover:text-indigo-600 transition-colors">
                       {campaign.name}
@@ -371,11 +378,6 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
                       )}
                     </div>
                   </div>
-
-                  {/* Description preview */}
-                  <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
-                    {formatDescription(campaign.description) || 'Aucune description disponible pour cette campagne.'}
-                  </p>
                 </div>
               </div>
 
@@ -402,11 +404,20 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
 
                 <div className="flex items-center gap-2">
                   <button
+                    onClick={() => handleOpenDetail(campaign)}
+                    className="inline-flex items-center gap-1.5 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs sm:text-sm transition shadow-2xs cursor-pointer"
+                    title="Consulter la fiche détaillée"
+                  >
+                    <FileText className="w-4 h-4 text-slate-500" />
+                    <span>Fiche</span>
+                  </button>
+
+                  <button
                     onClick={() => handleSelectCampaign(campaign.id)}
                     className="flex-1 flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl text-xs sm:text-sm transition shadow-2xs cursor-pointer"
                   >
                     <BookOpen className="w-4 h-4" />
-                    <span>Accéder au forum</span>
+                    <span>Forum</span>
                   </button>
 
                   {(role === 'master' || campaign.mjId === user?.id || campaign.userRole === 'mj') && (
@@ -425,6 +436,14 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
           ))}
         </div>
       )}
+
+      {/* Campaign Detail Modal */}
+      <CampaignDetailModal
+        campaign={selectedCampaign}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onJoinSuccess={() => fetchCampaigns()}
+      />
     </div>
   );
 };

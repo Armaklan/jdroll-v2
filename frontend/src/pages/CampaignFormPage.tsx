@@ -1177,7 +1177,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     <img
                       src={forumBannerPreview || forumBannerUrl}
                       alt="Aperçu bannière forum"
-                      className="absolute inset-0 w-full h-full object-cover opacity-75"
+                      className="absolute inset-0 w-full h-full object-cover opacity-100"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = 'none';
                       }}

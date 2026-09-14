@@ -102,6 +102,8 @@ export interface ICampaignRepository {
   ): Promise<void>;
   updateCampaignBanner(campagneId: number, bannerUrl: string): Promise<void>;
   findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]>;
+  isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean>;
+  addCampaignParticipant(campaignId: number, userId: number): Promise<void>;
 }
 
 export class MysqlCampaignRepository implements ICampaignRepository {
@@ -946,6 +948,29 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     `;
 
     return query<CampaignParticipant>(sql, [campaignId]);
+  }
+
+  async isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean> {
+    const sql = `SELECT user_id FROM campagne_participant WHERE campagne_id = ? AND user_id = ?`;
+    const row = await queryOne<{ user_id: number }>(sql, [campaignId, userId]);
+    return Boolean(row);
+  }
+
+  async addCampaignParticipant(campaignId: number, userId: number): Promise<void> {
+    const sql = `
+      INSERT INTO campagne_participant (campagne_id, user_id, statut)
+      VALUES (?, ?, 1)
+      ON DUPLICATE KEY UPDATE statut = 1
+    `;
+    await execute(sql, [campaignId, userId]);
+    const countSql = `
+      UPDATE campagne
+      SET nb_joueurs_actuel = (
+        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ?
+      )
+      WHERE id = ?
+    `;
+    await execute(countSql, [campaignId, campaignId]);
   }
 }
 

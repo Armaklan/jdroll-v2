@@ -72,6 +72,12 @@ export const campaignsApi = {
     return result.campaign;
   },
 
+  async joinCampaign(campaignId: number): Promise<{ success: boolean; message: string; campaignId: number }> {
+    return request<{ success: boolean; message: string; campaignId: number }>(`/api/campaigns/${campaignId}/join`, {
+      method: 'POST',
+    });
+  },
+
   async createCampaign(payload: CreateCampaignPayload): Promise<CampaignSummary> {
     const result = await request<{ campaign: CampaignSummary }>('/api/campaigns', {
       method: 'POST',

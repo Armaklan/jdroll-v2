@@ -112,6 +112,12 @@ class MockCampaignRepository implements ICampaignRepository {
   async findCampaignParticipants(campaignId: number): Promise<any[]> {
     return [];
   }
+
+  async isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean> {
+    return false;
+  }
+
+  async addCampaignParticipant(campaignId: number, userId: number): Promise<void> {}
 }
 
 describe('CampaignQueries', () => {

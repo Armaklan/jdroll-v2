@@ -7,6 +7,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { MyCampaignsPage } from './pages/MyCampaignsPage';
 import { AllCampaignsPage } from './pages/AllCampaignsPage';
+import { JoinCampaignPage } from './pages/JoinCampaignPage';
 import { CampaignForumPage } from './pages/CampaignForumPage';
 import { CampaignCharactersPage } from './pages/CampaignCharactersPage';
 import { CampaignFormPage } from './pages/CampaignFormPage';
@@ -16,7 +17,6 @@ import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
 import {
   Mail,
   MessagesSquare,
-  Sparkles,
   HelpCircle,
 } from 'lucide-react';
 
@@ -106,17 +106,7 @@ export function AppContent() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/join-campaign"
-            element={
-              <SectionPlaceholderPage
-                title="Rejoindre une Campagne"
-                category="Jouer"
-                description="Explorez les campagnes avec recrutements ouverts et postulez avec vos fiches de personnages."
-                icon={Sparkles}
-              />
-            }
-          />
+          <Route path="/join-campaign" element={<JoinCampaignPage />} />
           <Route path="/all-campaigns" element={<AllCampaignsPage />} />
           <Route path="/campaigns" element={<Navigate to="/all-campaigns" replace />} />
           <Route path="/campaigns/:campaignId" element={<CampaignForumPage />} />

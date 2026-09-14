@@ -186,6 +186,10 @@ class MockCampaignRepository implements ICampaignRepository {
   async findCampaignParticipants(): Promise<any[]> {
     return [];
   }
+  async isUserCampaignParticipant(): Promise<boolean> {
+    return false;
+  }
+  async addCampaignParticipant(): Promise<void> {}
 }
 
 class MockForumRepository implements IForumRepository {

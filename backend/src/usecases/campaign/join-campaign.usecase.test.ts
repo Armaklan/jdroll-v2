@@ -1,0 +1,143 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { JoinCampaignUseCase } from './join-campaign.usecase.js';
+import { ICampaignRepository } from '../../repositories/campaign.repository.js';
+import { CampaignNotFoundError, ValidationError } from '../../errors/domain.errors.js';
+import { CampaignSummary } from '../../types/index.js';
+
+function createMockCampaignRepo(initialCampaigns: CampaignSummary[] = []) {
+  const campaigns = [...initialCampaigns];
+  const participants = new Set<string>();
+
+  const repo: ICampaignRepository = {
+    async findMasteredCampaigns(userId: number): Promise<CampaignSummary[]> {
+      return campaigns.filter((c) => c.mjId === userId);
+    },
+    async findPlayerCampaigns(): Promise<CampaignSummary[]> {
+      return [];
+    },
+    async findAllCampaigns(): Promise<CampaignSummary[]> {
+      return campaigns;
+    },
+    async findById(id: number): Promise<CampaignSummary | null> {
+      return campaigns.find((c) => c.id === id) || null;
+    },
+    async createCampaign(): Promise<number> {
+      return 1;
+    },
+    async updateCampaign(): Promise<void> {},
+    async findCampaignCharacters(): Promise<any[]> {
+      return [];
+    },
+    async findCampaignPnjCategories(): Promise<any[]> {
+      return [];
+    },
+    async findCharacterById(): Promise<any | null> {
+      return null;
+    },
+    async createCharacter(): Promise<number> {
+      return 1;
+    },
+    async updateCharacter(): Promise<void> {},
+    async updateCampaignBanner(): Promise<void> {},
+    async findCampaignParticipants(): Promise<any[]> {
+      return [];
+    },
+    async isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean> {
+      return participants.has(`${campaignId}-${userId}`);
+    },
+    async addCampaignParticipant(campaignId: number, userId: number): Promise<void> {
+      participants.add(`${campaignId}-${userId}`);
+      const c = campaigns.find((item) => item.id === campaignId);
+      if (c) {
+        c.nbJoueursActuel += 1;
+      }
+    },
+  };
+
+  return { repo, campaigns, participants };
+}
+
+describe('JoinCampaignUseCase', () => {
+  const sampleCampaign: CampaignSummary = {
+    id: 10,
+    mjId: 1,
+    mjUsername: 'GM_User',
+    name: 'Campagne de Test',
+    banniere: '',
+    systeme: 'D&D 5E',
+    univers: 'Fantasy',
+    description: 'Une aventure épique',
+    nbJoueurs: 4,
+    nbJoueursActuel: 1,
+    statut: 0,
+    isArchived: false,
+    isRecrutementOpen: true,
+  };
+
+  it('lève une CampaignNotFoundError si la campagne n’existe pas', async () => {
+    const { repo } = createMockCampaignRepo([]);
+    const useCase = new JoinCampaignUseCase(repo);
+
+    await assert.rejects(
+      () => useCase.execute({ campaignId: 999, userId: 2 }),
+      CampaignNotFoundError
+    );
+  });
+
+  it('lève une ValidationError si la campagne est archivée', async () => {
+    const { repo } = createMockCampaignRepo([
+      { ...sampleCampaign, id: 11, statut: 2, isArchived: true },
+    ]);
+    const useCase = new JoinCampaignUseCase(repo);
+
+    await assert.rejects(
+      () => useCase.execute({ campaignId: 11, userId: 2 }),
+      ValidationError
+    );
+  });
+
+  it('lève une ValidationError si le recrutement est fermé', async () => {
+    const { repo } = createMockCampaignRepo([
+      { ...sampleCampaign, id: 12, isRecrutementOpen: false },
+    ]);
+    const useCase = new JoinCampaignUseCase(repo);
+
+    await assert.rejects(
+      () => useCase.execute({ campaignId: 12, userId: 2 }),
+      ValidationError
+    );
+  });
+
+  it('lève une ValidationError si l’utilisateur est le MJ de la campagne', async () => {
+    const { repo } = createMockCampaignRepo([sampleCampaign]);
+    const useCase = new JoinCampaignUseCase(repo);
+
+    await assert.rejects(
+      () => useCase.execute({ campaignId: 10, userId: 1 }), // userId 1 is MJ
+      ValidationError
+    );
+  });
+
+  it('permet à un joueur de rejoindre avec succès la campagne', async () => {
+    const { repo, participants } = createMockCampaignRepo([sampleCampaign]);
+    const useCase = new JoinCampaignUseCase(repo);
+
+    const result = await useCase.execute({ campaignId: 10, userId: 2 });
+
+    assert.equal(result.success, true);
+    assert.equal(result.campaignId, 10);
+    assert.equal(participants.has('10-2'), true);
+  });
+
+  it('retourne un message informatif si le joueur participe déjà', async () => {
+    const { repo, participants } = createMockCampaignRepo([sampleCampaign]);
+    participants.add('10-2');
+    const useCase = new JoinCampaignUseCase(repo);
+
+    const result = await useCase.execute({ campaignId: 10, userId: 2 });
+
+    assert.equal(result.success, true);
+    assert.match(result.message, /déjà/);
+  });
+});

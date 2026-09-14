@@ -513,7 +513,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
             <img
               src={campaign.banniereForum || campaign.banniere || undefined}
               alt={campaign.name}
-              className="w-full h-full object-cover opacity-75"
+              className="w-full h-full object-cover opacity-100"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}

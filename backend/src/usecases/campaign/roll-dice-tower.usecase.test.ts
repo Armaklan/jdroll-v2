@@ -45,6 +45,8 @@ describe('RollDiceTowerUseCase', () => {
     updateCharacter: async () => {},
     updateCampaignBanner: async () => {},
     findCampaignParticipants: async () => [],
+    isUserCampaignParticipant: async () => false,
+    addCampaignParticipant: async () => {},
   });
 
   const createMockForumRepo = (options: { isMj?: boolean; isParticipant?: boolean } = {}): IForumRepository =>

@@ -7,6 +7,7 @@ import { rollDiceUseCase, RollDiceUseCase } from '../usecases/forum/roll-dice.us
 import { rollDiceTowerUseCase, RollDiceTowerUseCase } from '../usecases/campaign/roll-dice-tower.usecase.js';
 import { createCampaignUseCase, CreateCampaignUseCase } from '../usecases/campaign/create-campaign.usecase.js';
 import { updateCampaignUseCase, UpdateCampaignUseCase } from '../usecases/campaign/update-campaign.usecase.js';
+import { joinCampaignUseCase, JoinCampaignUseCase } from '../usecases/campaign/join-campaign.usecase.js';
 import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/create-section.usecase.js';
 import { updateSectionUseCase, UpdateSectionUseCase } from '../usecases/forum/update-section.usecase.js';
 import { uploadSectionBannerUseCase, UploadSectionBannerUseCase } from '../usecases/forum/upload-section-banner.usecase.js';
@@ -233,7 +234,8 @@ export class CampaignController {
     private readonly createCharacterUseCaseService: CreateCharacterUseCase = createCharacterUseCase,
     private readonly updateCharacterUseCaseService: UpdateCharacterUseCase = updateCharacterUseCase,
     private readonly uploadCharacterAvatarUseCaseService: UploadCharacterAvatarUseCase = uploadCharacterAvatarUseCase,
-    private readonly uploadCampaignBannerUseCaseService: UploadCampaignBannerUseCase = uploadCampaignBannerUseCase
+    private readonly uploadCampaignBannerUseCaseService: UploadCampaignBannerUseCase = uploadCampaignBannerUseCase,
+    private readonly joinCampaignUseCaseService: JoinCampaignUseCase = joinCampaignUseCase
   ) {}
 
   /**
@@ -1300,11 +1302,55 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/campaigns/:id/join
+   * Permet à un utilisateur connecté de rejoindre une campagne
+   */
+  async joinCampaign(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.joinCampaignUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        userId: user.id,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de l’inscription à la campagne' });
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur
    */
   registerRoutes(app: FastifyInstance) {
     // Route publique pour voir toutes les campagnes
     app.get('/api/campaigns', (req, rep) => this.getAllCampaigns(req, rep));
+
+    // Route authentifiée pour rejoindre une campagne
+    app.post(
+      '/api/campaigns/:id/join',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.joinCampaign(req, rep)
+    );
 
     // Route pour voir les détails d'une campagne
     app.get('/api/campaigns/:id', (req, rep) => this.getCampaignById(req, rep));

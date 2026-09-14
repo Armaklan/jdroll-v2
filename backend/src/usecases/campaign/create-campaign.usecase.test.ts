@@ -62,6 +62,8 @@ describe('CreateCampaignUseCase', () => {
       updateCharacter: async () => {},
       updateCampaignBanner: async () => {},
       findCampaignParticipants: async () => [],
+      isUserCampaignParticipant: async () => false,
+      addCampaignParticipant: async () => {},
     };
 
     return { repo, createdList };
