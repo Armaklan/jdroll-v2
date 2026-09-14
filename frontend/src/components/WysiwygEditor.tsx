@@ -4,7 +4,9 @@ import {
   Italic,
   Underline,
   Strikethrough,
-  Heading,
+  Heading1,
+  Heading2,
+  Heading3,
   Quote,
   List,
   ListOrdered,
@@ -89,6 +91,37 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       editorRef.current.focus();
     }
     document.execCommand(command, false, arg);
+    handleInput();
+  };
+
+  const handleFormatBlock = (tag: string) => {
+    if (disabled || isSourceMode) return;
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0 && editorRef.current?.contains(selection.anchorNode)) {
+      let parent: Node | null = selection.anchorNode;
+      let currentTag = '';
+      while (parent && parent !== editorRef.current) {
+        if (parent.nodeType === Node.ELEMENT_NODE) {
+          const elName = (parent as HTMLElement).tagName.toLowerCase();
+          if (['h1', 'h2', 'h3', 'blockquote', 'p'].includes(elName)) {
+            currentTag = elName;
+            break;
+          }
+        }
+        parent = parent.parentNode;
+      }
+      const targetTag = tag.replace(/<|>/g, '').toLowerCase();
+      if (currentTag === targetTag) {
+        document.execCommand('formatBlock', false, '<p>');
+      } else {
+        document.execCommand('formatBlock', false, `<${targetTag}>`);
+      }
+    } else {
+      document.execCommand('formatBlock', false, tag.startsWith('<') ? tag : `<${tag}>`);
+    }
     handleInput();
   };
 
@@ -337,18 +370,36 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
         <div className="flex items-center gap-0.5 px-1 border-r border-slate-200">
           <button
             type="button"
-            onClick={() => executeCommand('formatBlock', '<h3>')}
+            onClick={() => handleFormatBlock('h1')}
             disabled={disabled || isSourceMode}
-            title="Titre de section"
+            title="Titre 1 (H1)"
             className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition cursor-pointer"
           >
-            <Heading className="w-4 h-4" />
+            <Heading1 className="w-4 h-4" />
           </button>
           <button
             type="button"
-            onClick={() => executeCommand('formatBlock', '<blockquote>')}
+            onClick={() => handleFormatBlock('h2')}
             disabled={disabled || isSourceMode}
-            title="Citation"
+            title="Titre 2 (H2)"
+            className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition cursor-pointer"
+          >
+            <Heading2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFormatBlock('h3')}
+            disabled={disabled || isSourceMode}
+            title="Titre 3 (H3)"
+            className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition cursor-pointer"
+          >
+            <Heading3 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFormatBlock('blockquote')}
+            disabled={disabled || isSourceMode}
+            title="Citation (Blockquote)"
             className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition cursor-pointer"
           >
             <Quote className="w-4 h-4" />
@@ -551,7 +602,7 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           onBlur={handleInput}
           style={{ minHeight }}
           data-placeholder={placeholder}
-          className={`p-4 text-sm sm:text-base text-slate-900 focus:outline-none overflow-y-auto leading-relaxed prose prose-slate max-w-none empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none ${
+          className={`wysiwyg-content wysiwyg-editor-area p-4 text-sm sm:text-base text-slate-900 focus:outline-none overflow-y-auto leading-relaxed empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none ${
             disabled ? 'bg-slate-50 cursor-not-allowed opacity-60' : ''
           }`}
         />

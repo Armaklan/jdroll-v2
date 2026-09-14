@@ -670,7 +670,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
                 <div className="md:col-span-9 min-w-0">
                   <div
-                    className="text-slate-900 text-sm sm:text-base leading-relaxed space-y-3 prose prose-slate max-w-none break-words"
+                    className="wysiwyg-content post-content-container text-slate-900 text-sm sm:text-base leading-relaxed space-y-3 prose prose-slate max-w-none break-words"
                     dangerouslySetInnerHTML={{ __html: parseDiceInHtml(postContent) }}
                   />
                 </div>

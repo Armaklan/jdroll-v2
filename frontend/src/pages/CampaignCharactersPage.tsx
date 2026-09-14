@@ -801,7 +801,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                 </h3>
                 {selectedCharacter.publicDescription ? (
                   <div
-                    className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-sm text-slate-700 leading-relaxed prose prose-sm max-w-none"
+                    className="wysiwyg-content p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-sm text-slate-700 leading-relaxed max-w-none"
                     dangerouslySetInnerHTML={{ __html: selectedCharacter.publicDescription }}
                   />
                 ) : (
@@ -820,7 +820,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                   </h3>
                   {selectedCharacter.privateDescription ? (
                     <div
-                      className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 text-sm text-amber-950 leading-relaxed prose prose-sm max-w-none"
+                      className="wysiwyg-content p-4 rounded-xl bg-amber-50/60 border border-amber-200 text-sm text-amber-950 leading-relaxed max-w-none"
                       dangerouslySetInnerHTML={{ __html: selectedCharacter.privateDescription }}
                     />
                   ) : (
@@ -839,7 +839,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                     <span>Fiche technique / Statistiques</span>
                   </h3>
                   <div
-                    className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 leading-relaxed prose prose-sm max-w-none"
+                    className="wysiwyg-content p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-700 leading-relaxed max-w-none"
                     dangerouslySetInnerHTML={{ __html: selectedCharacter.technical }}
                   />
                 </div>
