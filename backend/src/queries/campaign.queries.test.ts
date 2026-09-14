@@ -227,6 +227,21 @@ describe('CampaignQueries', () => {
     assert.equal(result.length, 2);
   });
 
+  it('should return both active mastered and player campaigns when role = "all" or omitted', async () => {
+    const repo = new MockCampaignRepository(
+      [sampleMasteredCampaignActive, sampleMasteredCampaignArchived],
+      [samplePlayerCampaignActive, samplePlayerCampaignArchived]
+    );
+    const queries = new CampaignQueries(repo);
+
+    const result = await queries.getMyCampaigns(42, 'all', false);
+    assert.equal(result.length, 2);
+    assert.deepEqual(result.map((c) => c.id).sort(), [1, 3]);
+
+    const resultAll = await queries.getMyCampaigns(42, 'all', true);
+    assert.equal(resultAll.length, 4);
+  });
+
   it('should return only active campaigns by default for getAllCampaigns', async () => {
     const all = [
       sampleMasteredCampaignActive,

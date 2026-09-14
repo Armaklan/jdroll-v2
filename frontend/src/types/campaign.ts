@@ -67,7 +67,7 @@ export interface CreateCampaignPayload {
 
 export type UpdateCampaignPayload = Partial<CreateCampaignPayload>;
 
-export type CampaignRole = 'master' | 'player';
+export type CampaignRole = 'all' | 'master' | 'player';
 
 export interface ForumLastPost {
   id: number;

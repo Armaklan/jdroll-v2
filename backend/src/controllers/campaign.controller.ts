@@ -31,7 +31,7 @@ import {
 } from '../errors/domain.errors.js';
 
 const getMyCampaignsSchema = z.object({
-  role: z.enum(['master', 'player']).default('master'),
+  role: z.enum(['all', 'master', 'player']).default('all'),
   includeArchived: z
     .preprocess((val) => {
       if (typeof val === 'string') {

@@ -6,7 +6,6 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { MyCampaignsPage } from './pages/MyCampaignsPage';
-import { AllCampaignsPage } from './pages/AllCampaignsPage';
 import { JoinCampaignPage } from './pages/JoinCampaignPage';
 import { CampaignForumPage } from './pages/CampaignForumPage';
 import { CampaignCharactersPage } from './pages/CampaignCharactersPage';
@@ -107,8 +106,8 @@ export function AppContent() {
             }
           />
           <Route path="/join-campaign" element={<JoinCampaignPage />} />
-          <Route path="/all-campaigns" element={<AllCampaignsPage />} />
-          <Route path="/campaigns" element={<Navigate to="/all-campaigns" replace />} />
+          <Route path="/all-campaigns" element={<Navigate to="/join-campaign" replace />} />
+          <Route path="/campaigns" element={<Navigate to="/join-campaign" replace />} />
           <Route path="/campaigns/:campaignId" element={<CampaignForumPage />} />
           <Route path="/campaign-forum/:campaignId" element={<CampaignForumPage />} />
           <Route path="/campaigns/:campaignId/characters" element={<CampaignCharactersPage />} />

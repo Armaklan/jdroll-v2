@@ -14,13 +14,9 @@ import {
   Mail,
   MessagesSquare,
   Gamepad2,
-  Compass,
-  Sparkles,
-  Layers,
   HelpCircle,
   Menu,
   X,
-  Plus,
 } from 'lucide-react';
 
 export type AppView =
@@ -32,7 +28,6 @@ export type AppView =
   | 'my-campaigns'
   | 'create-campaign'
   | 'join-campaign'
-  | 'all-campaigns'
   | 'campaign-forum'
   | 'topic-view'
   | 'forum'
@@ -56,10 +51,8 @@ export const viewToPath = (view: AppView): string => {
       return '/campaigns/new';
     case 'join-campaign':
       return '/join-campaign';
-    case 'all-campaigns':
-      return '/all-campaigns';
     case 'campaign-forum':
-      return '/all-campaigns';
+      return '/my-campaigns';
     case 'topic-view':
       return '/forum';
     case 'forum':
@@ -80,9 +73,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
   const { user, isAuthenticated, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [openDropdown, setOpenDropdown] = useState<'communicate' | 'play' | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<'communicate' | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileSubmenu, setMobileSubmenu] = useState<'communicate' | 'play' | null>(null);
+  const [mobileSubmenu, setMobileSubmenu] = useState<'communicate' | null>(null);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -106,8 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
     if (path === '/chat') return 'chat';
     if (path === '/my-campaigns') return 'my-campaigns';
     if (path === '/campaigns/new' || path === '/create-campaign') return 'create-campaign';
-    if (path === '/join-campaign') return 'join-campaign';
-    if (path === '/all-campaigns' || path === '/campaigns') return 'all-campaigns';
+    if (path === '/join-campaign' || path === '/all-campaigns' || path === '/campaigns') return 'join-campaign';
     if (path.startsWith('/campaigns/')) return 'campaign-forum';
     if (path.startsWith('/topics/')) return 'topic-view';
     if (path === '/forum') return 'forum';
@@ -137,7 +129,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
     activeView === 'my-campaigns' ||
     activeView === 'create-campaign' ||
     activeView === 'join-campaign' ||
-    activeView === 'all-campaigns' ||
     activeView === 'campaign-forum';
 
   return (
@@ -231,95 +222,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               )}
             </div>
 
-            {/* Jouer (Dropdown) */}
-            <div className="relative">
-              <button
-                onClick={() => setOpenDropdown(openDropdown === 'play' ? null : 'play')}
-                onMouseEnter={() => setOpenDropdown('play')}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
-                  isPlayActive || openDropdown === 'play'
-                    ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
-                }`}
-              >
-                <Gamepad2 className="w-4 h-4" />
-                <span>Jouer</span>
-                <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                    openDropdown === 'play' ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {openDropdown === 'play' && (
-                <div
-                  onMouseLeave={() => setOpenDropdown(null)}
-                  className="absolute left-0 mt-1 w-64 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50 animate-in fade-in slide-in-from-top-1 duration-150"
-                >
-                  <button
-                    onClick={() => handleNavigate('my-campaigns')}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
-                      activeView === 'my-campaigns'
-                        ? 'bg-indigo-50 text-indigo-700 font-medium'
-                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <Compass className="w-4 h-4 text-indigo-500" />
-                    <div>
-                      <div className="font-medium">Mes campagnes</div>
-                      <div className="text-xs text-slate-500">Parties en cours et personnages</div>
-                    </div>
-                  </button>
-
-                  {isAuthenticated && (
-                    <button
-                      onClick={() => handleNavigate('create-campaign')}
-                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
-                        activeView === 'create-campaign'
-                          ? 'bg-indigo-50 text-indigo-700 font-medium'
-                          : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                      }`}
-                    >
-                      <Plus className="w-4 h-4 text-emerald-500" />
-                      <div>
-                        <div className="font-medium">Créer une campagne</div>
-                        <div className="text-xs text-slate-500">Lancer une nouvelle table de jeu</div>
-                      </div>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => handleNavigate('join-campaign')}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
-                      activeView === 'join-campaign'
-                        ? 'bg-indigo-50 text-indigo-700 font-medium'
-                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <Sparkles className="w-4 h-4 text-indigo-500" />
-                    <div>
-                      <div className="font-medium">Rejoindre une campagne</div>
-                      <div className="text-xs text-slate-500">Recrutements ouverts</div>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => handleNavigate('all-campaigns')}
-                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left transition ${
-                      activeView === 'all-campaigns'
-                        ? 'bg-indigo-50 text-indigo-700 font-medium'
-                        : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                    }`}
-                  >
-                    <Layers className="w-4 h-4 text-indigo-500" />
-                    <div>
-                      <div className="font-medium">Voir toutes les campagnes</div>
-                      <div className="text-xs text-slate-500">Annuaire complet des tables</div>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Jouer */}
+            <button
+              onClick={() => handleNavigate('my-campaigns')}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
+                isPlayActive
+                  ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+              }`}
+            >
+              <Gamepad2 className="w-4 h-4" />
+              <span>Jouer</span>
+            </button>
 
             {/* Forum */}
             <button
@@ -477,74 +391,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               )}
             </div>
 
-            {/* Jouer Submenu Accordion */}
-            <div>
-              <button
-                onClick={() => setMobileSubmenu(mobileSubmenu === 'play' ? null : 'play')}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Gamepad2 className="w-4 h-4 text-indigo-600" />
-                  <span>Jouer</span>
-                </div>
-                <ChevronDown
-                  className={`w-4 h-4 transition-transform ${
-                    mobileSubmenu === 'play' ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-
-              {mobileSubmenu === 'play' && (
-                <div className="pl-6 space-y-1 mt-1 border-l-2 border-indigo-100 ml-3">
-                  <button
-                    onClick={() => handleNavigate('my-campaigns')}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      activeView === 'my-campaigns'
-                        ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                        : 'text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Compass className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Mes campagnes</span>
-                  </button>
-                  {isAuthenticated && (
-                    <button
-                      onClick={() => handleNavigate('create-campaign')}
-                      className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                        activeView === 'create-campaign'
-                          ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                          : 'text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <Plus className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>Créer une campagne</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleNavigate('join-campaign')}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      activeView === 'join-campaign'
-                        ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                        : 'text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Rejoindre une campagne</span>
-                  </button>
-                  <button
-                    onClick={() => handleNavigate('all-campaigns')}
-                    className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${
-                      activeView === 'all-campaigns'
-                        ? 'bg-indigo-50 text-indigo-700 font-semibold'
-                        : 'text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Layers className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Voir toutes les campagnes</span>
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Jouer */}
+            <button
+              onClick={() => handleNavigate('my-campaigns')}
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
+                isPlayActive
+                  ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Gamepad2 className="w-4 h-4 text-indigo-600" />
+              <span>Jouer</span>
+            </button>
 
             {/* Forum */}
             <button

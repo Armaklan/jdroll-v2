@@ -45,7 +45,7 @@ export const campaignsApi = {
     return request<GeneralForumData>('/api/forum');
   },
 
-  async getMyCampaigns(role: CampaignRole = 'master', includeArchived: boolean = false): Promise<CampaignSummary[]> {
+  async getMyCampaigns(role: CampaignRole = 'all', includeArchived: boolean = false): Promise<CampaignSummary[]> {
     const params = new URLSearchParams({
       role,
       includeArchived: String(includeArchived),

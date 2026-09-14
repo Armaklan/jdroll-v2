@@ -32,13 +32,32 @@ export class CampaignQueries {
   }
 
   /**
-   * Récupère la liste des campagnes selon le rôle (master ou player) et le filtre d'archivage
+   * Récupère la liste des campagnes selon le rôle (all, master ou player) et le filtre d'archivage
    */
-  async getMyCampaigns(userId: number, role: CampaignRole, includeArchived: boolean = false): Promise<CampaignSummary[]> {
+  async getMyCampaigns(userId: number, role: CampaignRole = 'all', includeArchived: boolean = false): Promise<CampaignSummary[]> {
     if (role === 'master') {
       return this.getMyMasteredCampaigns(userId, includeArchived);
     }
-    return this.getMyPlayerCampaigns(userId, includeArchived);
+    if (role === 'player') {
+      return this.getMyPlayerCampaigns(userId, includeArchived);
+    }
+
+    const [mastered, player] = await Promise.all([
+      this.getMyMasteredCampaigns(userId, includeArchived),
+      this.getMyPlayerCampaigns(userId, includeArchived),
+    ]);
+
+    const campaignMap = new Map<number, CampaignSummary>();
+    for (const c of mastered) {
+      campaignMap.set(c.id, c);
+    }
+    for (const c of player) {
+      if (!campaignMap.has(c.id)) {
+        campaignMap.set(c.id, c);
+      }
+    }
+
+    return Array.from(campaignMap.values()).sort((a, b) => b.id - a.id);
   }
 
   /**

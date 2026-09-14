@@ -111,18 +111,18 @@ export const HomePage: React.FC<HomePageProps> = ({
         </button>
 
         <button
-          onClick={() => handleNavigate('all-campaigns')}
-          className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
+          onClick={() => handleNavigate('create-campaign')}
+          className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group cursor-pointer"
         >
           <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
-            Annuaire
+            Création
           </div>
           <div className="text-base font-bold text-slate-900 flex items-center justify-between">
-            <span>Toutes les Campagnes</span>
+            <span>Créer une Campagne</span>
             <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition" />
           </div>
           <p className="text-xs text-slate-500 mt-2">
-            Explorez les parties actives, archives et univers
+            Lancez votre table, personnalisez l'univers et invitez des joueurs
           </p>
         </button>
 

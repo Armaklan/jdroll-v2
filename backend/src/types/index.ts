@@ -69,7 +69,7 @@ export interface CampaignSummary {
   defaultDice?: string | null;
 }
 
-export type CampaignRole = 'master' | 'player';
+export type CampaignRole = 'all' | 'master' | 'player';
 
 export interface MyCampaignsFilter {
   role: CampaignRole;
