@@ -39,6 +39,7 @@ export interface ICampaignRepository {
       widgets: string;
     }>
   ): Promise<void>;
+  updateCampaignBanner(campagneId: number, bannerUrl: string): Promise<void>;
   findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]>;
 }
 
@@ -660,6 +661,15 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     values.push(id);
     const sql = `UPDATE personnages SET ${fields.join(', ')} WHERE id = ?`;
     await execute(sql, values);
+  }
+
+  async updateCampaignBanner(campagneId: number, bannerUrl: string): Promise<void> {
+    const sql = `
+      UPDATE campagne
+      SET banniere = ?
+      WHERE id = ?
+    `;
+    await execute(sql, [bannerUrl, campagneId]);
   }
 
   async findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]> {

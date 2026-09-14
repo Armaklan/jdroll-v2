@@ -121,6 +121,31 @@ export const campaignsApi = {
     return this.uploadCampaignImage(campaignId, file);
   },
 
+  async uploadCampaignBanner(campaignId: number, file: File): Promise<{ url: string; filename: string }> {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`/api/campaigns/${campaignId}/banner`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Erreur lors du téléversement (${response.status})`);
+    }
+
+    return data as { url: string; filename: string };
+  },
+
   async getTopicPosts(topicId: number, page?: number): Promise<TopicDetail> {
     const url = page ? `/api/topics/${topicId}?page=${page}` : `/api/topics/${topicId}`;
     return request<TopicDetail>(url);
@@ -143,6 +168,40 @@ export const campaignsApi = {
     });
   },
 
+  async updateSection(sectionId: number, data: { title?: string; defaultCollapse?: boolean; banniere?: string }, campaignId?: number) {
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/sections/${sectionId}` : `/api/sections/${sectionId}`;
+    return request<{ section: any }>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async uploadSectionBanner(sectionId: number, file: File, campaignId?: number): Promise<{ url: string; filename: string; sectionId: number }> {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/sections/${sectionId}/banner` : `/api/sections/${sectionId}/banner`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Erreur lors du téléversement (${response.status})`);
+    }
+
+    return data as { url: string; filename: string; sectionId: number };
+  },
+
   async createTopic(sectionId: number, data: {
     title: string;
     stickable?: boolean;
@@ -153,6 +212,19 @@ export const campaignsApi = {
   }) {
     return request<{ topic: any }>(`/api/sections/${sectionId}/topics`, {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateTopic(topicId: number, data: {
+    title?: string;
+    stickable?: boolean;
+    isPrivate?: boolean;
+    isClosed?: boolean;
+  }, campaignId?: number) {
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/topics/${topicId}` : `/api/topics/${topicId}`;
+    return request<{ topic: any }>(endpoint, {
+      method: 'PUT',
       body: JSON.stringify(data),
     });
   },

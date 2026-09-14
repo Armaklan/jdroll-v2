@@ -32,6 +32,8 @@ import {
   Loader2,
   Upload,
   Link as LinkIcon,
+  Pencil,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface CampaignForumPageProps {
@@ -60,6 +62,12 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
   const [isSavingOrder, setIsSavingOrder] = useState<boolean>(false);
   const [saveStatusMessage, setSaveStatusMessage] = useState<string | null>(null);
+
+  // Campaign banner drag-and-drop & upload state
+  const [isDraggingBanner, setIsDraggingBanner] = useState<boolean>(false);
+  const [isUploadingBanner, setIsUploadingBanner] = useState<boolean>(false);
+  const [bannerUploadError, setBannerUploadError] = useState<string | null>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   // Drag and drop states
   const [draggedSectionIndex, setDraggedSectionIndex] = useState<number | null>(null);
@@ -108,6 +116,68 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     }
   };
 
+  const handleBannerUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setBannerUploadError('Le fichier déposé doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).');
+      return;
+    }
+    setIsUploadingBanner(true);
+    setBannerUploadError(null);
+    try {
+      const res = await campaignsApi.uploadCampaignBanner(effectiveCampaignId, file);
+      setForumData((prev) =>
+        prev
+          ? {
+              ...prev,
+              campaign: {
+                ...prev.campaign,
+                banniere: res.url,
+              },
+            }
+          : prev
+      );
+      setSaveStatusMessage('Bannière de la campagne mise à jour !');
+      setTimeout(() => {
+        setSaveStatusMessage(null);
+      }, 3500);
+    } catch (err: any) {
+      setBannerUploadError(err.message || 'Erreur lors du téléversement de la bannière.');
+    } finally {
+      setIsUploadingBanner(false);
+      if (bannerInputRef.current) {
+        bannerInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleBannerDragOver = (e: React.DragEvent) => {
+    if (!isAdminMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDraggingBanner) {
+      setIsDraggingBanner(true);
+    }
+  };
+
+  const handleBannerDragLeave = (e: React.DragEvent) => {
+    if (!isAdminMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDraggingBanner(false);
+  };
+
+  const handleBannerDrop = (e: React.DragEvent) => {
+    if (!isAdminMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingBanner(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleBannerUpload(file);
+    }
+  };
+
   // Create Topic Modal state
   const [isCreateTopicOpen, setIsCreateTopicOpen] = useState<boolean>(false);
   const [targetTopicSectionId, setTargetTopicSectionId] = useState<number | null>(null);
@@ -118,6 +188,38 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const [newTopicFirstPost, setNewTopicFirstPost] = useState<string>('');
   const [isSubmittingTopic, setIsSubmittingTopic] = useState<boolean>(false);
   const [topicModalError, setTopicModalError] = useState<string | null>(null);
+
+  // Section Direct Banner Drag-and-Drop state
+  const [dragOverSectionBannerId, setDragOverSectionBannerId] = useState<number | null>(null);
+  const [uploadingSectionBannerId, setUploadingSectionBannerId] = useState<number | null>(null);
+
+  // Edit Section Modal state
+  const [editingSection, setEditingSection] = useState<ForumSectionSummary | null>(null);
+  const [editSectionTitle, setEditSectionTitle] = useState<string>('');
+  const [editSectionDefaultCollapse, setEditSectionDefaultCollapse] = useState<boolean>(false);
+  const [editSectionBanniere, setEditSectionBanniere] = useState<string>('');
+  const [editSectionBanniereMode, setEditSectionBanniereMode] = useState<'url' | 'upload'>('upload');
+  const [isUploadingEditSectionBanniere, setIsUploadingEditSectionBanniere] = useState<boolean>(false);
+  const [isDraggingEditSectionBanniere, setIsDraggingEditSectionBanniere] = useState<boolean>(false);
+  const editSectionBanniereInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmittingEditSection, setIsSubmittingEditSection] = useState<boolean>(false);
+  const [editSectionError, setEditSectionError] = useState<string | null>(null);
+
+  // Edit Topic Modal state
+  const [editingTopic, setEditingTopic] = useState<{
+    id: number;
+    sectionId: number;
+    title: string;
+    stickable: boolean;
+    isPrivate: boolean;
+    isClosed: boolean;
+  } | null>(null);
+  const [editTopicTitle, setEditTopicTitle] = useState<string>('');
+  const [editTopicStickable, setEditTopicStickable] = useState<boolean>(false);
+  const [editTopicIsPrivate, setEditTopicIsPrivate] = useState<boolean>(false);
+  const [editTopicIsClosed, setEditTopicIsClosed] = useState<boolean>(false);
+  const [isSubmittingEditTopic, setIsSubmittingEditTopic] = useState<boolean>(false);
+  const [editTopicError, setEditTopicError] = useState<string | null>(null);
 
   const handleBack = () => {
     if (onBack) {
@@ -319,6 +421,231 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
       setTopicModalError(err.message || 'Erreur lors de la création du sujet.');
     } finally {
       setIsSubmittingTopic(false);
+    }
+  };
+
+  // Section Direct Banner Drag-and-Drop
+  const handleSectionBannerFileDragOver = (e: React.DragEvent, sectionId: number) => {
+    if (!isAdminMode) return;
+    if (draggedSectionIndex !== null || draggedTopicInfo !== null) return;
+    if (e.dataTransfer.types.includes('Files')) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
+      if (dragOverSectionBannerId !== sectionId) {
+        setDragOverSectionBannerId(sectionId);
+      }
+    }
+  };
+
+  const handleSectionBannerFileDragLeave = (e: React.DragEvent, sectionId: number) => {
+    if (!isAdminMode) return;
+    if (draggedSectionIndex !== null || draggedTopicInfo !== null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    if (dragOverSectionBannerId === sectionId) {
+      setDragOverSectionBannerId(null);
+    }
+  };
+
+  const handleSectionBannerFileDrop = async (e: React.DragEvent, sectionId: number) => {
+    if (!isAdminMode) return;
+    if (draggedSectionIndex !== null || draggedTopicInfo !== null) return;
+    if (!e.dataTransfer.types.includes('Files') && !e.dataTransfer.files?.length) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverSectionBannerId(null);
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    if (!file.type.startsWith('image/')) {
+      setSaveStatusMessage('Le fichier déposé doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).');
+      setTimeout(() => setSaveStatusMessage(null), 4000);
+      return;
+    }
+
+    setUploadingSectionBannerId(sectionId);
+    try {
+      const res = await campaignsApi.uploadSectionBanner(sectionId, file, effectiveCampaignId);
+      if (forumData) {
+        const updatedSections = forumData.sections.map((s) =>
+          s.id === sectionId ? { ...s, banniere: res.url } : s
+        );
+        setForumData({
+          ...forumData,
+          sections: updatedSections,
+        });
+      }
+      setSaveStatusMessage('Bannière de section mise à jour avec succès !');
+      setTimeout(() => setSaveStatusMessage(null), 3500);
+    } catch (err: any) {
+      setSaveStatusMessage(err.message || 'Erreur lors du téléversement de la bannière.');
+      setTimeout(() => setSaveStatusMessage(null), 4000);
+    } finally {
+      setUploadingSectionBannerId(null);
+    }
+  };
+
+  // Section Edition
+  const handleOpenEditSection = (section: ForumSectionSummary) => {
+    setEditingSection(section);
+    setEditSectionTitle(section.title);
+    setEditSectionDefaultCollapse(section.defaultCollapse);
+    setEditSectionBanniere(section.banniere || '');
+    setEditSectionBanniereMode(
+      section.banniere && section.banniere.startsWith('http') ? 'url' : 'upload'
+    );
+    setEditSectionError(null);
+  };
+
+  const handleEditSectionBanniereUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setEditSectionError('Le fichier déposé doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).');
+      return;
+    }
+    setIsUploadingEditSectionBanniere(true);
+    setEditSectionError(null);
+    try {
+      const res = await campaignsApi.uploadCampaignImage(effectiveCampaignId, file);
+      setEditSectionBanniere(res.url);
+      setEditSectionBanniereMode('upload');
+    } catch (err: any) {
+      setEditSectionError(err.message || 'Erreur lors du téléversement de la bannière.');
+    } finally {
+      setIsUploadingEditSectionBanniere(false);
+      if (editSectionBanniereInputRef.current) {
+        editSectionBanniereInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleEditSectionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSection) return;
+    if (!editSectionTitle.trim()) {
+      setEditSectionError('Le titre de la section est requis.');
+      return;
+    }
+
+    setIsSubmittingEditSection(true);
+    setEditSectionError(null);
+
+    try {
+      const res = await campaignsApi.updateSection(
+        editingSection.id,
+        {
+          title: editSectionTitle.trim(),
+          defaultCollapse: editSectionDefaultCollapse,
+          banniere: editSectionBanniere.trim(),
+        },
+        effectiveCampaignId
+      );
+
+      if (forumData) {
+        const updatedSections = forumData.sections.map((sec) =>
+          sec.id === editingSection.id
+            ? {
+                ...sec,
+                title: res.section.title,
+                defaultCollapse: res.section.defaultCollapse,
+                banniere: res.section.banniere,
+              }
+            : sec
+        );
+        setForumData({
+          ...forumData,
+          sections: updatedSections,
+        });
+      }
+
+      setEditingSection(null);
+      setSaveStatusMessage('Section modifiée avec succès !');
+      setTimeout(() => setSaveStatusMessage(null), 3000);
+    } catch (err: any) {
+      setEditSectionError(err.message || 'Erreur lors de la modification de la section.');
+    } finally {
+      setIsSubmittingEditSection(false);
+    }
+  };
+
+  // Topic Edition
+  const handleOpenEditTopic = (sectionId: number, topic: ForumTopicSummary) => {
+    setEditingTopic({
+      id: topic.id,
+      sectionId,
+      title: topic.title,
+      stickable: Boolean(topic.stickable),
+      isPrivate: Boolean(topic.isPrivate),
+      isClosed: Boolean(topic.isClosed),
+    });
+    setEditTopicTitle(topic.title);
+    setEditTopicStickable(Boolean(topic.stickable));
+    setEditTopicIsPrivate(Boolean(topic.isPrivate));
+    setEditTopicIsClosed(Boolean(topic.isClosed));
+    setEditTopicError(null);
+  };
+
+  const handleEditTopicSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTopic) return;
+    if (!editTopicTitle.trim()) {
+      setEditTopicError('Le titre du sujet est requis.');
+      return;
+    }
+
+    setIsSubmittingEditTopic(true);
+    setEditTopicError(null);
+
+    try {
+      const res = await campaignsApi.updateTopic(
+        editingTopic.id,
+        {
+          title: editTopicTitle.trim(),
+          stickable: editTopicStickable,
+          isPrivate: editTopicIsPrivate,
+          isClosed: editTopicIsClosed,
+        },
+        effectiveCampaignId
+      );
+
+      if (forumData) {
+        const updatedSections = forumData.sections.map((sec) => {
+          if (sec.id === editingTopic.sectionId) {
+            return {
+              ...sec,
+              topics: sec.topics.map((t) =>
+                t.id === editingTopic.id
+                  ? {
+                      ...t,
+                      title: res.topic.title,
+                      stickable: res.topic.stickable,
+                      isPrivate: res.topic.isPrivate,
+                      isClosed: res.topic.isClosed,
+                    }
+                  : t
+              ),
+            };
+          }
+          return sec;
+        });
+
+        setForumData({
+          ...forumData,
+          sections: updatedSections,
+        });
+      }
+
+      setEditingTopic(null);
+      setSaveStatusMessage('Sujet modifié avec succès !');
+      setTimeout(() => setSaveStatusMessage(null), 3000);
+    } catch (err: any) {
+      setEditTopicError(err.message || 'Erreur lors de la modification du sujet.');
+    } finally {
+      setIsSubmittingEditTopic(false);
     }
   };
 
@@ -617,20 +944,25 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
             </div>
             <div>
               <h3 className="text-sm font-bold text-amber-950 flex items-center gap-2">
-                <span>Administration du Forum</span>
+                <span>Administration de la Campagne</span>
                 {isSavingOrder && (
                   <span className="inline-flex items-center gap-1 text-xs text-amber-700 font-normal">
                     <Loader2 className="w-3 h-3 animate-spin" /> Enregistrement...
                   </span>
                 )}
-                {saveStatusMessage && !isSavingOrder && (
+                {isUploadingBanner && (
+                  <span className="inline-flex items-center gap-1 text-xs text-amber-700 font-normal">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Téléversement de la bannière...
+                  </span>
+                )}
+                {saveStatusMessage && !isSavingOrder && !isUploadingBanner && (
                   <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                     <Check className="w-3 h-3" /> {saveStatusMessage}
                   </span>
                 )}
               </h3>
               <p className="text-xs text-amber-800">
-                Créez des sections et des sujets, ou réorganisez-les par glisser-déposer (sections et sujets).
+                Glissez-déposez une image sur la bannière pour la modifier, créez des sections ou réorganisez le forum par glisser-déposer.
               </p>
             </div>
           </div>
@@ -648,8 +980,39 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
       )}
 
       {/* Campaign Header Banner Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-        <div className="h-40 sm:h-48 relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900">
+      <div
+        className={`bg-white border rounded-2xl overflow-hidden shadow-xs relative transition-all duration-200 ${
+          isAdminMode ? 'ring-2 ring-amber-400/70 border-amber-300' : 'border-slate-200'
+        }`}
+      >
+        <input
+          ref={bannerInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              handleBannerUpload(file);
+            }
+          }}
+        />
+
+        <div
+          onDragOver={handleBannerDragOver}
+          onDragEnter={handleBannerDragOver}
+          onDragLeave={handleBannerDragLeave}
+          onDrop={handleBannerDrop}
+          className={`h-40 sm:h-48 relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 transition-all ${
+            isAdminMode ? 'cursor-pointer select-none' : ''
+          }`}
+          onClick={() => {
+            if (isAdminMode && !isUploadingBanner) {
+              bannerInputRef.current?.click();
+            }
+          }}
+          title={isAdminMode ? 'Glissez-déposez ou cliquez pour modifier la bannière' : undefined}
+        >
           {campaign.banniere ? (
             <img
               src={campaign.banniere}
@@ -665,7 +1028,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
             </div>
           )}
 
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-6">
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/40 to-transparent flex flex-col justify-end p-6 pointer-events-none">
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-md text-xs font-semibold bg-indigo-600 text-white shadow-xs">
                 {campaign.systeme || 'Système libre'}
@@ -690,7 +1053,60 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
               {campaign.name}
             </h1>
           </div>
+
+          {/* Admin Mode Visual Cue */}
+          {isAdminMode && !isUploadingBanner && (
+            <div className="absolute top-4 right-4 z-10 pointer-events-auto">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  bannerInputRef.current?.click();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/80 hover:bg-slate-900 backdrop-blur-md text-white text-xs font-semibold rounded-xl border border-white/20 shadow-lg hover:shadow-xl transition-all cursor-pointer"
+                title="Glisser-déposer une image ou cliquer pour téléverser"
+              >
+                <Upload className="w-3.5 h-3.5 text-amber-400" />
+                <span>Changer la bannière</span>
+              </button>
+            </div>
+          )}
+
+          {/* Dragging Active Overlay */}
+          {isAdminMode && isDraggingBanner && (
+            <div className="absolute inset-0 z-20 bg-indigo-950/90 backdrop-blur-xs border-4 border-dashed border-amber-400 rounded-2xl flex flex-col items-center justify-center text-white animate-in fade-in duration-150 pointer-events-none">
+              <div className="p-3 bg-amber-500/20 text-amber-300 rounded-full mb-2 animate-bounce">
+                <Upload className="w-10 h-10" />
+              </div>
+              <p className="text-base font-bold text-amber-300">Déposez l'image ici</p>
+              <p className="text-xs text-slate-300 mt-1">pour remplacer la bannière de la campagne</p>
+            </div>
+          )}
+
+          {/* Uploading In Progress Overlay */}
+          {isUploadingBanner && (
+            <div className="absolute inset-0 z-20 bg-slate-950/85 backdrop-blur-xs flex flex-col items-center justify-center text-white animate-in fade-in duration-150">
+              <Loader2 className="w-8 h-8 text-amber-400 animate-spin mb-2" />
+              <p className="text-sm font-semibold text-white">Téléversement de la bannière...</p>
+            </div>
+          )}
         </div>
+
+        {/* Banner Upload Error display */}
+        {bannerUploadError && (
+          <div className="px-4 py-2.5 bg-rose-50 border-t border-rose-200 text-rose-700 text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+              <span>{bannerUploadError}</span>
+            </div>
+            <button
+              onClick={() => setBannerUploadError(null)}
+              className="text-rose-500 hover:text-rose-700 font-bold ml-2 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Campaign Meta Bar */}
         <div className="p-4 sm:px-6 bg-slate-50/70 border-t border-slate-100 flex flex-wrap items-center justify-between gap-4 text-xs sm:text-sm text-slate-600">
@@ -751,25 +1167,63 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
             const isCollapsed = collapsedSections[section.id];
             const isSectionDragged = draggedSectionIndex === secIdx;
             const isSectionDragOver = dragOverSectionIndex === secIdx;
+            const isFileDragOverSection = dragOverSectionBannerId === section.id;
+            const isUploadingBannerOnSection = uploadingSectionBannerId === section.id;
             const isTopicTargetSection =
               draggedTopicInfo !== null && dragOverSectionId === section.id;
 
             return (
               <div
                 key={section.id}
-                draggable={isAdminMode && draggedTopicInfo === null}
+                draggable={isAdminMode && draggedTopicInfo === null && dragOverSectionBannerId === null}
                 onDragStart={(e) => handleSectionDragStart(e, secIdx)}
-                onDragOver={(e) => handleSectionDragOver(e, secIdx)}
-                onDrop={(e) => handleSectionDrop(e, secIdx)}
+                onDragOver={(e) => {
+                  if (isAdminMode && e.dataTransfer.types.includes('Files')) {
+                    handleSectionBannerFileDragOver(e, section.id);
+                  } else {
+                    handleSectionDragOver(e, secIdx);
+                  }
+                }}
+                onDragLeave={(e) => {
+                  if (isAdminMode && e.dataTransfer.types.includes('Files')) {
+                    handleSectionBannerFileDragLeave(e, section.id);
+                  }
+                }}
+                onDrop={(e) => {
+                  if (isAdminMode && (e.dataTransfer.types.includes('Files') || e.dataTransfer.files?.length > 0)) {
+                    handleSectionBannerFileDrop(e, section.id);
+                  } else {
+                    handleSectionDrop(e, secIdx);
+                  }
+                }}
                 onDragEnd={handleSectionDragEnd}
-                className={`bg-white border rounded-2xl overflow-hidden shadow-xs transition-all duration-200 ${
-                  isSectionDragOver
+                className={`relative bg-white border rounded-2xl overflow-hidden shadow-xs transition-all duration-200 ${
+                  isFileDragOverSection
+                    ? 'border-indigo-600 ring-4 ring-indigo-200'
+                    : isSectionDragOver
                     ? 'border-indigo-500 ring-2 ring-indigo-200'
                     : isSectionDragged
                     ? 'opacity-40 border-dashed border-slate-400'
                     : 'border-slate-200'
                 }`}
               >
+                {/* Drag file over section overlay */}
+                {isFileDragOverSection && (
+                  <div className="absolute inset-0 z-30 bg-indigo-600/90 backdrop-blur-xs flex flex-col items-center justify-center text-white p-6 rounded-2xl pointer-events-none transition animate-in fade-in">
+                    <ImageIcon className="w-10 h-10 mb-2 animate-bounce" />
+                    <p className="text-base font-bold">Déposez l'image pour définir la bannière de la section</p>
+                    <p className="text-xs text-indigo-100 mt-1">PNG, JPG, WebP, GIF, SVG, AVIF</p>
+                  </div>
+                )}
+
+                {/* Uploading banner overlay */}
+                {isUploadingBannerOnSection && (
+                  <div className="absolute inset-0 z-30 bg-white/90 backdrop-blur-xs flex flex-col items-center justify-center text-slate-800 p-6 rounded-2xl pointer-events-none">
+                    <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-2" />
+                    <p className="text-sm font-semibold">Téléversement de la bannière...</p>
+                  </div>
+                )}
+
                 {/* Section Header */}
                 <div
                   style={{
@@ -796,39 +1250,50 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                         className="w-5 h-5 shrink-0 transition-transform group-hover:scale-105"
                         style={{ color: campaign.linkSidebarColor || undefined }}
                       />
-                      <h2
-                        className="font-bold text-sm sm:text-base tracking-tight truncate"
-                        style={{ color: campaign.linkSidebarColor || undefined }}
-                      >
-                        {section.title}
-                      </h2>
-                      <span
-                        className="px-2 py-0.5 rounded-full text-xs font-medium shrink-0"
-                        style={{
-                          backgroundColor: campaign.sidebarColor
-                            ? 'rgba(255, 255, 255, 0.2)'
-                            : undefined,
-                          color: campaign.linkSidebarColor || undefined,
-                        }}
-                      >
-                        {section.topics.length} sujet{section.topics.length > 1 ? 's' : ''}
-                      </span>
+                      {section.banniere ? (
+                        <img
+                          src={section.banniere}
+                          alt={section.title}
+                          className="max-h-12 max-w-full object-contain rounded"
+                        />
+                      ) : (
+                        <h2
+                          className="font-bold text-sm sm:text-base tracking-tight truncate"
+                          style={{ color: campaign.linkSidebarColor || undefined }}
+                        >
+                          {section.title}
+                        </h2>
+                      )}
                     </button>
                   </div>
 
                   <div className="flex items-center gap-2">
                     {isAdminMode && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenCreateTopic(section.id);
-                        }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/90 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow-2xs border border-slate-200/80 transition"
-                        title="Créer un sujet dans cette section"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Nouveau sujet</span>
-                      </button>
+                      <>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEditSection(section);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/90 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow-2xs border border-slate-200/80 transition cursor-pointer"
+                          title="Éditer cette section"
+                        >
+                          <Pencil className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Éditer</span>
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenCreateTopic(section.id);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/90 hover:bg-white text-slate-800 rounded-lg text-xs font-semibold shadow-2xs border border-slate-200/80 transition cursor-pointer"
+                          title="Créer un sujet dans cette section"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Nouveau sujet</span>
+                        </button>
+                      </>
                     )}
 
                     <button
@@ -944,67 +1409,84 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                               } ${isAdminMode ? 'cursor-default' : 'cursor-pointer'}`}
                             >
                               {/* Topic Title & Badges */}
-                              <div className="md:col-span-7 flex items-start gap-3">
-                                {isAdminMode && (
-                                  <div
-                                    className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-700 rounded transition shrink-0 mt-0.5"
-                                    title="Glisser pour réorganiser ou changer de section"
-                                  >
-                                    <GripVertical className="w-4 h-4" />
-                                  </div>
-                                )}
-
-                                {/* Read/Unread Icon Indicator */}
-                                <div className="mt-0.5 shrink-0">
-                                  {topic.isRead ? (
-                                    <MessageSquare className="w-4 h-4 text-slate-400" />
-                                  ) : (
-                                    <div className="relative">
-                                      <MessageSquare className="w-4 h-4 text-indigo-600" />
-                                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
+                              <div className="md:col-span-7 flex items-start justify-between gap-3 min-w-0">
+                                <div className="flex items-start gap-3 min-w-0 flex-1">
+                                  {isAdminMode && (
+                                    <div
+                                      className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-700 rounded transition shrink-0 mt-0.5"
+                                      title="Glisser pour réorganiser ou changer de section"
+                                    >
+                                      <GripVertical className="w-4 h-4" />
                                     </div>
                                   )}
-                                </div>
 
-                                <div className="space-y-1 min-w-0">
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    {topic.stickable && (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
-                                        <Pin className="w-3 h-3 text-amber-600" />
-                                        Épinglé
-                                      </span>
+                                  {/* Read/Unread Icon Indicator */}
+                                  <div className="mt-0.5 shrink-0">
+                                    {topic.isRead ? (
+                                      <MessageSquare className="w-4 h-4 text-slate-400" />
+                                    ) : (
+                                      <div className="relative">
+                                        <MessageSquare className="w-4 h-4 text-indigo-600" />
+                                        <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
+                                      </div>
                                     )}
+                                  </div>
 
-                                    {topic.isClosed && (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-bold uppercase tracking-wider">
-                                        <Lock className="w-3 h-3 text-red-600" />
-                                        Fermé
-                                      </span>
-                                    )}
+                                  <div className="space-y-1 min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      {topic.stickable && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+                                          <Pin className="w-3 h-3 text-amber-600" />
+                                          Épinglé
+                                        </span>
+                                      )}
 
-                                    {topic.isPrivate && (
-                                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider">
-                                        <EyeOff className="w-3 h-3 text-purple-600" />
-                                        Privé
-                                      </span>
-                                    )}
+                                      {topic.isClosed && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-bold uppercase tracking-wider">
+                                          <Lock className="w-3 h-3 text-red-600" />
+                                          Fermé
+                                        </span>
+                                      )}
 
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleSelectTopic(topic.id);
-                                      }}
-                                      style={{ color: rowLinkColor || undefined }}
-                                      className={`font-semibold text-sm hover:underline text-left line-clamp-2 ${
-                                        topic.isRead
-                                          ? 'text-slate-800'
-                                          : 'text-slate-900 font-bold'
-                                      }`}
-                                    >
-                                      {topic.title}
-                                    </button>
+                                      {topic.isPrivate && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider">
+                                          <EyeOff className="w-3 h-3 text-purple-600" />
+                                          Privé
+                                        </span>
+                                      )}
+
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSelectTopic(topic.id);
+                                        }}
+                                        style={{ color: rowLinkColor || undefined }}
+                                        className={`font-semibold text-sm hover:underline text-left line-clamp-2 ${
+                                          topic.isRead
+                                            ? 'text-slate-800'
+                                            : 'text-slate-900 font-bold'
+                                        }`}
+                                      >
+                                        {topic.title}
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
+
+                                {isAdminMode && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenEditTopic(section.id, topic);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs transition cursor-pointer shrink-0 ml-2"
+                                    title="Éditer ce sujet"
+                                  >
+                                    <Pencil className="w-3 h-3 text-slate-500" />
+                                    <span>Éditer</span>
+                                  </button>
+                                )}
                               </div>
 
                               {/* Posts Count */}
@@ -1352,17 +1834,309 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsCreateTopicOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition"
+                  className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition cursor-pointer"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingTopic}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-xs disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-xs disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmittingTopic && <Loader2 className="w-4 h-4 animate-spin" />}
                   <span>Créer le sujet</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Éditer une section */}
+      {editingSection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-indigo-600" />
+                <span>Éditer la section</span>
+              </h3>
+              <button
+                onClick={() => setEditingSection(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editSectionError && (
+              <div className="p-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{editSectionError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleEditSectionSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Titre de la section <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editSectionTitle}
+                  onChange={(e) => setEditSectionTitle(e.target.value)}
+                  placeholder="Ex : Actes de jeu, Taverne HRP..."
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-700">
+                    Bannière de la section (optionnelle)
+                  </label>
+                  <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setEditSectionBanniereMode('upload')}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                        editSectionBanniereMode === 'upload'
+                          ? 'bg-white text-indigo-600 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <Upload className="w-3 h-3" />
+                      <span>Uploader</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditSectionBanniereMode('url')}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+                        editSectionBanniereMode === 'url'
+                          ? 'bg-white text-indigo-600 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <LinkIcon className="w-3 h-3" />
+                      <span>URL Web</span>
+                    </button>
+                  </div>
+                </div>
+
+                {editSectionBanniereMode === 'url' ? (
+                  <input
+                    type="url"
+                    value={editSectionBanniere}
+                    onChange={(e) => setEditSectionBanniere(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  />
+                ) : (
+                  <div>
+                    <input
+                      ref={editSectionBanniereInputRef}
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg, image/webp, image/gif, image/svg+xml, image/avif"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleEditSectionBanniereUpload(file);
+                      }}
+                    />
+                    <div
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDraggingEditSectionBanniere(true);
+                      }}
+                      onDragEnter={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDraggingEditSectionBanniere(true);
+                      }}
+                      onDragLeave={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDraggingEditSectionBanniere(false);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsDraggingEditSectionBanniere(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) handleEditSectionBanniereUpload(file);
+                      }}
+                      onClick={() => editSectionBanniereInputRef.current?.click()}
+                      className={`border-2 border-dashed rounded-xl p-3 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1 ${
+                        isDraggingEditSectionBanniere
+                          ? 'border-indigo-600 bg-indigo-50/70 scale-[1.01]'
+                          : editSectionBanniere
+                          ? 'border-emerald-300 bg-emerald-50/20'
+                          : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/20'
+                      }`}
+                    >
+                      {isUploadingEditSectionBanniere ? (
+                        <div className="flex items-center gap-2 text-indigo-700 text-xs font-semibold py-1">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Téléversement de la bannière...</span>
+                        </div>
+                      ) : editSectionBanniere ? (
+                        <div className="flex items-center justify-between w-full px-2 gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span className="text-xs font-medium text-slate-700 truncate font-mono">
+                              {editSectionBanniere}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditSectionBanniere('');
+                            }}
+                            className="text-xs text-rose-600 hover:text-rose-800 font-medium p-1 cursor-pointer"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <Upload className="w-4 h-4 text-indigo-600 shrink-0" />
+                          <span>Glissez-déposez une bannière ou <u>parcourez</u></span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="editSectionCollapseCheckbox"
+                  checked={editSectionDefaultCollapse}
+                  onChange={(e) => setEditSectionDefaultCollapse(e.target.checked)}
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                />
+                <label
+                  htmlFor="editSectionCollapseCheckbox"
+                  className="text-xs font-medium text-slate-700 select-none cursor-pointer"
+                >
+                  Réduire la section par défaut à l'ouverture
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingSection(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEditSection}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmittingEditSection && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Enregistrer les modifications</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Éditer un topic */}
+      {editingTopic && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/50 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-indigo-600" />
+                <span>Éditer le sujet</span>
+              </h3>
+              <button
+                onClick={() => setEditingTopic(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editTopicError && (
+              <div className="p-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>{editTopicError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleEditTopicSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Titre du sujet <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editTopicTitle}
+                  onChange={(e) => setEditTopicTitle(e.target.value)}
+                  placeholder="Ex : Chapitre 1 : L'Auberge maudite"
+                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTopicStickable}
+                    onChange={(e) => setEditTopicStickable(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span>Épinglé</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTopicIsClosed}
+                    onChange={(e) => setEditTopicIsClosed(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span>Fermé</span>
+                </label>
+
+                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTopicIsPrivate}
+                    onChange={(e) => setEditTopicIsPrivate(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span>Privé</span>
+                </label>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingTopic(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-medium transition cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEditTopic}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmittingEditTopic && <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span>Enregistrer les modifications</span>
                 </button>
               </div>
             </form>

@@ -4,12 +4,16 @@ import { campaignQueries, CampaignQueries } from '../queries/campaign.queries.js
 import { forumQueries, ForumQueries } from '../queries/forum.queries.js';
 import { createPostUseCase, CreatePostUseCase } from '../usecases/forum/create-post.usecase.js';
 import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/create-section.usecase.js';
+import { updateSectionUseCase, UpdateSectionUseCase } from '../usecases/forum/update-section.usecase.js';
+import { uploadSectionBannerUseCase, UploadSectionBannerUseCase } from '../usecases/forum/upload-section-banner.usecase.js';
 import { createTopicUseCase, CreateTopicUseCase } from '../usecases/forum/create-topic.usecase.js';
+import { updateTopicUseCase, UpdateTopicUseCase } from '../usecases/forum/update-topic.usecase.js';
 import { reorderSectionsUseCase, ReorderSectionsUseCase } from '../usecases/forum/reorder-sections.usecase.js';
 import { reorderTopicsUseCase, ReorderTopicsUseCase } from '../usecases/forum/reorder-topics.usecase.js';
 import { createCharacterUseCase, CreateCharacterUseCase } from '../usecases/character/create-character.usecase.js';
 import { updateCharacterUseCase, UpdateCharacterUseCase } from '../usecases/character/update-character.usecase.js';
 import { uploadCharacterAvatarUseCase, UploadCharacterAvatarUseCase } from '../usecases/character/upload-character-avatar.usecase.js';
+import { uploadCampaignBannerUseCase, UploadCampaignBannerUseCase } from '../usecases/campaign/upload-campaign-banner.usecase.js';
 import { JWTPayload } from '../types/index.js';
 import {
   CampaignNotFoundError,
@@ -76,6 +80,12 @@ const createSectionBodySchema = z.object({
   banniere: z.string().optional(),
 });
 
+const updateSectionBodySchema = z.object({
+  title: z.string().min(1, 'Le titre de la section ne peut pas être vide').max(500, 'Le titre ne peut pas dépasser 500 caractères').optional(),
+  defaultCollapse: z.boolean().optional(),
+  banniere: z.string().optional(),
+});
+
 const createTopicParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
@@ -87,6 +97,13 @@ const createTopicBodySchema = z.object({
   isClosed: z.boolean().optional(),
   firstPostContent: z.string().optional(),
   persoId: z.number().int().positive().nullable().optional(),
+});
+
+const updateTopicBodySchema = z.object({
+  title: z.string().min(1, 'Le titre du sujet ne peut pas être vide').max(500, 'Le titre ne peut pas dépasser 500 caractères').optional(),
+  stickable: z.boolean().optional(),
+  isPrivate: z.boolean().optional(),
+  isClosed: z.boolean().optional(),
 });
 
 const reorderSectionsParamsSchema = z.object({
@@ -155,12 +172,16 @@ export class CampaignController {
     private readonly forumQueryService: ForumQueries = forumQueries,
     private readonly createPostUseCaseService: CreatePostUseCase = createPostUseCase,
     private readonly createSectionUseCaseService: CreateSectionUseCase = createSectionUseCase,
+    private readonly updateSectionUseCaseService: UpdateSectionUseCase = updateSectionUseCase,
+    private readonly uploadSectionBannerUseCaseService: UploadSectionBannerUseCase = uploadSectionBannerUseCase,
     private readonly createTopicUseCaseService: CreateTopicUseCase = createTopicUseCase,
+    private readonly updateTopicUseCaseService: UpdateTopicUseCase = updateTopicUseCase,
     private readonly reorderSectionsUseCaseService: ReorderSectionsUseCase = reorderSectionsUseCase,
     private readonly reorderTopicsUseCaseService: ReorderTopicsUseCase = reorderTopicsUseCase,
     private readonly createCharacterUseCaseService: CreateCharacterUseCase = createCharacterUseCase,
     private readonly updateCharacterUseCaseService: UpdateCharacterUseCase = updateCharacterUseCase,
-    private readonly uploadCharacterAvatarUseCaseService: UploadCharacterAvatarUseCase = uploadCharacterAvatarUseCase
+    private readonly uploadCharacterAvatarUseCaseService: UploadCharacterAvatarUseCase = uploadCharacterAvatarUseCase,
+    private readonly uploadCampaignBannerUseCaseService: UploadCampaignBannerUseCase = uploadCampaignBannerUseCase
   ) {}
 
   /**
@@ -604,6 +625,155 @@ export class CampaignController {
   }
 
   /**
+   * PUT /api/sections/:id
+   * PUT /api/campaigns/:id/sections/:sectionId
+   * Met à jour une section (titre, collapse par défaut, bannière)
+   */
+  async updateSection(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as Record<string, any>;
+    const sectionId = Number(params.sectionId || params.id);
+
+    if (!sectionId || isNaN(sectionId) || sectionId <= 0) {
+      return reply.status(400).send({ error: 'Identifiant de section invalide' });
+    }
+
+    const parseBody = updateSectionBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de section invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { title, defaultCollapse, banniere } = parseBody.data;
+
+    try {
+      const section = await this.updateSectionUseCaseService.execute({
+        sectionId,
+        userId: user.id,
+        title,
+        defaultCollapse,
+        banniere,
+      });
+
+      return reply.status(200).send({ section });
+    } catch (error) {
+      if (error instanceof SectionNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la mise à jour de la section' });
+    }
+  }
+
+  /**
+   * POST /api/sections/:id/banner
+   * POST /api/campaigns/:id/sections/:sectionId/banner
+   * Téléverse une bannière pour une section de campagne (MJ)
+   */
+  async uploadSectionBanner(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const user = request.user as JWTPayload;
+      const params = request.params as Record<string, any>;
+      const sectionId = Number(params.sectionId || params.id);
+      const campaignId = params.campaignId || params.id ? Number(params.campaignId || params.id) : undefined;
+
+      if (!sectionId || isNaN(sectionId) || sectionId <= 0) {
+        return reply.status(400).send({ error: 'Identifiant de section invalide' });
+      }
+
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ error: 'Aucun fichier fourni' });
+      }
+
+      const buffer = await file.toBuffer();
+      const result = await this.uploadSectionBannerUseCaseService.execute({
+        sectionId,
+        campagneId: campaignId,
+        userId: user.id,
+        filename: file.filename,
+        mimetype: file.mimetype,
+        content: buffer,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof SectionNotFoundError || error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: error.errors[0]?.message || 'Données invalides' });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors du téléversement de la bannière de section' });
+    }
+  }
+
+  /**
+   * PUT /api/topics/:id
+   * PUT /api/campaigns/:id/topics/:topicId
+   * Met à jour un sujet (titre, épinglé, privé, fermé)
+   */
+  async updateTopic(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as Record<string, any>;
+    const topicId = Number(params.topicId || params.id);
+
+    if (!topicId || isNaN(topicId) || topicId <= 0) {
+      return reply.status(400).send({ error: 'Identifiant de sujet invalide' });
+    }
+
+    const parseBody = updateTopicBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de sujet invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { title, stickable, isPrivate, isClosed } = parseBody.data;
+
+    try {
+      const topic = await this.updateTopicUseCaseService.execute({
+        topicId,
+        userId: user.id,
+        title,
+        stickable,
+        isPrivate,
+        isClosed,
+      });
+
+      return reply.status(200).send({ topic });
+    } catch (error) {
+      if (error instanceof TopicNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la mise à jour du sujet' });
+    }
+  }
+
+  /**
    * POST /api/campaigns/:id/characters
    * Crée un nouveau personnage dans une campagne (réservé au MJ)
    */
@@ -790,6 +960,50 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/campaigns/:id/banner
+   * POST /api/campaigns/:id/upload-banner
+   * Téléverser une nouvelle image de bannière pour la campagne (MJ uniquement)
+   */
+  async uploadCampaignBanner(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const user = request.user as JWTPayload;
+      const paramsSchema = z.object({ id: z.coerce.number().int().positive() });
+      const { id: campaignId } = paramsSchema.parse(request.params);
+
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ error: 'Aucun fichier fourni' });
+      }
+
+      const buffer = await file.toBuffer();
+      const result = await this.uploadCampaignBannerUseCaseService.execute({
+        campagneId: campaignId,
+        userId: user.id,
+        filename: file.filename,
+        mimetype: file.mimetype,
+        content: buffer,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      if (error instanceof z.ZodError) {
+        return reply.status(400).send({ error: error.errors[0]?.message || 'Données invalides' });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors du téléversement de la bannière' });
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur
    */
   registerRoutes(app: FastifyInstance) {
@@ -833,6 +1047,18 @@ export class CampaignController {
       '/api/campaigns/:id/upload',
       { preHandler: [app.authenticate] },
       (req, rep) => this.uploadCharacterAvatar(req, rep)
+    );
+
+    // Route authentifiée pour téléverser la bannière d'une campagne (MJ)
+    app.post(
+      '/api/campaigns/:id/banner',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.uploadCampaignBanner(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/upload-banner',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.uploadCampaignBanner(req, rep)
     );
 
     // Routes authentifiées pour modifier un personnage (MJ ou joueur assigné)
@@ -879,6 +1105,72 @@ export class CampaignController {
       '/api/sections/:id/topics',
       { preHandler: [app.authenticate] },
       (req, rep) => this.createTopic(req, rep)
+    );
+
+    // Routes authentifiées pour modifier une section
+    app.put(
+      '/api/sections/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateSection(req, rep)
+    );
+    app.patch(
+      '/api/sections/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateSection(req, rep)
+    );
+    app.put(
+      '/api/campaigns/:id/sections/:sectionId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateSection(req, rep)
+    );
+    app.patch(
+      '/api/campaigns/:id/sections/:sectionId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateSection(req, rep)
+    );
+
+    // Routes authentifiées pour téléverser la bannière d'une section (MJ)
+    app.post(
+      '/api/sections/:id/banner',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.uploadSectionBanner(req, rep)
+    );
+    app.post(
+      '/api/sections/:id/upload-banner',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.uploadSectionBanner(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/sections/:sectionId/banner',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.uploadSectionBanner(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/sections/:sectionId/upload-banner',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.uploadSectionBanner(req, rep)
+    );
+
+    // Routes authentifiées pour modifier un sujet
+    app.put(
+      '/api/topics/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateTopic(req, rep)
+    );
+    app.patch(
+      '/api/topics/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateTopic(req, rep)
+    );
+    app.put(
+      '/api/campaigns/:id/topics/:topicId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateTopic(req, rep)
+    );
+    app.patch(
+      '/api/campaigns/:id/topics/:topicId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateTopic(req, rep)
     );
 
     app.put(

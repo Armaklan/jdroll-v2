@@ -194,12 +194,17 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                   onClick={() => toggleSection(section.id)}
                   className="px-5 py-3.5 bg-slate-50/80 hover:bg-slate-100/80 border-b border-slate-200 cursor-pointer flex items-center justify-between transition select-none"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <FolderOpen className="w-4 h-4 text-indigo-600" />
-                    <h2 className="font-bold text-sm text-slate-900 tracking-tight">{section.title}</h2>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
-                      {section.topics.length}
-                    </span>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <FolderOpen className="w-4 h-4 text-indigo-600 shrink-0" />
+                    {section.banniere ? (
+                      <img
+                        src={section.banniere}
+                        alt={section.title}
+                        className="max-h-12 max-w-full object-contain rounded"
+                      />
+                    ) : (
+                      <h2 className="font-bold text-sm text-slate-900 tracking-tight">{section.title}</h2>
+                    )}
                   </div>
                   <button
                     type="button"

@@ -12,9 +12,11 @@ export interface IForumRepository {
   findSectionsByCampaignId(campaignId: number | null, userId?: number): Promise<ForumSectionSummary[]>;
   findSectionById(sectionId: number): Promise<{ id: number; campagneId: number | null; title: string; ordre: number; defaultCollapse: boolean; banniere: string } | null>;
   createSection(data: { campagneId: number | null; title: string; ordre?: number; defaultCollapse?: boolean; banniere?: string }): Promise<number>;
+  updateSection(sectionId: number, data: { title?: string; defaultCollapse?: boolean; banniere?: string }): Promise<void>;
   getMaxSectionOrdre(campagneId: number | null): Promise<number>;
   reorderSections(campaignId: number, sectionIds: number[]): Promise<void>;
   createTopic(data: { sectionId: number; title: string; stickable?: boolean; isPrivate?: boolean; isClosed?: boolean; ordre?: number }): Promise<number>;
+  updateTopic(topicId: number, data: { title?: string; stickable?: boolean; isPrivate?: boolean; isClosed?: boolean }): Promise<void>;
   getMaxTopicOrdre(sectionId: number): Promise<number>;
   reorderTopics(campaignId: number, sections: Array<{ sectionId: number; topicIds: number[] }>): Promise<void>;
   findTopicById(topicId: number): Promise<RawTopicDetail | null>;
@@ -702,6 +704,32 @@ export class MysqlForumRepository implements IForumRepository {
     return result.insertId;
   }
 
+  async updateSection(
+    sectionId: number,
+    data: { title?: string; defaultCollapse?: boolean; banniere?: string }
+  ): Promise<void> {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (data.title !== undefined) {
+      fields.push('title = ?');
+      values.push(data.title);
+    }
+    if (data.defaultCollapse !== undefined) {
+      fields.push('default_collapse = ?');
+      values.push(data.defaultCollapse ? 1 : 0);
+    }
+    if (data.banniere !== undefined) {
+      fields.push('banniere = ?');
+      values.push(data.banniere);
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(sectionId);
+    await execute(`UPDATE sections SET ${fields.join(', ')} WHERE id = ?`, values);
+  }
+
   async getMaxSectionOrdre(campagneId: number | null): Promise<number> {
     const isGeneral = campagneId === null || campagneId === undefined;
     const sql = `
@@ -758,6 +786,36 @@ export class MysqlForumRepository implements IForumRepository {
     ]);
 
     return result.insertId;
+  }
+
+  async updateTopic(
+    topicId: number,
+    data: { title?: string; stickable?: boolean; isPrivate?: boolean; isClosed?: boolean }
+  ): Promise<void> {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (data.title !== undefined) {
+      fields.push('title = ?');
+      values.push(data.title);
+    }
+    if (data.stickable !== undefined) {
+      fields.push('stickable = ?');
+      values.push(data.stickable ? 1 : 0);
+    }
+    if (data.isPrivate !== undefined) {
+      fields.push('is_private = ?');
+      values.push(data.isPrivate ? 1 : 0);
+    }
+    if (data.isClosed !== undefined) {
+      fields.push('is_closed = ?');
+      values.push(data.isClosed ? 1 : 0);
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(topicId);
+    await execute(`UPDATE topics SET ${fields.join(', ')} WHERE id = ?`, values);
   }
 
   async getMaxTopicOrdre(sectionId: number): Promise<number> {
