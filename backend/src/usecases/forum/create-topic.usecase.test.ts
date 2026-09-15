@@ -80,6 +80,10 @@ describe('CreateTopicUseCase', () => {
       },
       isUserCampaignParticipant: async () => false,
       findPersoById: async () => null,
+      getTopicCanReadUsers: async () => [],
+      getCanReadUsersByTopicIds: async () => new Map(),
+      setTopicCanReadUsers: async () => {},
+      isUserTopicCanRead: async () => false,
     };
 
     useCase = new CreateTopicUseCase(mockForumRepo);
@@ -145,6 +149,26 @@ describe('CreateTopicUseCase', () => {
         return true;
       }
     );
+  });
+
+  it('crée un sujet privé avec joueurs autorisés', async () => {
+    let passedCanReadIds: number[] | undefined;
+    mockForumRepo.createTopic = async (data) => {
+      passedCanReadIds = data.canReadUserIds;
+      return 42;
+    };
+
+    const result = await useCase.execute({
+      sectionId: 1,
+      userId: 10,
+      title: 'Secret du MJ',
+      isPrivate: 1,
+      canReadUserIds: [2, 3],
+    });
+
+    assert.equal(result.id, 42);
+    assert.equal(result.isPrivate, 1);
+    assert.deepEqual(passedCanReadIds, [2, 3]);
   });
 
   it('refuse un titre vide', async () => {

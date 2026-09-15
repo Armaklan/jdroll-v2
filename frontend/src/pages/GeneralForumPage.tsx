@@ -16,6 +16,8 @@ import {
   FolderOpen,
   MessageCircle,
   Sparkles,
+  Globe,
+  Users,
 } from 'lucide-react';
 
 interface GeneralForumPageProps {
@@ -267,12 +269,17 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                                     <span>Fermé</span>
                                   </span>
                                 )}
-                                {topic.isPrivate && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-2xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                    <EyeOff className="w-2.5 h-2.5 text-rose-500" />
+                                {(topic.isPrivate === 1 || topic.isPrivate === true) ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-2xs font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                    <EyeOff className="w-2.5 h-2.5 text-purple-600" />
                                     <span>Privé</span>
                                   </span>
-                                )}
+                                ) : (topic.isPrivate as any) === 2 ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-2xs font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                                    <Globe className="w-2.5 h-2.5 text-teal-600" />
+                                    <span>Grand public</span>
+                                  </span>
+                                ) : null}
                                 {!topic.isRead && (
                                   <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-2xs font-bold bg-indigo-600 text-white">
                                     Non lu
@@ -283,6 +290,18 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                               <h3 className="text-sm font-semibold text-slate-900 group-hover:text-indigo-600 transition truncate">
                                 {topic.title}
                               </h3>
+
+                              {(topic.isPrivate === 1 || topic.isPrivate === true) && (
+                                <div className="flex items-center gap-1.5 text-[11px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200/70 w-fit mt-1">
+                                  <Users className="w-3 h-3 text-purple-500 shrink-0" />
+                                  <span className="font-semibold">Accès :</span>
+                                  <span className="truncate max-w-xs sm:max-w-md">
+                                    {topic.canReadUsers && topic.canReadUsers.length > 0
+                                      ? topic.canReadUsers.map((u) => u.username).join(', ')
+                                      : 'MJ uniquement'}
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
 

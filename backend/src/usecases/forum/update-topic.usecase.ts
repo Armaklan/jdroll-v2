@@ -10,7 +10,8 @@ export interface UpdateTopicInput {
   userId: number;
   title?: string;
   stickable?: boolean;
-  isPrivate?: boolean;
+  isPrivate?: number | boolean;
+  canReadUserIds?: number[];
   isClosed?: boolean;
 }
 
@@ -19,7 +20,7 @@ export interface UpdateTopicOutput {
   sectionId: number;
   title: string;
   stickable: boolean;
-  isPrivate: boolean;
+  isPrivate: number;
   isClosed: boolean;
   ordre: number;
 }
@@ -51,11 +52,23 @@ export class UpdateTopicUseCase {
       }
     }
 
+    let isPrivateVal: number | undefined;
+    if (input.isPrivate !== undefined) {
+      if (input.isPrivate === true || input.isPrivate === 1) {
+        isPrivateVal = 1;
+      } else if (input.isPrivate === 2) {
+        isPrivateVal = 2;
+      } else {
+        isPrivateVal = 0;
+      }
+    }
+
     await this.forumRepo.updateTopic(input.topicId, {
       title: trimmedTitle,
       stickable: input.stickable,
-      isPrivate: input.isPrivate,
+      isPrivate: isPrivateVal,
       isClosed: input.isClosed,
+      canReadUserIds: input.canReadUserIds,
     });
 
     return {
@@ -63,7 +76,7 @@ export class UpdateTopicUseCase {
       sectionId: topic.sectionId,
       title: trimmedTitle !== undefined ? trimmedTitle : topic.title,
       stickable: input.stickable !== undefined ? input.stickable : Boolean(topic.stickable),
-      isPrivate: input.isPrivate !== undefined ? input.isPrivate : Boolean(topic.isPrivate),
+      isPrivate: isPrivateVal !== undefined ? isPrivateVal : Number(topic.isPrivate || 0),
       isClosed: input.isClosed !== undefined ? input.isClosed : Boolean(topic.isClosed),
       ordre: topic.ordre,
     };

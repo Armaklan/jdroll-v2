@@ -126,6 +126,10 @@ describe('RollDiceUseCase', () => {
         return campagneId === 100 && (userId === 2 || userId === 3); // Joueurs = 2, 3
       },
       findPersoById: async () => null,
+      getTopicCanReadUsers: async () => [],
+      getCanReadUsersByTopicIds: async () => new Map(),
+      setTopicCanReadUsers: async () => {},
+      isUserTopicCanRead: async () => false,
     };
 
     useCase = new RollDiceUseCase(mockForumRepo, mockDicerRepo, fixedRng);

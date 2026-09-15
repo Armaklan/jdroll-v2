@@ -77,6 +77,10 @@ describe('UpdateTopicUseCase', () => {
       },
       isUserCampaignParticipant: async () => true,
       findPersoById: async () => null,
+      getTopicCanReadUsers: async () => [],
+      getCanReadUsersByTopicIds: async () => new Map(),
+      setTopicCanReadUsers: async () => {},
+      isUserTopicCanRead: async () => false,
     };
 
     useCase = new UpdateTopicUseCase(mockForumRepo);
@@ -88,20 +92,22 @@ describe('UpdateTopicUseCase', () => {
       userId: 1,
       title: 'Titre de sujet modifié',
       stickable: true,
-      isPrivate: true,
+      isPrivate: 1,
+      canReadUserIds: [2, 3],
       isClosed: true,
     });
 
     assert.equal(result.title, 'Titre de sujet modifié');
     assert.equal(result.stickable, true);
-    assert.equal(result.isPrivate, true);
+    assert.equal(result.isPrivate, 1);
     assert.equal(result.isClosed, true);
     assert.deepEqual(updatedTopicData, {
       topicId: 10,
       data: {
         title: 'Titre de sujet modifié',
         stickable: true,
-        isPrivate: true,
+        isPrivate: 1,
+        canReadUserIds: [2, 3],
         isClosed: true,
       },
     });

@@ -112,6 +112,10 @@ describe('ReorderSectionsUseCase', () => {
       },
       isUserCampaignParticipant: async () => false,
       findPersoById: async () => null,
+      getTopicCanReadUsers: async () => [],
+      getCanReadUsersByTopicIds: async () => new Map(),
+      setTopicCanReadUsers: async () => {},
+      isUserTopicCanRead: async () => false,
     };
 
     useCase = new ReorderSectionsUseCase(mockCampaignRepo, mockForumRepo);

@@ -10,7 +10,8 @@ export interface CreateTopicInput {
   userId: number;
   title: string;
   stickable?: boolean;
-  isPrivate?: boolean;
+  isPrivate?: number | boolean;
+  canReadUserIds?: number[];
   isClosed?: boolean;
   firstPostContent?: string;
   persoId?: number | null;
@@ -21,7 +22,7 @@ export interface CreateTopicOutput {
   sectionId: number;
   title: string;
   stickable: boolean;
-  isPrivate: boolean;
+  isPrivate: number;
   isClosed: boolean;
   ordre: number;
   postId?: number;
@@ -55,13 +56,21 @@ export class CreateTopicUseCase {
     const maxOrdre = await this.forumRepo.getMaxTopicOrdre(input.sectionId);
     const newOrdre = maxOrdre + 1;
 
+    let isPrivateVal = 0;
+    if (input.isPrivate === true || input.isPrivate === 1) {
+      isPrivateVal = 1;
+    } else if (input.isPrivate === 2) {
+      isPrivateVal = 2;
+    }
+
     const topicId = await this.forumRepo.createTopic({
       sectionId: input.sectionId,
       title: trimmedTitle,
       stickable: input.stickable ?? false,
-      isPrivate: input.isPrivate ?? false,
+      isPrivate: isPrivateVal,
       isClosed: input.isClosed ?? false,
       ordre: newOrdre,
+      canReadUserIds: isPrivateVal === 1 ? input.canReadUserIds : [],
     });
 
     let createdPostId: number | undefined;
@@ -84,7 +93,7 @@ export class CreateTopicUseCase {
       sectionId: input.sectionId,
       title: trimmedTitle,
       stickable: input.stickable ?? false,
-      isPrivate: input.isPrivate ?? false,
+      isPrivate: isPrivateVal,
       isClosed: input.isClosed ?? false,
       ordre: newOrdre,
       postId: createdPostId,

@@ -79,17 +79,24 @@ export interface ForumLastPost {
   persoId?: number | null;
 }
 
+export interface TopicUserSummary {
+  id: number;
+  username: string;
+  avatar?: string;
+}
+
 export interface ForumTopicSummary {
   id: number;
   sectionId: number;
   title: string;
   stickable: boolean;
-  isPrivate: boolean;
+  isPrivate: number | boolean;
   isClosed: boolean;
   ordre: number;
   postsCount: number;
   lastPost?: ForumLastPost | null;
   isRead: boolean;
+  canReadUsers?: TopicUserSummary[];
 }
 
 export interface ForumSectionSummary {
@@ -228,7 +235,7 @@ export interface TopicDetail {
   campaignTitle: string;
   title: string;
   stickable: boolean;
-  isPrivate: boolean;
+  isPrivate: number | boolean;
   isClosed: boolean;
   ordre: number;
   totalPosts: number;
@@ -241,6 +248,8 @@ export interface TopicDetail {
   availableCharacters: CharacterSummary[];
   posts: ForumPost[];
   campaign?: CampaignSummary | null;
+  canReadUsers?: TopicUserSummary[];
+  canReadUserIds?: number[];
   dialogueColor?: string | null;
   penseeColor?: string | null;
   rp1Color?: string | null;

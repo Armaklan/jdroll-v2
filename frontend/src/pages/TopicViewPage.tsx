@@ -32,6 +32,8 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
+  Globe,
+  Users,
 } from 'lucide-react';
 
 interface TopicViewPageProps {
@@ -351,10 +353,19 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                   <span>Fermé</span>
                 </span>
               )}
-              {topicDetail.isPrivate && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                  <EyeOff className="w-3 h-3 text-rose-500" />
-                  <span>Secret / Privé</span>
+              {(topicDetail.isPrivate === 1 || topicDetail.isPrivate === true) ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+                  <EyeOff className="w-3 h-3 text-purple-600" />
+                  <span>Privé</span>
+                </span>
+              ) : (topicDetail.isPrivate as any) === 2 ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200">
+                  <Globe className="w-3 h-3 text-teal-600" />
+                  <span>Grand public</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                  <span>Public</span>
                 </span>
               )}
               <h2
@@ -364,6 +375,19 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                 {topicDetail.title}
               </h2>
             </div>
+
+            {(topicDetail.isPrivate === 1 || topicDetail.isPrivate === true) && (
+              <div className="flex items-center gap-2 p-2.5 bg-purple-50/90 border border-purple-200 rounded-xl text-xs text-purple-900 mt-2">
+                <Users className="w-4 h-4 text-purple-600 shrink-0" />
+                <div>
+                  <span className="font-bold">Accès au sujet :</span>{' '}
+                  {topicDetail.canReadUsers && topicDetail.canReadUsers.length > 0
+                    ? `Accessible par le MJ et ${topicDetail.canReadUsers.map((u) => u.username).join(', ')}`
+                    : 'Accessible uniquement par le Maître du Jeu'}
+                </div>
+              </div>
+            )}
+
             <p
               className="text-xs"
               style={{

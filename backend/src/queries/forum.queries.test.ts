@@ -9,8 +9,9 @@ import {
   ForumPost,
   RawTopicDetail,
   CharacterSummary,
+  TopicUserSummary,
 } from '../types/index.js';
-import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
+import { CampaignNotFoundError, TopicNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
 const mockCampaign: CampaignSummary = {
   id: 1,
@@ -319,6 +320,29 @@ class MockForumRepository implements IForumRepository {
     }
     return null;
   }
+
+  async getTopicCanReadUsers(topicId: number): Promise<TopicUserSummary[]> {
+    if (topicId === 101 || topicId === 301) {
+      return [{ id: 2, username: 'testuser', avatar: '' }];
+    }
+    return [];
+  }
+
+  async getCanReadUsersByTopicIds(topicIds: number[]): Promise<Map<number, TopicUserSummary[]>> {
+    const map = new Map<number, TopicUserSummary[]>();
+    for (const id of topicIds) {
+      if (id === 101 || id === 301) {
+        map.set(id, [{ id: 2, username: 'testuser', avatar: '' }]);
+      }
+    }
+    return map;
+  }
+
+  async setTopicCanReadUsers(): Promise<void> {}
+
+  async isUserTopicCanRead(topicId: number, userId: number): Promise<boolean> {
+    return (topicId === 101 || topicId === 301) && userId === 2;
+  }
 }
 
 describe('ForumQueries', () => {
@@ -616,5 +640,46 @@ describe('ForumQueries', () => {
     assert.equal(result.userRole, 'user');
     assert.equal(result.availableCharacters.length, 0);
     assert.equal(result.campaignTitle, 'Forum Général');
+  });
+
+  it('gère correctement les droits d accès et les utilisateurs autorisés sur un sujet privé', async () => {
+    const privateTopic: RawTopicDetail = {
+      id: 301,
+      sectionId: 10,
+      sectionTitle: 'Général & Règles',
+      campagneId: 1,
+      campaignTitle: 'La Malédiction de Strahd',
+      title: 'Secret de campagne',
+      stickable: 0,
+      isPrivate: 1,
+      isClosed: 0,
+      ordre: 1,
+    };
+
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, privateTopic, 2, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    // Accès anonyme -> ForbiddenError
+    await assert.rejects(
+      () => queries.getTopicPosts(301, 1, undefined),
+      (err: any) => err instanceof ForbiddenError
+    );
+
+    // Accès non autorisé (User 999) -> ForbiddenError
+    await assert.rejects(
+      () => queries.getTopicPosts(301, 1, 999),
+      (err: any) => err instanceof ForbiddenError
+    );
+
+    // Accès MJ (User 1) -> OK
+    const mjResult = await queries.getTopicPosts(301, 1, 1);
+    assert.equal(mjResult.isPrivate, 1);
+    assert.equal(mjResult.canPost, true);
+
+    // Accès joueur autorisé (User 2) -> OK
+    const playerResult = await queries.getTopicPosts(301, 1, 2);
+    assert.equal(playerResult.isPrivate, 1);
+    assert.equal(playerResult.canPost, true);
   });
 });

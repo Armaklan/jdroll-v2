@@ -1,7 +1,7 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
-import { CampaignForumData, GeneralForumData, TopicDetail, CharacterSummary, CampaignSummary } from '../types/index.js';
-import { CampaignNotFoundError, TopicNotFoundError } from '../errors/domain.errors.js';
+import { CampaignForumData, GeneralForumData, TopicDetail, CharacterSummary, CampaignSummary, TopicUserSummary } from '../types/index.js';
+import { CampaignNotFoundError, TopicNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
 export class ForumQueries {
   constructor(
@@ -62,6 +62,32 @@ export class ForumQueries {
       throw new TopicNotFoundError(`Le sujet avec l'identifiant ${topicId} n'existe pas`);
     }
 
+    let isPrivateVal = 0;
+    const rawIsPrivate = Number(topic.isPrivate || 0);
+    if (rawIsPrivate === 1) {
+      isPrivateVal = 1;
+    } else if (rawIsPrivate === 2) {
+      isPrivateVal = 2;
+    }
+
+    if (isPrivateVal === 1) {
+      if (!userId) {
+        throw new ForbiddenError("Vous n'avez pas accès à ce sujet privé");
+      }
+      if (topic.campagneId && topic.campagneId > 0) {
+        const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, userId);
+        const isCanRead = isMj ? true : await this.forumRepo.isUserTopicCanRead(topic.id, userId);
+        if (!isMj && !isCanRead) {
+          throw new ForbiddenError("Vous n'avez pas accès à ce sujet privé");
+        }
+      } else {
+        const isCanRead = await this.forumRepo.isUserTopicCanRead(topic.id, userId);
+        if (!isCanRead) {
+          throw new ForbiddenError("Vous n'avez pas accès à ce sujet privé");
+        }
+      }
+    }
+
     const totalPosts = await this.forumRepo.countPostsByTopicId(topicId);
     const pageSize = 10;
     const totalPages = Math.max(1, Math.ceil(totalPosts / pageSize));
@@ -118,22 +144,39 @@ export class ForumQueries {
     if (userId) {
       if (topic.campagneId && topic.campagneId > 0) {
         const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, userId);
+        let isParticipant = false;
         if (isMj) {
           userRole = 'mj';
-          if (!isClosed) canPost = true;
           availableCharacters = await this.forumRepo.findCampaignPersos(topic.campagneId);
         } else {
-          const isParticipant = await this.forumRepo.isUserCampaignParticipant(topic.campagneId, userId);
+          isParticipant = await this.forumRepo.isUserCampaignParticipant(topic.campagneId, userId);
           if (isParticipant) {
             userRole = 'player';
-            if (!isClosed) canPost = true;
             availableCharacters = await this.forumRepo.findUserCampaignPersos(topic.campagneId, userId);
+          }
+        }
+
+        if (!isClosed) {
+          if (isPrivateVal === 1) {
+            const isCanRead = isMj ? true : await this.forumRepo.isUserTopicCanRead(topic.id, userId);
+            if (isMj || isCanRead) canPost = true;
+          } else if (isPrivateVal === 0) {
+            if (isMj || isParticipant) canPost = true;
+          } else if (isPrivateVal === 2) {
+            canPost = true;
           }
         }
       } else {
         userRole = 'user';
-        if (!isClosed) canPost = true;
         availableCharacters = [];
+        if (!isClosed) {
+          if (isPrivateVal === 1) {
+            const isCanRead = await this.forumRepo.isUserTopicCanRead(topic.id, userId);
+            if (isCanRead) canPost = true;
+          } else {
+            canPost = true;
+          }
+        }
       }
     }
 
@@ -148,6 +191,11 @@ export class ForumQueries {
       }
     }
 
+    let canReadUsers: TopicUserSummary[] | undefined = undefined;
+    if (isPrivateVal === 1) {
+      canReadUsers = await this.forumRepo.getTopicCanReadUsers(topic.id);
+    }
+
     return {
       id: topic.id,
       sectionId: topic.sectionId,
@@ -156,7 +204,7 @@ export class ForumQueries {
       campaignTitle: topic.campaignTitle || 'Forum Général',
       title: topic.title,
       stickable: Boolean(topic.stickable),
-      isPrivate: Boolean(topic.isPrivate),
+      isPrivate: isPrivateVal,
       isClosed,
       ordre: topic.ordre,
       totalPosts,
@@ -169,6 +217,8 @@ export class ForumQueries {
       availableCharacters,
       posts: mappedPosts,
       campaign,
+      canReadUsers,
+      canReadUserIds: canReadUsers ? canReadUsers.map((u) => u.id) : undefined,
       dialogueColor: topic.dialogueColor || null,
       penseeColor: topic.penseeColor || null,
       rp1Color: topic.rp1Color || null,

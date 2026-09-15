@@ -67,6 +67,10 @@ describe('UpdateSectionUseCase', () => {
       },
       isUserCampaignParticipant: async () => true,
       findPersoById: async () => null,
+      getTopicCanReadUsers: async () => [],
+      getCanReadUsersByTopicIds: async () => new Map(),
+      setTopicCanReadUsers: async () => {},
+      isUserTopicCanRead: async () => false,
     };
 
     useCase = new UpdateSectionUseCase(mockForumRepo);

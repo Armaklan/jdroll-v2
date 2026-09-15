@@ -81,6 +81,8 @@ describe('CreatePostUseCase', () => {
       reorderTopics: async () => {},
       findTopicById: async (topicId: number): Promise<RawTopicDetail | null> => {
         if (topicId === 10) return { ...mockTopic };
+        if (topicId === 15) return { ...mockTopic, id: 15, isPrivate: 1 };
+        if (topicId === 18) return { ...mockTopic, id: 18, isPrivate: 2 };
         if (topicId === 99) return { ...mockTopic, id: 99, isClosed: 1 };
         if (topicId === 20) return { ...mockTopic, id: 20, campagneId: null };
         return null;
@@ -141,6 +143,12 @@ describe('CreatePostUseCase', () => {
       },
       findPersoById: async (persoId): Promise<CharacterSummary | null> => {
         return mockPersos.find((p) => p.id === persoId) || null;
+      },
+      getTopicCanReadUsers: async () => [],
+      getCanReadUsersByTopicIds: async () => new Map(),
+      setTopicCanReadUsers: async () => {},
+      isUserTopicCanRead: async (topicId: number, userId: number) => {
+        return topicId === 15 && userId === 2; // User 2 is allowed on private topic 15
       },
     };
 
@@ -216,10 +224,45 @@ describe('CreatePostUseCase', () => {
       },
       (err: any) => {
         assert.ok(err instanceof ForbiddenError);
-        assert.match(err.message, /Vous n'êtes pas autorisé/);
+        assert.match(err.message, /Seuls les joueurs et le MJ peuvent poster dans ce sujet public/);
         return true;
       }
     );
+  });
+
+  it('permet à un utilisateur autorisé de poster dans un sujet privé', async () => {
+    const post = await useCase.execute({
+      topicId: 15, // isPrivate: 1, user 2 is allowed
+      userId: 2,
+      content: '<p>Message secret</p>',
+    });
+    assert.equal(post.user.id, 2);
+  });
+
+  it('interdit à un utilisateur non autorisé de poster dans un sujet privé', async () => {
+    await assert.rejects(
+      async () => {
+        await useCase.execute({
+          topicId: 15, // isPrivate: 1, user 3 is not allowed
+          userId: 3,
+          content: '<p>Tentative d intrusion</p>',
+        });
+      },
+      (err: any) => {
+        assert.ok(err instanceof ForbiddenError);
+        assert.match(err.message, /Vous n'êtes pas autorisé à poster dans ce sujet privé/);
+        return true;
+      }
+    );
+  });
+
+  it('permet à n importe quel utilisateur authentifié de poster dans un topic grand public de campagne', async () => {
+    const post = await useCase.execute({
+      topicId: 18, // isPrivate: 2 (Grand public)
+      userId: 999, // non participant
+      content: '<p>Message de spectateur</p>',
+    });
+    assert.equal(post.user.id, 999);
   });
 
   it("permet à n'importe quel utilisateur de poster dans le forum général grand public", async () => {

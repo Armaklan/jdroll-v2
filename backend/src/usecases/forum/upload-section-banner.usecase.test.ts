@@ -61,6 +61,10 @@ describe('UploadSectionBannerUseCase', () => {
       },
       isUserCampaignParticipant: async () => true,
       findPersoById: async () => null,
+      getTopicCanReadUsers: async () => [],
+      getCanReadUsersByTopicIds: async () => new Map(),
+      setTopicCanReadUsers: async () => {},
+      isUserTopicCanRead: async () => false,
     };
 
     mockFileStorage = {

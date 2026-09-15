@@ -6,6 +6,7 @@ import {
   ForumPost,
   RawTopicDetail,
   CharacterSummary,
+  TopicUserSummary,
 } from '../types/index.js';
 
 export interface IForumRepository {
@@ -15,8 +16,8 @@ export interface IForumRepository {
   updateSection(sectionId: number, data: { title?: string; defaultCollapse?: boolean; banniere?: string }): Promise<void>;
   getMaxSectionOrdre(campagneId: number | null): Promise<number>;
   reorderSections(campaignId: number, sectionIds: number[]): Promise<void>;
-  createTopic(data: { sectionId: number; title: string; stickable?: boolean; isPrivate?: boolean; isClosed?: boolean; ordre?: number }): Promise<number>;
-  updateTopic(topicId: number, data: { title?: string; stickable?: boolean; isPrivate?: boolean; isClosed?: boolean }): Promise<void>;
+  createTopic(data: { sectionId: number; title: string; stickable?: boolean; isPrivate?: number | boolean; isClosed?: boolean; ordre?: number; canReadUserIds?: number[] }): Promise<number>;
+  updateTopic(topicId: number, data: { title?: string; stickable?: boolean; isPrivate?: number | boolean; isClosed?: boolean; canReadUserIds?: number[] }): Promise<void>;
   getMaxTopicOrdre(sectionId: number): Promise<number>;
   reorderTopics(campaignId: number, sections: Array<{ sectionId: number; topicIds: number[] }>): Promise<void>;
   findTopicById(topicId: number): Promise<RawTopicDetail | null>;
@@ -33,6 +34,10 @@ export interface IForumRepository {
   isUserCampaignMj(campagneId: number, userId: number): Promise<boolean>;
   isUserCampaignParticipant(campagneId: number, userId: number): Promise<boolean>;
   findPersoById(persoId: number): Promise<CharacterSummary | null>;
+  getTopicCanReadUsers(topicId: number): Promise<TopicUserSummary[]>;
+  getCanReadUsersByTopicIds(topicIds: number[]): Promise<Map<number, TopicUserSummary[]>>;
+  setTopicCanReadUsers(topicId: number, userIds: number[]): Promise<void>;
+  isUserTopicCanRead(topicId: number, userId: number): Promise<boolean>;
 }
 
 export class MysqlForumRepository implements IForumRepository {
@@ -69,6 +74,7 @@ export class MysqlForumRepository implements IForumRepository {
       return [];
     }
 
+    const currentUserId = userId ?? 0;
     const topicsSql = `
       SELECT 
         t.id,
@@ -97,6 +103,11 @@ export class MysqlForumRepository implements IForumRepository {
         GROUP BY topic_id
       ) rp ON rp.topic_id = t.id
       WHERE ${isGeneral ? 's.campagne_id IS NULL' : 's.campagne_id = ?'}
+        AND (
+          t.is_private != 1
+          OR (? > 0 AND EXISTS (SELECT 1 FROM can_read cr WHERE cr.topic_id = t.id AND cr.user_id = ?))
+          OR (? > 0 AND s.campagne_id IS NOT NULL AND EXISTS (SELECT 1 FROM campagne c WHERE c.id = s.campagne_id AND c.mj_id = ?))
+        )
       ORDER BY t.stickable DESC, t.ordre ASC, t.id DESC
     `;
 
@@ -118,10 +129,16 @@ export class MysqlForumRepository implements IForumRepository {
       postsCount: number;
     }
 
-    const topicRows = await query<RawTopicRow>(
-      topicsSql,
-      isGeneral ? [userId ?? 0] : [userId ?? 0, campaignId]
-    );
+    const queryParams = isGeneral
+      ? [currentUserId, currentUserId, currentUserId, currentUserId, currentUserId]
+      : [currentUserId, campaignId, currentUserId, currentUserId, currentUserId, currentUserId];
+
+    const topicRows = await query<RawTopicRow>(topicsSql, queryParams);
+
+    const privateTopicIds = topicRows.filter((r) => r.isPrivate === 1).map((r) => r.id);
+    const canReadUsersMap = privateTopicIds.length > 0
+      ? await this.getCanReadUsersByTopicIds(privateTopicIds)
+      : new Map<number, TopicUserSummary[]>();
 
     const topicsBySection = new Map<number, ForumTopicSummary[]>();
 
@@ -153,12 +170,13 @@ export class MysqlForumRepository implements IForumRepository {
         sectionId: row.sectionId,
         title: row.title,
         stickable: Boolean(row.stickable),
-        isPrivate: Boolean(row.isPrivate),
+        isPrivate: Number(row.isPrivate || 0),
         isClosed: Boolean(row.isClosed),
         ordre: row.ordre,
         postsCount: Number(row.postsCount || 0),
         lastPost,
         isRead,
+        canReadUsers: row.isPrivate === 1 ? canReadUsersMap.get(row.id) || [] : undefined,
       };
 
       if (!topicsBySection.has(row.sectionId)) {
@@ -761,14 +779,22 @@ export class MysqlForumRepository implements IForumRepository {
     sectionId: number;
     title: string;
     stickable?: boolean;
-    isPrivate?: boolean;
+    isPrivate?: number | boolean;
     isClosed?: boolean;
     ordre?: number;
+    canReadUserIds?: number[];
   }): Promise<number> {
     let ordre = data.ordre;
     if (ordre === undefined || ordre === null) {
       const maxOrdre = await this.getMaxTopicOrdre(data.sectionId);
       ordre = maxOrdre + 1;
+    }
+
+    let isPrivateVal = 0;
+    if (data.isPrivate === true || data.isPrivate === 1) {
+      isPrivateVal = 1;
+    } else if (data.isPrivate === 2) {
+      isPrivateVal = 2;
     }
 
     const sql = `
@@ -780,17 +806,29 @@ export class MysqlForumRepository implements IForumRepository {
       data.sectionId,
       data.title,
       data.stickable ? 1 : 0,
-      data.isPrivate ? 1 : 0,
+      isPrivateVal,
       data.isClosed ? 1 : 0,
       ordre,
     ]);
 
-    return result.insertId;
+    const topicId = result.insertId;
+
+    if (isPrivateVal === 1 && data.canReadUserIds && data.canReadUserIds.length > 0) {
+      await this.setTopicCanReadUsers(topicId, data.canReadUserIds);
+    }
+
+    return topicId;
   }
 
   async updateTopic(
     topicId: number,
-    data: { title?: string; stickable?: boolean; isPrivate?: boolean; isClosed?: boolean }
+    data: {
+      title?: string;
+      stickable?: boolean;
+      isPrivate?: number | boolean;
+      isClosed?: boolean;
+      canReadUserIds?: number[];
+    }
   ): Promise<void> {
     const fields: string[] = [];
     const values: any[] = [];
@@ -804,18 +842,125 @@ export class MysqlForumRepository implements IForumRepository {
       values.push(data.stickable ? 1 : 0);
     }
     if (data.isPrivate !== undefined) {
+      let isPrivateVal = 0;
+      if (data.isPrivate === true || data.isPrivate === 1) {
+        isPrivateVal = 1;
+      } else if (data.isPrivate === 2) {
+        isPrivateVal = 2;
+      }
       fields.push('is_private = ?');
-      values.push(data.isPrivate ? 1 : 0);
+      values.push(isPrivateVal);
+
+      if (isPrivateVal === 1) {
+        if (data.canReadUserIds !== undefined) {
+          await this.setTopicCanReadUsers(topicId, data.canReadUserIds);
+        }
+      } else {
+        await execute(`DELETE FROM can_read WHERE topic_id = ?`, [topicId]);
+      }
+    } else if (data.canReadUserIds !== undefined) {
+      await this.setTopicCanReadUsers(topicId, data.canReadUserIds);
     }
+
     if (data.isClosed !== undefined) {
       fields.push('is_closed = ?');
       values.push(data.isClosed ? 1 : 0);
     }
 
-    if (fields.length === 0) return;
+    if (fields.length > 0) {
+      values.push(topicId);
+      await execute(`UPDATE topics SET ${fields.join(', ')} WHERE id = ?`, values);
+    }
+  }
 
-    values.push(topicId);
-    await execute(`UPDATE topics SET ${fields.join(', ')} WHERE id = ?`, values);
+  async getTopicCanReadUsers(topicId: number): Promise<TopicUserSummary[]> {
+    const sql = `
+      SELECT 
+        u.id,
+        u.username,
+        u.avatar
+      FROM can_read cr
+      JOIN user u ON cr.user_id = u.id
+      WHERE cr.topic_id = ?
+      ORDER BY u.username ASC
+    `;
+
+    interface RawCanReadUserRow {
+      id: number;
+      username: string;
+      avatar: string | null;
+    }
+
+    const rows = await query<RawCanReadUserRow>(sql, [topicId]);
+    return rows.map((r) => ({
+      id: r.id,
+      username: r.username,
+      avatar: r.avatar || '',
+    }));
+  }
+
+  async getCanReadUsersByTopicIds(topicIds: number[]): Promise<Map<number, TopicUserSummary[]>> {
+    const result = new Map<number, TopicUserSummary[]>();
+    if (topicIds.length === 0) return result;
+
+    const placeholders = topicIds.map(() => '?').join(',');
+    const sql = `
+      SELECT 
+        cr.topic_id AS topicId,
+        u.id,
+        u.username,
+        u.avatar
+      FROM can_read cr
+      JOIN user u ON cr.user_id = u.id
+      WHERE cr.topic_id IN (${placeholders})
+      ORDER BY u.username ASC
+    `;
+
+    interface RawCanReadUsersRow {
+      topicId: number;
+      id: number;
+      username: string;
+      avatar: string | null;
+    }
+
+    const rows = await query<RawCanReadUsersRow>(sql, topicIds);
+    for (const row of rows) {
+      if (!result.has(row.topicId)) {
+        result.set(row.topicId, []);
+      }
+      result.get(row.topicId)!.push({
+        id: row.id,
+        username: row.username,
+        avatar: row.avatar || '',
+      });
+    }
+    return result;
+  }
+
+  async setTopicCanReadUsers(topicId: number, userIds: number[]): Promise<void> {
+    await execute(`DELETE FROM can_read WHERE topic_id = ?`, [topicId]);
+
+    const uniqueUserIds = Array.from(new Set(userIds)).filter((id) => id > 0);
+    if (uniqueUserIds.length > 0) {
+      const values = uniqueUserIds.map((userId) => `(${userId}, ${topicId})`).join(', ');
+      await execute(`INSERT INTO can_read (user_id, topic_id) VALUES ${values}`);
+    }
+  }
+
+  async isUserTopicCanRead(topicId: number, userId: number): Promise<boolean> {
+    const sql = `
+      SELECT 1 AS allowed
+      FROM can_read
+      WHERE topic_id = ? AND user_id = ?
+      LIMIT 1
+    `;
+
+    interface CanReadCheckRow {
+      allowed: number;
+    }
+
+    const row = await queryOne<CanReadCheckRow>(sql, [topicId, userId]);
+    return Boolean(row?.allowed);
   }
 
   async getMaxTopicOrdre(sectionId: number): Promise<number> {

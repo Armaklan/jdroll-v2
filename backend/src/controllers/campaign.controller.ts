@@ -142,7 +142,8 @@ const createTopicParamsSchema = z.object({
 const createTopicBodySchema = z.object({
   title: z.string().min(1, 'Le titre du sujet est requis'),
   stickable: z.boolean().optional(),
-  isPrivate: z.boolean().optional(),
+  isPrivate: z.union([z.boolean(), z.coerce.number().int().min(0).max(2)]).optional(),
+  canReadUserIds: z.array(z.coerce.number().int().positive()).optional(),
   isClosed: z.boolean().optional(),
   firstPostContent: z.string().optional(),
   persoId: z.number().int().positive().nullable().optional(),
@@ -151,7 +152,8 @@ const createTopicBodySchema = z.object({
 const updateTopicBodySchema = z.object({
   title: z.string().min(1, 'Le titre du sujet ne peut pas être vide').max(500, 'Le titre ne peut pas dépasser 500 caractères').optional(),
   stickable: z.boolean().optional(),
-  isPrivate: z.boolean().optional(),
+  isPrivate: z.union([z.boolean(), z.coerce.number().int().min(0).max(2)]).optional(),
+  canReadUserIds: z.array(z.coerce.number().int().positive()).optional(),
   isClosed: z.boolean().optional(),
 });
 
@@ -796,7 +798,7 @@ export class CampaignController {
 
     const user = request.user as JWTPayload;
     const { id: sectionId } = parseParams.data;
-    const { title, stickable, isPrivate, isClosed, firstPostContent, persoId } = parseBody.data;
+    const { title, stickable, isPrivate, canReadUserIds, isClosed, firstPostContent, persoId } = parseBody.data;
 
     try {
       const topic = await this.createTopicUseCaseService.execute({
@@ -805,6 +807,7 @@ export class CampaignController {
         title,
         stickable,
         isPrivate,
+        canReadUserIds,
         isClosed,
         firstPostContent,
         persoId,
@@ -1043,7 +1046,7 @@ export class CampaignController {
     }
 
     const user = request.user as JWTPayload;
-    const { title, stickable, isPrivate, isClosed } = parseBody.data;
+    const { title, stickable, isPrivate, canReadUserIds, isClosed } = parseBody.data;
 
     try {
       const topic = await this.updateTopicUseCaseService.execute({
@@ -1052,6 +1055,7 @@ export class CampaignController {
         title,
         stickable,
         isPrivate,
+        canReadUserIds,
         isClosed,
       });
 

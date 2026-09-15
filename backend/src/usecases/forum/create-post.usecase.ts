@@ -34,6 +34,14 @@ export class CreatePostUseCase {
       throw new TopicClosedError('Ce sujet est fermé aux réponses');
     }
 
+    let isPrivateVal = 0;
+    const rawIsPrivate = Number(topic.isPrivate || 0);
+    if (rawIsPrivate === 1) {
+      isPrivateVal = 1;
+    } else if (rawIsPrivate === 2) {
+      isPrivateVal = 2;
+    }
+
     let finalPersoId: number | null = null;
 
     if (topic.campagneId && topic.campagneId > 0) {
@@ -41,10 +49,20 @@ export class CreatePostUseCase {
       const isParticipant = isMj
         ? true
         : await this.forumRepo.isUserCampaignParticipant(topic.campagneId, dto.userId);
+      const isCanRead = isMj
+        ? true
+        : await this.forumRepo.isUserTopicCanRead(topic.id, dto.userId);
 
-      if (!isMj && !isParticipant) {
-        throw new ForbiddenError("Vous n'êtes pas autorisé à poster dans ce sujet de campagne");
+      if (isPrivateVal === 1) {
+        if (!isMj && !isCanRead) {
+          throw new ForbiddenError("Vous n'êtes pas autorisé à poster dans ce sujet privé");
+        }
+      } else if (isPrivateVal === 0) {
+        if (!isMj && !isParticipant) {
+          throw new ForbiddenError("Seuls les joueurs et le MJ peuvent poster dans ce sujet public");
+        }
       }
+      // isPrivateVal === 2 (Grand public) : tout le monde peut poster
 
       if (dto.persoId) {
         const perso = await this.forumRepo.findPersoById(dto.persoId);
@@ -57,7 +75,13 @@ export class CreatePostUseCase {
         finalPersoId = perso.id;
       }
     } else {
-      // Grand public : on poste uniquement en tant qu'utilisateur
+      // Forum Général
+      if (isPrivateVal === 1) {
+        const isCanRead = await this.forumRepo.isUserTopicCanRead(topic.id, dto.userId);
+        if (!isCanRead) {
+          throw new ForbiddenError("Vous n'êtes pas autorisé à poster dans ce sujet privé");
+        }
+      }
       finalPersoId = null;
     }
 

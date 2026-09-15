@@ -88,6 +88,10 @@ describe('CreateSectionUseCase', () => {
       },
       isUserCampaignParticipant: async () => false,
       findPersoById: async () => null,
+      getTopicCanReadUsers: async () => [],
+      getCanReadUsersByTopicIds: async () => new Map(),
+      setTopicCanReadUsers: async () => {},
+      isUserTopicCanRead: async () => false,
     };
 
     useCase = new CreateSectionUseCase(mockCampaignRepo, mockForumRepo);

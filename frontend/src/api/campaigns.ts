@@ -257,7 +257,8 @@ export const campaignsApi = {
   async createTopic(sectionId: number, data: {
     title: string;
     stickable?: boolean;
-    isPrivate?: boolean;
+    isPrivate?: number | boolean;
+    canReadUserIds?: number[];
     isClosed?: boolean;
     firstPostContent?: string;
     persoId?: number | null;
@@ -271,7 +272,8 @@ export const campaignsApi = {
   async updateTopic(topicId: number, data: {
     title?: string;
     stickable?: boolean;
-    isPrivate?: boolean;
+    isPrivate?: number | boolean;
+    canReadUserIds?: number[];
     isClosed?: boolean;
   }, campaignId?: number) {
     const endpoint = campaignId ? `/api/campaigns/${campaignId}/topics/${topicId}` : `/api/topics/${topicId}`;

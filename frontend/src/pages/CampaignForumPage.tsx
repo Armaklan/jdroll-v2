@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
-import { CampaignForumData, ForumSectionSummary, ForumTopicSummary } from '../types/campaign';
+import { CampaignForumData, ForumSectionSummary, ForumTopicSummary, CampaignParticipant, TopicUserSummary } from '../types/campaign';
 import { AppView } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { DiceTowerModal } from '../components/DiceTowerModal';
@@ -30,6 +30,8 @@ import {
   Link as LinkIcon,
   Pencil,
   Image as ImageIcon,
+  Globe,
+  Users,
 } from 'lucide-react';
 
 interface CampaignForumPageProps {
@@ -50,6 +52,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
 
   const { user } = useAuth();
   const [forumData, setForumData] = useState<CampaignForumData | null>(null);
+  const [participants, setParticipants] = useState<CampaignParticipant[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
@@ -148,7 +151,8 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const [targetTopicSectionId, setTargetTopicSectionId] = useState<number | null>(null);
   const [newTopicTitle, setNewTopicTitle] = useState<string>('');
   const [newTopicStickable, setNewTopicStickable] = useState<boolean>(false);
-  const [newTopicIsPrivate, setNewTopicIsPrivate] = useState<boolean>(false);
+  const [newTopicIsPrivate, setNewTopicIsPrivate] = useState<number>(0);
+  const [newTopicCanReadUserIds, setNewTopicCanReadUserIds] = useState<number[]>([]);
   const [newTopicIsClosed, setNewTopicIsClosed] = useState<boolean>(false);
   const [newTopicFirstPost, setNewTopicFirstPost] = useState<string>('');
   const [isSubmittingTopic, setIsSubmittingTopic] = useState<boolean>(false);
@@ -176,12 +180,14 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     sectionId: number;
     title: string;
     stickable: boolean;
-    isPrivate: boolean;
+    isPrivate: number;
     isClosed: boolean;
+    canReadUsers?: TopicUserSummary[];
   } | null>(null);
   const [editTopicTitle, setEditTopicTitle] = useState<string>('');
   const [editTopicStickable, setEditTopicStickable] = useState<boolean>(false);
-  const [editTopicIsPrivate, setEditTopicIsPrivate] = useState<boolean>(false);
+  const [editTopicIsPrivate, setEditTopicIsPrivate] = useState<number>(0);
+  const [editTopicCanReadUserIds, setEditTopicCanReadUserIds] = useState<number[]>([]);
   const [editTopicIsClosed, setEditTopicIsClosed] = useState<boolean>(false);
   const [isSubmittingEditTopic, setIsSubmittingEditTopic] = useState<boolean>(false);
   const [editTopicError, setEditTopicError] = useState<string | null>(null);
@@ -216,6 +222,13 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
         initialCollapse[sec.id] = sec.defaultCollapse;
       });
       setCollapsedSections(initialCollapse);
+
+      try {
+        const pList = await campaignsApi.getCampaignParticipants(effectiveCampaignId);
+        setParticipants(pList);
+      } catch {
+        // Ignorer si récupération échoue
+      }
     } catch (err: any) {
       setError(err.message || 'Impossible de charger le forum de la campagne.');
     } finally {
@@ -311,7 +324,8 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     setTargetTopicSectionId(sectionId);
     setNewTopicTitle('');
     setNewTopicStickable(false);
-    setNewTopicIsPrivate(false);
+    setNewTopicIsPrivate(0);
+    setNewTopicCanReadUserIds([]);
     setNewTopicIsClosed(false);
     setNewTopicFirstPost('');
     setTopicModalError(null);
@@ -333,51 +347,16 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     setTopicModalError(null);
 
     try {
-      const res = await campaignsApi.createTopic(targetTopicSectionId, {
+      await campaignsApi.createTopic(targetTopicSectionId, {
         title: newTopicTitle.trim(),
         stickable: newTopicStickable,
         isPrivate: newTopicIsPrivate,
+        canReadUserIds: newTopicIsPrivate === 1 ? newTopicCanReadUserIds : undefined,
         isClosed: newTopicIsClosed,
         firstPostContent: newTopicFirstPost.trim() || undefined,
       });
 
-      const newTopic: ForumTopicSummary = {
-        id: res.topic.id,
-        sectionId: targetTopicSectionId,
-        title: res.topic.title,
-        stickable: res.topic.stickable,
-        isPrivate: res.topic.isPrivate,
-        isClosed: res.topic.isClosed,
-        ordre: res.topic.ordre,
-        postsCount: newTopicFirstPost.trim() ? 1 : 0,
-        lastPost: newTopicFirstPost.trim()
-          ? {
-              id: res.topic.postId || 1,
-              createDate: new Date().toISOString(),
-              userId: user?.id || 0,
-              username: user?.username || 'MJ',
-              userAvatar: user?.avatar,
-            }
-          : null,
-        isRead: true,
-      };
-
-      if (forumData) {
-        const updatedSections = forumData.sections.map((sec) => {
-          if (sec.id === targetTopicSectionId) {
-            return {
-              ...sec,
-              topics: [newTopic, ...sec.topics],
-            };
-          }
-          return sec;
-        });
-
-        setForumData({
-          ...forumData,
-          sections: updatedSections,
-        });
-      }
+      await fetchForum();
 
       setIsCreateTopicOpen(false);
       setSaveStatusMessage('Sujet créé avec succès !');
@@ -539,17 +518,20 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
 
   // Topic Edition
   const handleOpenEditTopic = (sectionId: number, topic: ForumTopicSummary) => {
+    const isPrivateNum = topic.isPrivate === true || (topic.isPrivate as any) === 1 ? 1 : ((topic.isPrivate as any) === 2 ? 2 : 0);
     setEditingTopic({
       id: topic.id,
       sectionId,
       title: topic.title,
       stickable: Boolean(topic.stickable),
-      isPrivate: Boolean(topic.isPrivate),
+      isPrivate: isPrivateNum,
       isClosed: Boolean(topic.isClosed),
+      canReadUsers: topic.canReadUsers,
     });
     setEditTopicTitle(topic.title);
     setEditTopicStickable(Boolean(topic.stickable));
-    setEditTopicIsPrivate(Boolean(topic.isPrivate));
+    setEditTopicIsPrivate(isPrivateNum);
+    setEditTopicCanReadUserIds(topic.canReadUsers ? topic.canReadUsers.map((u) => u.id) : []);
     setEditTopicIsClosed(Boolean(topic.isClosed));
     setEditTopicError(null);
   };
@@ -566,43 +548,19 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     setEditTopicError(null);
 
     try {
-      const res = await campaignsApi.updateTopic(
+      await campaignsApi.updateTopic(
         editingTopic.id,
         {
           title: editTopicTitle.trim(),
           stickable: editTopicStickable,
           isPrivate: editTopicIsPrivate,
+          canReadUserIds: editTopicIsPrivate === 1 ? editTopicCanReadUserIds : undefined,
           isClosed: editTopicIsClosed,
         },
         effectiveCampaignId
       );
 
-      if (forumData) {
-        const updatedSections = forumData.sections.map((sec) => {
-          if (sec.id === editingTopic.sectionId) {
-            return {
-              ...sec,
-              topics: sec.topics.map((t) =>
-                t.id === editingTopic.id
-                  ? {
-                      ...t,
-                      title: res.topic.title,
-                      stickable: res.topic.stickable,
-                      isPrivate: res.topic.isPrivate,
-                      isClosed: res.topic.isClosed,
-                    }
-                  : t
-              ),
-            };
-          }
-          return sec;
-        });
-
-        setForumData({
-          ...forumData,
-          sections: updatedSections,
-        });
-      }
+      await fetchForum();
 
       setEditingTopic(null);
       setSaveStatusMessage('Sujet modifié avec succès !');
@@ -1272,12 +1230,17 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                         </span>
                                       )}
 
-                                      {topic.isPrivate && (
+                                      {(topic.isPrivate === 1 || topic.isPrivate === true) ? (
                                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider">
                                           <EyeOff className="w-3 h-3 text-purple-600" />
                                           Privé
                                         </span>
-                                      )}
+                                      ) : (topic.isPrivate as any) === 2 ? (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 text-[10px] font-bold uppercase tracking-wider">
+                                          <Globe className="w-3 h-3 text-teal-600" />
+                                          Grand public
+                                        </span>
+                                      ) : null}
 
                                       <button
                                         onClick={(e) => {
@@ -1294,6 +1257,18 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                         {topic.title}
                                       </button>
                                     </div>
+
+                                    {(topic.isPrivate === 1 || topic.isPrivate === true) && (
+                                      <div className="flex items-center gap-1.5 text-[11px] text-purple-700 bg-purple-50/90 px-2 py-0.5 rounded-md border border-purple-200/70 w-fit">
+                                        <Users className="w-3 h-3 text-purple-500 shrink-0" />
+                                        <span className="font-semibold">Accès :</span>
+                                        <span className="truncate max-w-xs sm:max-w-md">
+                                          {topic.canReadUsers && topic.canReadUsers.length > 0
+                                            ? topic.canReadUsers.map((u) => u.username).join(', ')
+                                            : 'MJ uniquement'}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
 
@@ -1622,36 +1597,144 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newTopicStickable}
-                    onChange={(e) => setNewTopicStickable(e.target.checked)}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                  />
-                  <span>Épinglé</span>
-                </label>
+              <div className="space-y-3 pt-1">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Niveau d'accessibilité du sujet
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      {
+                        val: 0,
+                        title: '0 - Public',
+                        desc: 'Tout le monde peut lire le topic. Seul les joueurs ou le MJ peuvent poster.',
+                      },
+                      {
+                        val: 1,
+                        title: '1 - Privé',
+                        desc: 'Seul le MJ et les joueurs sélectionnés peuvent voir le topic et poster dedans.',
+                      },
+                      {
+                        val: 2,
+                        title: '2 - Grand public',
+                        desc: 'Tout le monde peut lire le topic. Tout le monde peut poster.',
+                      },
+                    ].map((opt) => (
+                      <label
+                        key={opt.val}
+                        className={`flex items-start gap-3 p-2.5 rounded-xl border transition cursor-pointer ${
+                          newTopicIsPrivate === opt.val
+                            ? 'border-indigo-500 bg-indigo-50/40 ring-1 ring-indigo-500'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="newTopicAccessibility"
+                          value={opt.val}
+                          checked={newTopicIsPrivate === opt.val}
+                          onChange={() => setNewTopicIsPrivate(opt.val)}
+                          className="mt-0.5 w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="block text-xs font-bold text-slate-900">{opt.title}</span>
+                          <span className="block text-[11px] text-slate-500 leading-snug mt-0.5">{opt.desc}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
 
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newTopicIsClosed}
-                    onChange={(e) => setNewTopicIsClosed(e.target.checked)}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                  />
-                  <span>Fermé</span>
-                </label>
+                {newTopicIsPrivate === 1 && (
+                  <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-purple-600" />
+                        <span>Joueurs autorisés à accéder au sujet :</span>
+                      </label>
+                      {participants.length > 0 && (
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setNewTopicCanReadUserIds(participants.map((p) => p.id))}
+                            className="text-indigo-600 hover:underline font-medium cursor-pointer"
+                          >
+                            Tous
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setNewTopicCanReadUserIds([])}
+                            className="text-slate-500 hover:underline cursor-pointer"
+                          >
+                            Aucun
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newTopicIsPrivate}
-                    onChange={(e) => setNewTopicIsPrivate(e.target.checked)}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                  />
-                  <span>Privé</span>
-                </label>
+                    {participants.length === 0 ? (
+                      <p className="text-xs text-purple-700 italic">
+                        Aucun joueur inscrit dans la campagne pour le moment. Le MJ a automatiquement accès.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-36 overflow-y-auto">
+                        {participants.map((p) => {
+                          const isSelected = newTopicCanReadUserIds.includes(p.id);
+                          return (
+                            <label
+                              key={p.id}
+                              className={`flex items-center gap-2 p-2 rounded-lg border text-xs transition cursor-pointer select-none ${
+                                isSelected
+                                  ? 'bg-purple-100/90 border-purple-300 text-purple-950 font-semibold'
+                                  : 'bg-white border-purple-100 text-slate-700 hover:bg-purple-50/50'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setNewTopicCanReadUserIds((prev) => [...prev, p.id]);
+                                  } else {
+                                    setNewTopicCanReadUserIds((prev) => prev.filter((id) => id !== p.id));
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 border-purple-300 cursor-pointer"
+                              />
+                              <span className="truncate">{p.username}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="text-[11px] text-purple-600">
+                      ℹ️ Le Maître du Jeu a toujours accès au sujet.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newTopicStickable}
+                      onChange={(e) => setNewTopicStickable(e.target.checked)}
+                      className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                    />
+                    <span>Épinglé</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newTopicIsClosed}
+                      onChange={(e) => setNewTopicIsClosed(e.target.checked)}
+                      className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                    />
+                    <span>Fermé</span>
+                  </label>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
@@ -1914,36 +1997,144 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editTopicStickable}
-                    onChange={(e) => setEditTopicStickable(e.target.checked)}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                  />
-                  <span>Épinglé</span>
-                </label>
+              <div className="space-y-3 pt-1">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Niveau d'accessibilité du sujet
+                  </label>
+                  <div className="space-y-2">
+                    {[
+                      {
+                        val: 0,
+                        title: '0 - Public',
+                        desc: 'Tout le monde peut lire le topic. Seul les joueurs ou le MJ peuvent poster.',
+                      },
+                      {
+                        val: 1,
+                        title: '1 - Privé',
+                        desc: 'Seul le MJ et les joueurs sélectionnés peuvent voir le topic et poster dedans.',
+                      },
+                      {
+                        val: 2,
+                        title: '2 - Grand public',
+                        desc: 'Tout le monde peut lire le topic. Tout le monde peut poster.',
+                      },
+                    ].map((opt) => (
+                      <label
+                        key={opt.val}
+                        className={`flex items-start gap-3 p-2.5 rounded-xl border transition cursor-pointer ${
+                          editTopicIsPrivate === opt.val
+                            ? 'border-indigo-500 bg-indigo-50/40 ring-1 ring-indigo-500'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="editTopicAccessibility"
+                          value={opt.val}
+                          checked={editTopicIsPrivate === opt.val}
+                          onChange={() => setEditTopicIsPrivate(opt.val)}
+                          className="mt-0.5 w-4 h-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="block text-xs font-bold text-slate-900">{opt.title}</span>
+                          <span className="block text-[11px] text-slate-500 leading-snug mt-0.5">{opt.desc}</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
 
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editTopicIsClosed}
-                    onChange={(e) => setEditTopicIsClosed(e.target.checked)}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                  />
-                  <span>Fermé</span>
-                </label>
+                {editTopicIsPrivate === 1 && (
+                  <div className="p-3 bg-purple-50/70 border border-purple-200 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-purple-600" />
+                        <span>Joueurs autorisés à accéder au sujet :</span>
+                      </label>
+                      {participants.length > 0 && (
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => setEditTopicCanReadUserIds(participants.map((p) => p.id))}
+                            className="text-indigo-600 hover:underline font-medium cursor-pointer"
+                          >
+                            Tous
+                          </button>
+                          <span className="text-slate-300">|</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditTopicCanReadUserIds([])}
+                            className="text-slate-500 hover:underline cursor-pointer"
+                          >
+                            Aucun
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
-                <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={editTopicIsPrivate}
-                    onChange={(e) => setEditTopicIsPrivate(e.target.checked)}
-                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                  />
-                  <span>Privé</span>
-                </label>
+                    {participants.length === 0 ? (
+                      <p className="text-xs text-purple-700 italic">
+                        Aucun joueur inscrit dans la campagne pour le moment. Le MJ a automatiquement accès.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-36 overflow-y-auto">
+                        {participants.map((p) => {
+                          const isSelected = editTopicCanReadUserIds.includes(p.id);
+                          return (
+                            <label
+                              key={p.id}
+                              className={`flex items-center gap-2 p-2 rounded-lg border text-xs transition cursor-pointer select-none ${
+                                isSelected
+                                  ? 'bg-purple-100/90 border-purple-300 text-purple-950 font-semibold'
+                                  : 'bg-white border-purple-100 text-slate-700 hover:bg-purple-50/50'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setEditTopicCanReadUserIds((prev) => [...prev, p.id]);
+                                  } else {
+                                    setEditTopicCanReadUserIds((prev) => prev.filter((id) => id !== p.id));
+                                  }
+                                }}
+                                className="w-3.5 h-3.5 rounded text-purple-600 focus:ring-purple-500 border-purple-300 cursor-pointer"
+                              />
+                              <span className="truncate">{p.username}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="text-[11px] text-purple-600">
+                      ℹ️ Le Maître du Jeu a toujours accès au sujet.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editTopicStickable}
+                      onChange={(e) => setEditTopicStickable(e.target.checked)}
+                      className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                    />
+                    <span>Épinglé</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 text-xs font-medium text-slate-700 select-none cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editTopicIsClosed}
+                      onChange={(e) => setEditTopicIsClosed(e.target.checked)}
+                      className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                    />
+                    <span>Fermé</span>
+                  </label>
+                </div>
               </div>
 
               <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
