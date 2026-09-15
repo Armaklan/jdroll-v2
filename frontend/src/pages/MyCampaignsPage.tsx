@@ -92,16 +92,24 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
   }, [roleFilter, includeArchived, isAuthenticated]);
 
   const filteredCampaigns = useMemo(() => {
-    if (!searchQuery.trim()) return campaigns;
-    const query = searchQuery.toLowerCase().trim();
-    return campaigns.filter(
-      (c) =>
-        c.name.toLowerCase().includes(query) ||
-        (c.systeme && c.systeme.toLowerCase().includes(query)) ||
-        (c.univers && c.univers.toLowerCase().includes(query)) ||
-        (c.mjUsername && c.mjUsername.toLowerCase().includes(query)) ||
-        (c.characterName && c.characterName.toLowerCase().includes(query))
-    );
+    let result = campaigns;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = campaigns.filter(
+        (c) =>
+          c.name.toLowerCase().includes(query) ||
+          (c.systeme && c.systeme.toLowerCase().includes(query)) ||
+          (c.univers && c.univers.toLowerCase().includes(query)) ||
+          (c.mjUsername && c.mjUsername.toLowerCase().includes(query)) ||
+          (c.characterName && c.characterName.toLowerCase().includes(query))
+      );
+    }
+    return [...result].sort((a, b) => {
+      if (Boolean(a.hasAlert) !== Boolean(b.hasAlert)) {
+        return a.hasAlert ? -1 : 1;
+      }
+      return b.id - a.id;
+    });
   }, [campaigns, searchQuery]);
 
   if (!isAuthenticated) {

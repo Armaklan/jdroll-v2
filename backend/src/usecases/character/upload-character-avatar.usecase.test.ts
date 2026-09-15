@@ -64,6 +64,11 @@ class MockCampaignRepository implements ICampaignRepository {
   async findCampaignObservers(): Promise<any[]> {
     return [];
   }
+  async isUserCampaignAlert(): Promise<boolean> {
+    return false;
+  }
+  async addCampaignAlert(): Promise<void> {}
+  async removeCampaignAlert(): Promise<void> {}
 }
 
 class MockFileStorage implements IFileStorage {

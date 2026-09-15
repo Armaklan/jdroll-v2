@@ -100,6 +100,25 @@ export const campaignsApi = {
     return this.observeCampaign(campaignId);
   },
 
+  async setCampaignAlert(campaignId: number): Promise<{ success: boolean; message: string; campaignId: number; hasAlert: boolean }> {
+    return request<{ success: boolean; message: string; campaignId: number; hasAlert: boolean }>(`/api/campaigns/${campaignId}/alert`, {
+      method: 'POST',
+    });
+  },
+
+  async removeCampaignAlert(campaignId: number): Promise<{ success: boolean; message: string; campaignId: number; hasAlert: boolean }> {
+    return request<{ success: boolean; message: string; campaignId: number; hasAlert: boolean }>(`/api/campaigns/${campaignId}/alert`, {
+      method: 'DELETE',
+    });
+  },
+
+  async toggleCampaignAlert(campaignId: number, currentlyHasAlert: boolean): Promise<{ success: boolean; message: string; campaignId: number; hasAlert: boolean }> {
+    if (currentlyHasAlert) {
+      return this.removeCampaignAlert(campaignId);
+    }
+    return this.setCampaignAlert(campaignId);
+  },
+
   async createCampaign(payload: CreateCampaignPayload): Promise<CampaignSummary> {
     const result = await request<{ campaign: CampaignSummary }>('/api/campaigns', {
       method: 'POST',

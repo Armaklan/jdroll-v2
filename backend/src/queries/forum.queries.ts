@@ -31,7 +31,9 @@ export class ForumQueries {
 
     let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
     let isObserving = false;
+    let hasAlert = false;
     if (userId) {
+      hasAlert = this.campaignRepo.isUserCampaignAlert ? await this.campaignRepo.isUserCampaignAlert(campaignId, userId) : false;
       if (campaign.mjId === userId) {
         userRole = 'mj';
       } else {
@@ -39,7 +41,7 @@ export class ForumQueries {
         if (isParticipant) {
           userRole = 'player';
         } else {
-          isObserving = await this.campaignRepo.isUserCampaignObserver(campaignId, userId);
+          isObserving = this.campaignRepo.isUserCampaignObserver ? await this.campaignRepo.isUserCampaignObserver(campaignId, userId) : false;
           if (isObserving) {
             userRole = 'observer';
           }
@@ -54,6 +56,7 @@ export class ForumQueries {
         ...campaign,
         userRole: userRole ?? campaign.userRole,
         isObserving: isObserving || campaign.isObserving,
+        hasAlert: hasAlert || Boolean(campaign.hasAlert),
       },
       sections,
     };

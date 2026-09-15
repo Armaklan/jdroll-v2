@@ -60,6 +60,9 @@ describe('CreateSectionUseCase', () => {
       addCampaignObserver: async () => {},
       removeCampaignObserver: async () => {},
       findCampaignObservers: async () => [],
+      isUserCampaignAlert: async () => false,
+      addCampaignAlert: async () => {},
+      removeCampaignAlert: async () => {},
     };
 
     mockForumRepo = {

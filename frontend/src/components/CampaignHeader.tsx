@@ -32,6 +32,7 @@ export interface CampaignHeaderProps {
   bannerUploadError?: string | null;
   onClearBannerUploadError?: () => void;
   onObserveChange?: (isObserving: boolean) => void;
+  onAlertChange?: (hasAlert: boolean) => void;
 }
 
 export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
@@ -44,6 +45,7 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
   bannerUploadError = null,
   onClearBannerUploadError,
   onObserveChange,
+  onAlertChange,
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -53,10 +55,16 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
     Boolean(campaign.isObserving || campaign.userRole === 'observer')
   );
   const [isObservingLoading, setIsObservingLoading] = useState<boolean>(false);
+  const [hasAlert, setHasAlert] = useState<boolean>(Boolean(campaign.hasAlert));
+  const [isAlertLoading, setIsAlertLoading] = useState<boolean>(false);
 
   useEffect(() => {
     setIsObserving(Boolean(campaign.isObserving || campaign.userRole === 'observer'));
   }, [campaign.isObserving, campaign.userRole]);
+
+  useEffect(() => {
+    setHasAlert(Boolean(campaign.hasAlert));
+  }, [campaign.hasAlert]);
 
   const isMj = Boolean(
     user && (user.id === campaign.mjId || campaign.userRole === 'mj')
@@ -82,6 +90,25 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
       console.error("Erreur lors de la modification de l'observation :", err);
     } finally {
       setIsObservingLoading(false);
+    }
+  };
+
+  const handleToggleAlert = async () => {
+    if (!user) {
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
+    setIsAlertLoading(true);
+    try {
+      const res = await campaignsApi.toggleCampaignAlert(campaign.id, hasAlert);
+      setHasAlert(res.hasAlert);
+      if (onAlertChange) {
+        onAlertChange(res.hasAlert);
+      }
+    } catch (err) {
+      console.error("Erreur lors de la modification de l'état à traiter :", err);
+    } finally {
+      setIsAlertLoading(false);
     }
   };
 
@@ -191,6 +218,11 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
             ) : (
               <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-950/80 backdrop-blur-md text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Ouverte
+              </span>
+            )}
+            {hasAlert && (
+              <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-500 text-white shadow-xs flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> À traiter
               </span>
             )}
           </div>
@@ -343,6 +375,27 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
             >
               <Dices className="w-3.5 h-3.5 text-indigo-500" />
               <span>Tour à dé</span>
+            </button>
+          )}
+
+          {/* A traiter / Ne plus être à traiter button */}
+          {isCampaignMember && (
+            <button
+              onClick={handleToggleAlert}
+              disabled={isAlertLoading}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold text-xs border shadow-2xs transition cursor-pointer ${
+                hasAlert
+                  ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 hover:text-amber-700 border-slate-200'
+              }`}
+              title={hasAlert ? "Retirer l'état « À traiter » de cette campagne" : "Marquer cette campagne comme « À traiter »"}
+            >
+              {isAlertLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <AlertCircle className={`w-3.5 h-3.5 ${hasAlert ? 'text-white' : 'text-amber-600'}`} />
+              )}
+              <span>{hasAlert ? 'À traiter' : 'Mettre à traiter'}</span>
             </button>
           )}
 

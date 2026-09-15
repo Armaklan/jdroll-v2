@@ -21,6 +21,7 @@ import {
   PauseCircle,
   Eye,
   EyeOff,
+  AlertCircle,
 } from 'lucide-react';
 
 export interface CampaignCardProps {
@@ -134,7 +135,9 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
     <div
       onClick={handleCardClick}
       className={`bg-white border rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer ${
-        isArchived
+        campaign.hasAlert
+          ? 'border-amber-400 ring-2 ring-amber-300/60 shadow-amber-100/50 hover:border-amber-500'
+          : isArchived
           ? 'border-slate-300 opacity-85 hover:opacity-100'
           : campaign.hasUnread
           ? 'border-rose-300 ring-1 ring-rose-200/70 hover:border-rose-400'
@@ -161,28 +164,36 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
 
           {/* Top Badges overlay */}
           <div className="absolute top-3 inset-x-3 flex items-center justify-between gap-2 pointer-events-none">
-            {/* Status badge */}
-            {campaign.statut === 3 ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-600/90 text-white backdrop-blur-md shadow-xs">
-                <Clock className="w-3 h-3" />
-                En préparation
-              </span>
-            ) : campaign.statut === 1 ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/90 text-white backdrop-blur-md shadow-xs">
-                <PauseCircle className="w-3 h-3" />
-                En pause
-              </span>
-            ) : isArchived ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-600/90 text-white backdrop-blur-md shadow-xs">
-                <Archive className="w-3 h-3" />
-                Archivée
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-600/90 text-white backdrop-blur-md shadow-xs">
-                <CheckCircle2 className="w-3 h-3" />
-                Ouverte
-              </span>
-            )}
+            {/* Status / Alert badge */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {campaign.hasAlert && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-500 text-white shadow-md ring-1 ring-white/40">
+                  <AlertCircle className="w-3 h-3 text-white" />
+                  À traiter
+                </span>
+              )}
+              {campaign.statut === 3 ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-600/90 text-white backdrop-blur-md shadow-xs">
+                  <Clock className="w-3 h-3" />
+                  En préparation
+                </span>
+              ) : campaign.statut === 1 ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/90 text-white backdrop-blur-md shadow-xs">
+                  <PauseCircle className="w-3 h-3" />
+                  En pause
+                </span>
+              ) : isArchived ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-600/90 text-white backdrop-blur-md shadow-xs">
+                  <Archive className="w-3 h-3" />
+                  Archivée
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-600/90 text-white backdrop-blur-md shadow-xs">
+                  <CheckCircle2 className="w-3 h-3" />
+                  Ouverte
+                </span>
+              )}
+            </div>
 
             {/* Recruitment badge */}
             {isRecruitmentOpen ? (
@@ -223,6 +234,13 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
         <div className="p-5 space-y-3">
           {/* Tags : Système & Univers */}
           <div className="flex flex-wrap items-center gap-1.5">
+            {campaign.hasAlert && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                <AlertCircle className="w-3 h-3 text-amber-600" />
+                À traiter
+              </span>
+            )}
+
             {campaign.hasUnread && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />

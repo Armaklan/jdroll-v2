@@ -109,6 +109,9 @@ export interface ICampaignRepository {
   addCampaignObserver(campaignId: number, userId: number): Promise<void>;
   removeCampaignObserver(campaignId: number, userId: number): Promise<void>;
   findCampaignObservers(campaignId: number): Promise<Array<{ id: number; username: string; avatar: string | null }>>;
+  isUserCampaignAlert(campaignId: number, userId: number): Promise<boolean>;
+  addCampaignAlert(campaignId: number, userId: number): Promise<void>;
+  removeCampaignAlert(campaignId: number, userId: number): Promise<void>;
 }
 
 export class MysqlCampaignRepository implements ICampaignRepository {
@@ -156,13 +159,19 @@ export class MysqlCampaignRepository implements ICampaignRepository {
           WHERE s.campagne_id = c.id
             AND t.last_post_id IS NOT NULL
             AND (rp.post_id IS NULL OR rp.post_id < t.last_post_id)
-        ) AS hasUnread
+        ) AS hasUnread,
+        EXISTS (
+          SELECT 1
+          FROM alert a
+          WHERE a.campagne_id = c.id
+            AND a.joueur_id = ?
+        ) AS hasAlert
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
       WHERE c.mj_id = ?
         ${archiveCondition}
-      ORDER BY c.id DESC
+      ORDER BY hasAlert DESC, c.id DESC
     `;
 
     interface RawCampaignRow {
@@ -194,9 +203,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       linkColor: string | null;
       linkSidebarColor: string | null;
       hasUnread?: number | boolean;
+      hasAlert?: number | boolean;
     }
 
-    const rows = await query<RawCampaignRow>(sql, [userId, userId]);
+    const rows = await query<RawCampaignRow>(sql, [userId, userId, userId]);
 
     return rows.map((row) => ({
       id: row.id,
@@ -229,6 +239,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       linkSidebarColor: row.linkSidebarColor || null,
       userRole: 'mj',
       hasUnread: Boolean(row.hasUnread),
+      hasAlert: Boolean(row.hasAlert),
     }));
   }
 
@@ -278,7 +289,13 @@ export class MysqlCampaignRepository implements ICampaignRepository {
           WHERE s.campagne_id = c.id
             AND t.last_post_id IS NOT NULL
             AND (rp.post_id IS NULL OR rp.post_id < t.last_post_id)
-        ) AS hasUnread
+        ) AS hasUnread,
+        EXISTS (
+          SELECT 1
+          FROM alert a
+          WHERE a.campagne_id = c.id
+            AND a.joueur_id = ?
+        ) AS hasAlert
       FROM campagne_participant cp
       JOIN campagne c ON cp.campagne_id = c.id
       JOIN user u ON c.mj_id = u.id
@@ -286,7 +303,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       LEFT JOIN personnages p ON p.campagne_id = c.id AND p.user_id = cp.user_id
       WHERE cp.user_id = ?
         ${archiveCondition}
-      ORDER BY c.id DESC
+      ORDER BY hasAlert DESC, c.id DESC
     `;
 
     interface RawPlayerCampaignRow {
@@ -320,9 +337,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       characterName: string | null;
       characterAvatar: string | null;
       hasUnread?: number | boolean;
+      hasAlert?: number | boolean;
     }
 
-    const rows = await query<RawPlayerCampaignRow>(sql, [userId, userId]);
+    const rows = await query<RawPlayerCampaignRow>(sql, [userId, userId, userId]);
 
     return rows.map((row) => ({
       id: row.id,
@@ -357,6 +375,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       characterName: row.characterName || null,
       characterAvatar: row.characterAvatar || null,
       hasUnread: Boolean(row.hasUnread),
+      hasAlert: Boolean(row.hasAlert),
     }));
   }
 
@@ -404,14 +423,20 @@ export class MysqlCampaignRepository implements ICampaignRepository {
           WHERE s.campagne_id = c.id
             AND t.last_post_id IS NOT NULL
             AND (rp.post_id IS NULL OR rp.post_id < t.last_post_id)
-        ) AS hasUnread
+        ) AS hasUnread,
+        EXISTS (
+          SELECT 1
+          FROM alert a
+          WHERE a.campagne_id = c.id
+            AND a.joueur_id = ?
+        ) AS hasAlert
       FROM campagne_favoris cf
       JOIN campagne c ON cf.campagne_id = c.id
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
       WHERE cf.user_id = ?
         ${archiveCondition}
-      ORDER BY c.id DESC
+      ORDER BY hasAlert DESC, c.id DESC
     `;
 
     interface RawObservedCampaignRow {
@@ -443,9 +468,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       linkColor: string | null;
       linkSidebarColor: string | null;
       hasUnread?: number | boolean;
+      hasAlert?: number | boolean;
     }
 
-    const rows = await query<RawObservedCampaignRow>(sql, [userId, userId]);
+    const rows = await query<RawObservedCampaignRow>(sql, [userId, userId, userId]);
 
     return rows.map((row) => ({
       id: row.id,
@@ -479,6 +505,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       userRole: 'observer',
       isObserving: true,
       hasUnread: Boolean(row.hasUnread),
+      hasAlert: Boolean(row.hasAlert),
     }));
   }
 
@@ -1163,6 +1190,22 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       ORDER BY u.username ASC
     `;
     return query<{ id: number; username: string; avatar: string | null }>(sql, [campaignId]);
+  }
+
+  async isUserCampaignAlert(campaignId: number, userId: number): Promise<boolean> {
+    const sql = `SELECT joueur_id FROM alert WHERE campagne_id = ? AND joueur_id = ?`;
+    const row = await queryOne<{ joueur_id: number }>(sql, [campaignId, userId]);
+    return Boolean(row);
+  }
+
+  async addCampaignAlert(campaignId: number, userId: number): Promise<void> {
+    const sql = `INSERT IGNORE INTO alert (campagne_id, joueur_id) VALUES (?, ?)`;
+    await execute(sql, [campaignId, userId]);
+  }
+
+  async removeCampaignAlert(campaignId: number, userId: number): Promise<void> {
+    const sql = `DELETE FROM alert WHERE campagne_id = ? AND joueur_id = ?`;
+    await execute(sql, [campaignId, userId]);
   }
 }
 

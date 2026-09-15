@@ -21,6 +21,8 @@ import { uploadCharacterAvatarUseCase, UploadCharacterAvatarUseCase } from '../u
 import { uploadCampaignBannerUseCase, UploadCampaignBannerUseCase } from '../usecases/campaign/upload-campaign-banner.usecase.js';
 import { observeCampaignUseCase, ObserveCampaignUseCase } from '../usecases/campaign/observe-campaign.usecase.js';
 import { unobserveCampaignUseCase, UnobserveCampaignUseCase } from '../usecases/campaign/unobserve-campaign.usecase.js';
+import { setCampaignAlertUseCase, SetCampaignAlertUseCase } from '../usecases/campaign/set-campaign-alert.usecase.js';
+import { removeCampaignAlertUseCase, RemoveCampaignAlertUseCase } from '../usecases/campaign/remove-campaign-alert.usecase.js';
 import { JWTPayload } from '../types/index.js';
 import {
   CampaignNotFoundError,
@@ -241,7 +243,9 @@ export class CampaignController {
     private readonly uploadCampaignBannerUseCaseService: UploadCampaignBannerUseCase = uploadCampaignBannerUseCase,
     private readonly joinCampaignUseCaseService: JoinCampaignUseCase = joinCampaignUseCase,
     private readonly observeCampaignUseCaseService: ObserveCampaignUseCase = observeCampaignUseCase,
-    private readonly unobserveCampaignUseCaseService: UnobserveCampaignUseCase = unobserveCampaignUseCase
+    private readonly unobserveCampaignUseCaseService: UnobserveCampaignUseCase = unobserveCampaignUseCase,
+    private readonly setCampaignAlertUseCaseService: SetCampaignAlertUseCase = setCampaignAlertUseCase,
+    private readonly removeCampaignAlertUseCaseService: RemoveCampaignAlertUseCase = removeCampaignAlertUseCase
   ) {}
 
   /**
@@ -1415,6 +1419,77 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/campaigns/:id/alert
+   * Permet à un joueur ou MJ de marquer une campagne « À traiter »
+   */
+  async setCampaignAlert(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.setCampaignAlertUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        userId: user.id,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la mise à traiter de la campagne' });
+    }
+  }
+
+  /**
+   * DELETE /api/campaigns/:id/alert (ou POST /api/campaigns/:id/unalert)
+   * Permet de retirer l'état « À traiter » d'une campagne
+   */
+  async removeCampaignAlert(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.removeCampaignAlertUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        userId: user.id,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la suppression de l’alerte' });
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur
    */
   registerRoutes(app: FastifyInstance) {
@@ -1443,6 +1518,23 @@ export class CampaignController {
       '/api/campaigns/:id/unobserve',
       { preHandler: [app.authenticate] },
       (req, rep) => this.unobserveCampaign(req, rep)
+    );
+
+    // Routes authentifiées pour marquer / démarquer « À traiter » une campagne
+    app.post(
+      '/api/campaigns/:id/alert',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.setCampaignAlert(req, rep)
+    );
+    app.delete(
+      '/api/campaigns/:id/alert',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.removeCampaignAlert(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/unalert',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.removeCampaignAlert(req, rep)
     );
 
     // Route pour voir les détails d'une campagne

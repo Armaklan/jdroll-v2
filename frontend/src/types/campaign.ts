@@ -36,6 +36,7 @@ export interface CampaignSummary {
   width?: string | null;
   defaultDice?: string | null;
   hasUnread?: boolean;
+  hasAlert?: boolean;
 }
 
 export interface CreateCampaignPayload {

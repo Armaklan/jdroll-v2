@@ -69,6 +69,9 @@ describe('CreateCampaignUseCase', () => {
       addCampaignObserver: async () => {},
       removeCampaignObserver: async () => {},
       findCampaignObservers: async () => [],
+      isUserCampaignAlert: async () => false,
+      addCampaignAlert: async () => {},
+      removeCampaignAlert: async () => {},
     };
 
     return { repo, createdList };

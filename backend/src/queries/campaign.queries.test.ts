@@ -138,6 +138,16 @@ class MockCampaignRepository implements ICampaignRepository {
   async findCampaignObservers(campaignId: number): Promise<any[]> {
     return [];
   }
+
+  async isUserCampaignAlert(campaignId: number, userId: number): Promise<boolean> {
+    const all = [...this.mastered, ...this.player, ...this.allCampaigns, ...this.observed];
+    const c = all.find((item) => item.id === campaignId);
+    return Boolean(c?.hasAlert);
+  }
+
+  async addCampaignAlert(campaignId: number, userId: number): Promise<void> {}
+
+  async removeCampaignAlert(campaignId: number, userId: number): Promise<void> {}
 }
 
 describe('CampaignQueries', () => {
@@ -319,6 +329,28 @@ describe('CampaignQueries', () => {
 
     const resultAll = await queries.getMyCampaigns(42, 'all', true);
     assert.equal(resultAll.length, 6);
+  });
+
+  it('should sort campaigns with hasAlert = true first in getMyCampaigns', async () => {
+    const campaignWithoutAlert: CampaignSummary = {
+      ...sampleMasteredCampaignActive,
+      id: 10,
+      name: 'Campagne sans alerte',
+      hasAlert: false,
+    };
+    const campaignWithAlert: CampaignSummary = {
+      ...samplePlayerCampaignActive,
+      id: 5,
+      name: 'Campagne avec alerte',
+      hasAlert: true,
+    };
+    const repo = new MockCampaignRepository([campaignWithoutAlert], [campaignWithAlert]);
+    const queries = new CampaignQueries(repo);
+
+    const result = await queries.getMyCampaigns(42, 'all', false);
+    assert.equal(result.length, 2);
+    assert.equal(result[0].id, 5); // hasAlert is true, should be first even though id 5 < 10
+    assert.equal(result[1].id, 10);
   });
 
   it('should return only active campaigns by default for getAllCampaigns', async () => {

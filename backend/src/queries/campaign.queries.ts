@@ -73,7 +73,12 @@ export class CampaignQueries {
       }
     }
 
-    return Array.from(campaignMap.values()).sort((a, b) => b.id - a.id);
+    return Array.from(campaignMap.values()).sort((a, b) => {
+      if (Boolean(a.hasAlert) !== Boolean(b.hasAlert)) {
+        return a.hasAlert ? -1 : 1;
+      }
+      return b.id - a.id;
+    });
   }
 
   /**
@@ -94,7 +99,9 @@ export class CampaignQueries {
 
     let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
     let isObserving = false;
+    let hasAlert = false;
     if (currentUserId) {
+      hasAlert = this.campaignRepo.isUserCampaignAlert ? await this.campaignRepo.isUserCampaignAlert(campaignId, currentUserId) : false;
       if (campaign.mjId === currentUserId) {
         userRole = 'mj';
       } else {
@@ -102,7 +109,7 @@ export class CampaignQueries {
         if (isParticipant) {
           userRole = 'player';
         } else {
-          isObserving = await this.campaignRepo.isUserCampaignObserver(campaignId, currentUserId);
+          isObserving = this.campaignRepo.isUserCampaignObserver ? await this.campaignRepo.isUserCampaignObserver(campaignId, currentUserId) : false;
           if (isObserving) {
             userRole = 'observer';
           }
@@ -205,6 +212,7 @@ export class CampaignQueries {
         ...campaign,
         userRole: userRole ?? campaign.userRole,
         isObserving: isObserving || campaign.isObserving,
+        hasAlert: hasAlert || Boolean(campaign.hasAlert),
       },
       categories,
     };
@@ -232,7 +240,9 @@ export class CampaignQueries {
 
     let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
     let isObserving = false;
+    let hasAlert = false;
     if (currentUserId) {
+      hasAlert = this.campaignRepo.isUserCampaignAlert ? await this.campaignRepo.isUserCampaignAlert(campaignId, currentUserId) : false;
       if (campaign.mjId === currentUserId) {
         userRole = 'mj';
       } else {
@@ -240,7 +250,7 @@ export class CampaignQueries {
         if (isParticipant) {
           userRole = 'player';
         } else {
-          isObserving = await this.campaignRepo.isUserCampaignObserver(campaignId, currentUserId);
+          isObserving = this.campaignRepo.isUserCampaignObserver ? await this.campaignRepo.isUserCampaignObserver(campaignId, currentUserId) : false;
           if (isObserving) {
             userRole = 'observer';
           }
@@ -252,6 +262,7 @@ export class CampaignQueries {
       ...campaign,
       userRole: userRole ?? campaign.userRole,
       isObserving: isObserving || campaign.isObserving,
+      hasAlert: hasAlert || Boolean(campaign.hasAlert),
     };
   }
 
