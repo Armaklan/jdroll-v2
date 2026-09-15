@@ -434,7 +434,7 @@ describe('CampaignQueries', () => {
 
     it('should hide private description for users who are not GM and not character owner', async () => {
       const repo = new MockCampaignRepository([campaign1], [], [], characters, categories);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any);
 
       const data = await queries.getCampaignCharacters(1, 99); // Another user
       const catPJ = data.categories.find((c) => c.name === 'Personnage joueur')!;
@@ -446,7 +446,7 @@ describe('CampaignQueries', () => {
 
     it('should reveal private description to the character owner', async () => {
       const repo = new MockCampaignRepository([campaign1], [], [], characters, categories);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any);
 
       const data = await queries.getCampaignCharacters(1, 2); // User 2 is Kaelen's owner
       const catPJ = data.categories.find((c) => c.name === 'Personnage joueur')!;

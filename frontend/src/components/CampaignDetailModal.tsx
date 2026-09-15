@@ -20,6 +20,8 @@ import {
   AlertCircle,
   LogIn,
   Feather,
+  Clock,
+  PauseCircle,
 } from 'lucide-react';
 
 interface CampaignDetailModalProps {
@@ -113,15 +115,25 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
 
           {/* Status and Recruitment Badges */}
           <div className="absolute top-4 left-4 flex flex-wrap items-center gap-2 pointer-events-none">
-            {isArchived ? (
+            {campaign.statut === 3 ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-600 text-white shadow-md">
+                <Clock className="w-3.5 h-3.5" />
+                En préparation
+              </span>
+            ) : campaign.statut === 1 ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white shadow-md">
+                <PauseCircle className="w-3.5 h-3.5" />
+                En pause
+              </span>
+            ) : isArchived ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-600 text-white shadow-md">
                 <Archive className="w-3.5 h-3.5" />
                 Campagne Archivée
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-md">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Partie Active
+                Partie Ouverte
               </span>
             )}
 

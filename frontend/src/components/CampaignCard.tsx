@@ -17,6 +17,8 @@ import {
   UserCheck,
   Loader2,
   MessageSquare,
+  Clock,
+  PauseCircle,
 } from 'lucide-react';
 
 export interface CampaignCardProps {
@@ -142,15 +144,25 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
           {/* Top Badges overlay */}
           <div className="absolute top-3 inset-x-3 flex items-center justify-between gap-2 pointer-events-none">
             {/* Status badge */}
-            {isArchived ? (
+            {campaign.statut === 3 ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-sky-600/90 text-white backdrop-blur-md shadow-xs">
+                <Clock className="w-3 h-3" />
+                En préparation
+              </span>
+            ) : campaign.statut === 1 ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/90 text-white backdrop-blur-md shadow-xs">
+                <PauseCircle className="w-3 h-3" />
+                En pause
+              </span>
+            ) : isArchived ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-600/90 text-white backdrop-blur-md shadow-xs">
                 <Archive className="w-3 h-3" />
                 Archivée
               </span>
             ) : (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-600/90 text-white backdrop-blur-md shadow-xs">
                 <CheckCircle2 className="w-3 h-3" />
-                En cours
+                Ouverte
               </span>
             )}
 

@@ -15,6 +15,8 @@ import {
   Loader2,
   AlertCircle,
   X,
+  Clock,
+  PauseCircle,
 } from 'lucide-react';
 
 export interface CampaignHeaderProps {
@@ -141,13 +143,21 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
                 {campaign.univers}
               </span>
             )}
-            {campaign.isArchived ? (
+            {campaign.statut === 3 ? (
+              <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-sky-950/80 backdrop-blur-md text-sky-300 border border-sky-500/40 flex items-center gap-1">
+                <Clock className="w-3 h-3" /> En préparation
+              </span>
+            ) : campaign.statut === 1 ? (
               <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-950/80 backdrop-blur-md text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                <PauseCircle className="w-3 h-3" /> En pause
+              </span>
+            ) : campaign.isArchived || campaign.statut === 2 ? (
+              <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-slate-900/80 backdrop-blur-md text-slate-300 border border-slate-600/40 flex items-center gap-1">
                 <Archive className="w-3 h-3" /> Archivée
               </span>
             ) : (
               <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-emerald-950/80 backdrop-blur-md text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3" /> En cours
+                <CheckCircle2 className="w-3 h-3" /> Ouverte
               </span>
             )}
           </div>

@@ -131,4 +131,26 @@ describe('CreateCampaignUseCase', () => {
     assert.equal(result.penseeColor, '#a855f7');
     assert.equal(createdList.length, 1);
   });
+
+  it('crée avec succès une campagne avec statut 3 (En préparation), rythme 5 et exigence rp 4 (Cyrano)', async () => {
+    const { repo, createdList } = createMockCampaignRepo();
+    const useCase = new CreateCampaignUseCase(repo);
+
+    const result = await useCase.execute({
+      mjId: 10,
+      name: 'Campagne Cyrano',
+      statut: 3,
+      rythme: 5,
+      rp: 4,
+    });
+
+    assert.equal(result.name, 'Campagne Cyrano');
+    assert.equal(result.statut, 3);
+    assert.equal(result.rythme, 5);
+    assert.equal(result.rp, 4);
+    assert.equal(createdList.length, 1);
+    assert.equal(createdList[0].statut, 3);
+    assert.equal(createdList[0].rythme, 5);
+    assert.equal(createdList[0].rp, 4);
+  });
 });

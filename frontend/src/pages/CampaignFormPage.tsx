@@ -102,7 +102,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const forumBannerInputRef = useRef<HTMLInputElement>(null);
 
   // Game rules & options
-  const [statut, setStatut] = useState<number>(0);
+  const [statut, setStatut] = useState<number>(3);
   const [isRecrutementOpen, setIsRecrutementOpen] = useState<boolean>(true);
   const [rythme, setRythme] = useState<number>(2);
   const [rp, setRp] = useState<number>(1);
@@ -158,7 +158,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         setForumBannerPreview(campaign.banniereForum || null);
         setForumBannerMode(campaign.banniereForum?.startsWith('/files/') ? 'upload' : 'url');
 
-        setStatut(campaign.statut ?? 0);
+        setStatut(campaign.statut ?? 3);
         setIsRecrutementOpen(Boolean(campaign.isRecrutementOpen));
         setRythme(campaign.rythme ?? 2);
         setRp(campaign.rp ?? 1);
@@ -797,9 +797,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     onChange={(e) => setStatut(parseInt(e.target.value, 10))}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 bg-white outline-hidden transition cursor-pointer"
                   >
-                    <option value={0}>En préparation (non démarrée)</option>
-                    <option value={1}>En cours (partie active)</option>
-                    <option value={2}>Archivée (terminée ou en pause)</option>
+                    <option value={3}>En préparation</option>
+                    <option value={0}>Ouverte</option>
+                    <option value={1}>En pause</option>
+                    <option value={2}>Archivé</option>
                   </select>
                 </div>
               </div>
@@ -867,10 +868,11 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </label>
                   <div className="space-y-2">
                     {[
-                      { val: 1, label: 'Rapide', desc: 'Au moins un post par jour' },
-                      { val: 2, label: 'Régulier', desc: 'Plusieurs posts par semaine (défaut)' },
-                      { val: 3, label: 'Modéré', desc: '1 à 2 posts par semaine' },
-                      { val: 4, label: 'Lent / Posé', desc: 'Quelques posts par mois' },
+                      { val: 1, label: '1 post par mois', desc: 'Rythme mensuel très posé' },
+                      { val: 2, label: '1 post par semaine', desc: 'Rythme hebdomadaire régulier' },
+                      { val: 3, label: '1 post pour 3 jours', desc: 'Rythme soutenu tous les 3 jours' },
+                      { val: 4, label: '1 post par jour', desc: 'Rythme quotidien actif' },
+                      { val: 5, label: 'Plusieurs posts par jour', desc: 'Rythme très rapide et intensif' },
                     ].map((r) => (
                       <label
                         key={r.val}
@@ -905,9 +907,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </label>
                   <div className="space-y-2">
                     {[
-                      { val: 1, label: 'Débutant / Libre', desc: 'Accessible à tous, posts courts acceptés' },
-                      { val: 2, label: 'Standard / Soigné', desc: 'Orthographe et style narratif appréciés' },
-                      { val: 3, label: 'Littéraire / Exigeant', desc: 'Développement littéraire approfondi' },
+                      { val: 1, label: 'Roman de gare', desc: "Peu d'exigence en terme de Roleplay" },
+                      { val: 2, label: 'Standard', desc: 'Exigence standard : action décrite correctement, quelques pensées, ...' },
+                      { val: 3, label: 'Théâtre', desc: 'Exigence forte : la description prime, il faudra faire des efforts.' },
+                      { val: 4, label: 'Cyrano', desc: 'De haut vol : le roleplay est au centre même de la partie !' },
                     ].map((lvl) => (
                       <label
                         key={lvl.val}
