@@ -130,6 +130,7 @@ export class RollDiceUseCase {
     await this.eventBus.publish({
       name: 'RollCreated',
       rollId,
+      postId,
       campagneId: topic.campagneId ?? 0,
       userId: dto.userId,
       topicId: dto.topicId,

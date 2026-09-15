@@ -51,7 +51,7 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
 
   const handleGoToForum = () => {
     onClose();
-    navigate(`/campaigns/${campaign.id}`);
+    navigate(`/forum/${campaign.id}`);
   };
 
   const handleJoin = async () => {

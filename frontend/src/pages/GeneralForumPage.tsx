@@ -42,7 +42,7 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
 
   const handleSelectTopic = (topicId: number) => {
     if (onSelectTopic) onSelectTopic(topicId);
-    else navigate(`/topics/${topicId}`);
+    else navigate(`/forum/0/${topicId}/page/1`);
   };
 
   const fetchForum = async () => {

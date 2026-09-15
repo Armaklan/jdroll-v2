@@ -65,7 +65,7 @@ export class NotificationListener {
         userId: recipientId,
         title: event.topicTitle,
         content: `Nouveau message dans le sujet "${event.topicTitle}"`,
-        url: `/topics/${event.topicId}`,
+        url: `/forum/${event.campagneId || 0}/${event.topicId}/page/1#post${event.postId}`,
         type: 'topic',
         targetId: event.topicId,
       });
@@ -124,12 +124,16 @@ export class NotificationListener {
       }
 
       const topicTitle = event.topicTitle || 'Jet de dés';
+      const topicUrl = event.postId
+        ? `/forum/${event.campagneId || 0}/${event.topicId}/page/1#post${event.postId}`
+        : `/forum/${event.campagneId || 0}/${event.topicId}/page/1`;
+
       for (const recipientId of recipientIds) {
         await this.notifUseCase.execute({
           userId: recipientId,
           title: topicTitle,
           content: `Nouveau jet de dé dans le sujet "${topicTitle}"`,
-          url: `/topics/${event.topicId}`,
+          url: topicUrl,
           type: 'topic',
           targetId: event.topicId,
         });

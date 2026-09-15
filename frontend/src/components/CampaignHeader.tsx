@@ -269,7 +269,7 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
             </span>
           ) : (
             <button
-              onClick={() => navigate(`/campaigns/${campaign.id}`)}
+              onClick={() => navigate(`/forum/${campaign.id}`)}
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
               title="Accéder au forum de la campagne"
             >

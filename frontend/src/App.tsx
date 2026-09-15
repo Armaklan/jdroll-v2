@@ -114,9 +114,21 @@ export function AppContent() {
           <Route path="/campaigns/:campaignId/gallery" element={<CampaignCharactersPage />} />
 
           {/* Forum & Topics */}
+          <Route path="/forum/0" element={<GeneralForumPage />} />
+          <Route path="/forum/:campaignId" element={<CampaignForumPage />} />
+          <Route path="/forum/:campaignId/:topicId/page/:page" element={<TopicViewPage />} />
+          <Route path="/forum/:campaignId/:topicId" element={<TopicViewPage />} />
+          <Route path="/forum" element={<Navigate to="/forum/0" replace />} />
+
+          {/* Short URL: /:campaignId/:topicId/page/:page */}
+          <Route path="/:campaignId/:topicId/page/:page" element={<TopicViewPage />} />
+          <Route path="/:campaignId/:topicId" element={<TopicViewPage />} />
+
+          {/* Legacy forum & topic routes */}
           <Route path="/topics/:topicId" element={<TopicViewPage />} />
           <Route path="/campaigns/:campaignId/topics/:topicId" element={<TopicViewPage />} />
-          <Route path="/forum" element={<GeneralForumPage />} />
+          <Route path="/campaigns/:campaignId" element={<CampaignForumPage />} />
+          <Route path="/campaign-forum/:campaignId" element={<CampaignForumPage />} />
 
           {/* Aide */}
           <Route

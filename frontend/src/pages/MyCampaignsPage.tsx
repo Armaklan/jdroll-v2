@@ -46,7 +46,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
 
   const handleSelectCampaign = (campaignId: number) => {
     if (onSelectCampaign) onSelectCampaign(campaignId);
-    else navigate(`/campaigns/${campaignId}`);
+    else navigate(`/forum/${campaignId}`);
   };
 
   const handleOpenDetail = (campaign: CampaignSummary) => {

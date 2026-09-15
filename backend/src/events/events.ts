@@ -14,6 +14,7 @@ export interface RollCreatedEvent {
   campagneId: number;
   userId: number;
   topicId?: number | null;
+  postId?: number | null;
   topicTitle?: string | null;
   isPrivate?: number;
   isTower: boolean;

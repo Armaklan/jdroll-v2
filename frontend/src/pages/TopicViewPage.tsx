@@ -49,17 +49,22 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   onNavigate,
   onBackToForum,
 }) => {
-  const params = useParams<{ topicId: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const params = useParams<{ campaignId?: string; topicId?: string; page?: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
   const effectiveTopicId = topicId ?? (params.topicId ? Number(params.topicId) : 0);
-  const pageFromQuery = searchParams.get('page') ? Number(searchParams.get('page')) : undefined;
-  const effectiveInitialPage = initialPage ?? (pageFromQuery && !isNaN(pageFromQuery) ? pageFromQuery : undefined);
+  const pageFromParam = params.page ? parseInt(params.page, 10) : undefined;
+  const pageFromQuery = searchParams.get('page') ? parseInt(searchParams.get('page')!, 10) : undefined;
+  const targetPageFromUrl =
+    pageFromParam !== undefined && !isNaN(pageFromParam)
+      ? pageFromParam
+      : pageFromQuery !== undefined && !isNaN(pageFromQuery)
+      ? pageFromQuery
+      : initialPage;
 
   const { user, isAuthenticated } = useAuth();
   const [topicDetail, setTopicDetail] = useState<TopicDetail | null>(null);
-  const [currentPage, setCurrentPage] = useState<number | undefined>(effectiveInitialPage);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -94,10 +99,9 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   const handleBackToForum = () => {
     if (onBackToForum) {
       onBackToForum();
-    } else if (topicDetail?.campagneId) {
-      navigate(`/campaigns/${topicDetail.campagneId}`);
     } else {
-      navigate('/forum');
+      const campId = topicDetail?.campagneId ?? (params.campaignId ? Number(params.campaignId) : 0);
+      navigate(`/forum/${campId}`);
     }
   };
 
@@ -108,7 +112,6 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     try {
       const data = await campaignsApi.getTopicPosts(effectiveTopicId, pageToFetch);
       setTopicDetail(data);
-      setCurrentPage(data.page);
     } catch (err: any) {
       setError(err.message || 'Impossible de charger les messages du sujet.');
     } finally {
@@ -118,17 +121,44 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
   useEffect(() => {
     if (effectiveTopicId) {
-      const targetPage = pageFromQuery && !isNaN(pageFromQuery) ? pageFromQuery : currentPage;
-      fetchTopic(targetPage);
+      fetchTopic(targetPageFromUrl);
     }
-  }, [effectiveTopicId, pageFromQuery]);
+  }, [effectiveTopicId, targetPageFromUrl]);
+
+  // Défilement automatique vers l'ancre du post (ex: #post1081687)
+  useEffect(() => {
+    if (!isLoading && topicDetail) {
+      const hash = window.location.hash;
+      if (hash) {
+        const cleanId = hash.replace(/^#/, '');
+        const rawNum = cleanId.replace(/^post-?/, '');
+        const findTargetElement = () =>
+          document.getElementById(cleanId) ||
+          document.getElementById(`post${rawNum}`) ||
+          document.getElementById(`post-${rawNum}`);
+
+        const timer = setTimeout(() => {
+          const el = findTargetElement();
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-2', 'transition-all');
+            setTimeout(() => {
+              el.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2');
+            }, 3000);
+          }
+        }, 150);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isLoading, topicDetail]);
 
   const handlePageChange = (newPage: number) => {
     if (!topicDetail || newPage === topicDetail.page || newPage < 1 || newPage > topicDetail.totalPages) {
       return;
     }
-    setCurrentPage(newPage);
-    setSearchParams({ page: newPage.toString() });
+    const campId = topicDetail.campagneId ?? (params.campaignId ? Number(params.campaignId) : 0);
+    navigate(`/forum/${campId}/${effectiveTopicId}/page/${newPage}`);
     fetchTopic(newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -156,19 +186,19 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
     setIsSubmitting(true);
     try {
-      await campaignsApi.createPost(effectiveTopicId, postContent, selectedPersoId);
+      const res = await campaignsApi.createPost(effectiveTopicId, postContent, selectedPersoId);
       setPostContent('');
       setIsPreviewOpen(false);
       setSubmitSuccess('Votre message a été publié avec succès !');
 
-      // Recharger sur la page 1 (les 10 derniers messages) pour voir le nouveau post
-      setSearchParams({ page: '1' });
+      const campId = topicDetail?.campagneId ?? (params.campaignId ? Number(params.campaignId) : 0);
+      const newPostId = res?.post?.id;
+      if (newPostId) {
+        navigate(`/forum/${campId}/${effectiveTopicId}/page/1#post${newPostId}`);
+      } else {
+        navigate(`/forum/${campId}/${effectiveTopicId}/page/1`);
+      }
       await fetchTopic(1);
-
-      // Scroll vers le bas des messages
-      setTimeout(() => {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-      }, 200);
 
       setTimeout(() => {
         setSubmitSuccess(null);
@@ -203,8 +233,13 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
         `Jet de dé effectué avec succès ! Résultat : ${res.evaluation.total}${res.evaluation.isSuccessCount ? ' succès' : ''}`
       );
 
-      // Recharger sur la page 1 (les messages récents) pour afficher le jet
-      setSearchParams({ page: '1' });
+      const campId = topicDetail?.campagneId ?? (params.campaignId ? Number(params.campaignId) : 0);
+      const newPostId = res?.post?.id;
+      if (newPostId) {
+        navigate(`/forum/${campId}/${effectiveTopicId}/page/1#post${newPostId}`);
+      } else {
+        navigate(`/forum/${campId}/${effectiveTopicId}/page/1`);
+      }
       await fetchTopic(1);
 
       setTimeout(() => {
@@ -497,7 +532,8 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             return (
               <div
                 key={post.id}
-                id={`post-${post.id}`}
+                id={`post${post.id}`}
+                data-post-id={post.id}
                 style={{
                   backgroundColor: postBg || undefined,
                   color: postTextColor || undefined,

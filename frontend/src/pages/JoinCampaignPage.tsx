@@ -323,7 +323,7 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
               campaign={campagne}
               cardClickAction="detail"
               onOpenDetail={handleOpenDetail}
-              onSelectCampaign={(id) => navigate(`/campaigns/${id}`)}
+              onSelectCampaign={(id) => navigate(`/forum/${id}`)}
               onJoin={handleDirectJoin}
               isJoining={joiningId === campagne.id}
             />

@@ -373,7 +373,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           }
         }
 
-        navigate(`/campaigns/${updated.id}`);
+        navigate(`/forum/${updated.id}`);
       } else {
         // Create payload
         const payload: CreateCampaignPayload = {
@@ -424,7 +424,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           }
         }
 
-        navigate(`/campaigns/${created.id}`);
+        navigate(`/forum/${created.id}`);
       }
     } catch (err: any) {
       setFormError(err.message || "Une erreur est survenue lors de l'enregistrement de la campagne.");
@@ -435,7 +435,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
   const handleCancel = () => {
     if (isEditMode && campaignId) {
-      navigate(`/campaigns/${campaignId}`);
+      navigate(`/forum/${campaignId}`);
     } else {
       navigate('/my-campaigns');
     }

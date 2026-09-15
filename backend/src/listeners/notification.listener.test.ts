@@ -90,7 +90,7 @@ describe('NotificationListener', () => {
       assert.deepEqual(notifiedUserIds, [1, 3]);
       assert.equal(notificationsCreated[0].type, 'topic');
       assert.equal(notificationsCreated[0].targetId, 15);
-      assert.equal(notificationsCreated[0].url, '/topics/15');
+      assert.equal(notificationsCreated[0].url, '/forum/100/15/page/1#post10');
     });
 
     it('should notify only MJ and can_read users except the author in a private topic', async () => {
@@ -108,6 +108,7 @@ describe('NotificationListener', () => {
       // Recipient should only be Player 2 (2)
       assert.equal(notificationsCreated.length, 1);
       assert.equal(notificationsCreated[0].userId, 2);
+      assert.equal(notificationsCreated[0].url, '/forum/100/20/page/1#post11');
     });
   });
 

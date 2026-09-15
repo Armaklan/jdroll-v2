@@ -63,7 +63,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
       if (onSelectCampaign) {
         onSelectCampaign(campaign.id);
       } else {
-        navigate(`/campaigns/${campaign.id}`);
+        navigate(`/forum/${campaign.id}`);
       }
     } else if (cardClickAction === 'detail') {
       if (onOpenDetail) {
@@ -75,7 +75,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
       } else if (onSelectCampaign) {
         onSelectCampaign(campaign.id);
       } else {
-        navigate(`/campaigns/${campaign.id}`);
+        navigate(`/forum/${campaign.id}`);
       }
     }
   };
@@ -85,7 +85,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
     if (onSelectCampaign) {
       onSelectCampaign(campaign.id);
     } else {
-      navigate(`/campaigns/${campaign.id}`);
+      navigate(`/forum/${campaign.id}`);
     }
   };
 

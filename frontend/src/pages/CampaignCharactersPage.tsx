@@ -150,7 +150,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
   };
 
   const handleGoToForum = () => {
-    navigate(`/campaigns/${effectiveCampaignId}`);
+    navigate(`/forum/${effectiveCampaignId}`);
   };
 
   const fetchCharacters = async () => {

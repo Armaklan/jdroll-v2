@@ -58,9 +58,9 @@ export const viewToPath = (view: AppView): string => {
     case 'campaign-forum':
       return '/my-campaigns';
     case 'topic-view':
-      return '/forum';
+      return '/forum/0';
     case 'forum':
-      return '/forum';
+      return '/forum/0';
     case 'help':
       return '/help';
     default:
@@ -153,9 +153,15 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
     if (path === '/my-campaigns') return 'my-campaigns';
     if (path === '/campaigns/new' || path === '/create-campaign') return 'create-campaign';
     if (path === '/join-campaign' || path === '/all-campaigns' || path === '/campaigns') return 'join-campaign';
+    if (path === '/forum/0' || path === '/forum') return 'forum';
+    if (path.startsWith('/forum/')) {
+      const parts = path.split('/').filter(Boolean);
+      if (parts.length >= 3) return 'topic-view';
+      if (parts[1] === '0') return 'forum';
+      return 'campaign-forum';
+    }
     if (path.startsWith('/campaigns/')) return 'campaign-forum';
     if (path.startsWith('/topics/')) return 'topic-view';
-    if (path === '/forum') return 'forum';
     if (path === '/help') return 'help';
     return currentView || 'home';
   };
