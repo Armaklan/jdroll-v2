@@ -127,3 +127,101 @@
   border: 0;
   border-top: 1px solid #cbd5e1;
 }
+
+/* Styles pour les tableaux dans le contenu riche et le WYSIWYG */
+.wysiwyg-content table,
+.post-content-container table,
+.wysiwyg-editor-area table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.85rem;
+  margin-bottom: 0.85rem;
+  font-size: 0.875rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+.wysiwyg-content th,
+.post-content-container th,
+.wysiwyg-editor-area th {
+  background-color: #f1f5f9;
+  font-weight: 600;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.wysiwyg-content td,
+.post-content-container td,
+.wysiwyg-editor-area td {
+  border: 1px solid #e2e8f0;
+  padding: 0.5rem 0.75rem;
+  color: inherit;
+  vertical-align: top;
+}
+
+.wysiwyg-content tr:nth-child(even),
+.post-content-container tr:nth-child(even),
+.wysiwyg-editor-area tr:nth-child(even) {
+  background-color: #f8fafc;
+}
+
+.wysiwyg-content tr:hover,
+.post-content-container tr:hover,
+.wysiwyg-editor-area tr:hover {
+  background-color: #f1f5f9;
+}
+
+/* Échelle des tailles de police (execCommand fontSize 1..7) */
+.wysiwyg-content font[size="1"],
+.post-content-container font[size="1"],
+.wysiwyg-editor-area font[size="1"] {
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.wysiwyg-content font[size="2"],
+.post-content-container font[size="2"],
+.wysiwyg-editor-area font[size="2"] {
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.wysiwyg-content font[size="3"],
+.post-content-container font[size="3"],
+.wysiwyg-editor-area font[size="3"] {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.wysiwyg-content font[size="4"],
+.post-content-container font[size="4"],
+.wysiwyg-editor-area font[size="4"] {
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.wysiwyg-content font[size="5"],
+.post-content-container font[size="5"],
+.wysiwyg-editor-area font[size="5"] {
+  font-size: 1.5rem;
+  line-height: 1.3;
+}
+
+.wysiwyg-content font[size="6"],
+.post-content-container font[size="6"],
+.wysiwyg-editor-area font[size="6"] {
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.wysiwyg-content font[size="7"],
+.post-content-container font[size="7"],
+.wysiwyg-editor-area font[size="7"] {
+  font-size: 2.5rem;
+  line-height: 1.1;
+}
