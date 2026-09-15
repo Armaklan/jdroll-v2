@@ -50,7 +50,8 @@ export interface CampaignSummary {
   rythme?: number;
   rp?: number;
   isMultiCharacter?: boolean;
-  userRole?: 'mj' | 'player';
+  userRole?: 'mj' | 'player' | 'observer';
+  isObserving?: boolean;
   characterName?: string | null;
   characterAvatar?: string | null;
   dialogueColor?: string | null;
@@ -70,7 +71,7 @@ export interface CampaignSummary {
   hasUnread?: boolean;
 }
 
-export type CampaignRole = 'all' | 'master' | 'player';
+export type CampaignRole = 'all' | 'master' | 'player' | 'observer';
 
 export interface MyCampaignsFilter {
   role: CampaignRole;

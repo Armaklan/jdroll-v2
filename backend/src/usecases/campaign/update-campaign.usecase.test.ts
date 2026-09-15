@@ -73,6 +73,11 @@ describe('UpdateCampaignUseCase', () => {
       findCampaignParticipants: async () => [],
       isUserCampaignParticipant: async () => false,
       addCampaignParticipant: async () => {},
+      findObservedCampaigns: async () => [],
+      isUserCampaignObserver: async () => false,
+      addCampaignObserver: async () => {},
+      removeCampaignObserver: async () => {},
+      findCampaignObservers: async () => [],
     };
 
     return { repo, campaigns };

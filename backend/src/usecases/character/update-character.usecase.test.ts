@@ -65,6 +65,17 @@ class MockCampaignRepository implements ICampaignRepository {
     return false;
   }
   async addCampaignParticipant(): Promise<void> {}
+  async findObservedCampaigns(): Promise<CampaignSummary[]> {
+    return [];
+  }
+  async isUserCampaignObserver(): Promise<boolean> {
+    return false;
+  }
+  async addCampaignObserver(): Promise<void> {}
+  async removeCampaignObserver(): Promise<void> {}
+  async findCampaignObservers(): Promise<any[]> {
+    return [];
+  }
 }
 
 describe('UpdateCharacterUseCase', () => {

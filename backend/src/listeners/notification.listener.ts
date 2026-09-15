@@ -46,6 +46,10 @@ export class NotificationListener {
         for (const p of participants) {
           recipientIds.add(p.id);
         }
+        const observers = await this.campaignRepo.findCampaignObservers(event.campagneId);
+        for (const obs of observers) {
+          recipientIds.add(obs.id);
+        }
       }
     } else {
       if (event.isPrivate === 1) {
@@ -108,6 +112,10 @@ export class NotificationListener {
           const participants = await this.campaignRepo.findCampaignParticipants(event.campagneId);
           for (const p of participants) {
             recipientIds.add(p.id);
+          }
+          const observers = await this.campaignRepo.findCampaignObservers(event.campagneId);
+          for (const obs of observers) {
+            recipientIds.add(obs.id);
           }
         }
       } else {

@@ -53,6 +53,17 @@ class MockCampaignRepository implements ICampaignRepository {
     return this.participants.some((p) => p.id === userId);
   }
   async addCampaignParticipant(campaignId: number, userId: number): Promise<void> {}
+  async findObservedCampaigns(): Promise<CampaignSummary[]> {
+    return [];
+  }
+  async isUserCampaignObserver(): Promise<boolean> {
+    return false;
+  }
+  async addCampaignObserver(): Promise<void> {}
+  async removeCampaignObserver(): Promise<void> {}
+  async findCampaignObservers(): Promise<any[]> {
+    return [];
+  }
 }
 
 class MockFileStorage implements IFileStorage {

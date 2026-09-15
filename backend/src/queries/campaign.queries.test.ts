@@ -50,7 +50,8 @@ class MockCampaignRepository implements ICampaignRepository {
     private player: CampaignSummary[] = [],
     private allCampaigns: CampaignSummary[] = [],
     private characters: RawCampaignCharacterRow[] = [],
-    private categories: RawPnjCategoryRow[] = []
+    private categories: RawPnjCategoryRow[] = [],
+    private observed: CampaignSummary[] = []
   ) {}
 
   async findMasteredCampaigns(userId: number, includeArchived: boolean = false): Promise<CampaignSummary[]> {
@@ -59,6 +60,10 @@ class MockCampaignRepository implements ICampaignRepository {
 
   async findPlayerCampaigns(userId: number, includeArchived: boolean = false): Promise<CampaignSummary[]> {
     return this.player.filter((c) => (includeArchived || !c.isArchived));
+  }
+
+  async findObservedCampaigns(userId: number, includeArchived: boolean = false): Promise<CampaignSummary[]> {
+    return this.observed.filter((c) => (includeArchived || !c.isArchived));
   }
 
   async findAllCampaigns(options: { includeArchived?: boolean; search?: string } = {}): Promise<CampaignSummary[]> {
@@ -82,7 +87,7 @@ class MockCampaignRepository implements ICampaignRepository {
   }
 
   async findById(id: number): Promise<CampaignSummary | null> {
-    const all = [...this.mastered, ...this.player, ...this.allCampaigns];
+    const all = [...this.mastered, ...this.player, ...this.allCampaigns, ...this.observed];
     return all.find((c) => c.id === id) || null;
   }
 
@@ -121,6 +126,18 @@ class MockCampaignRepository implements ICampaignRepository {
   }
 
   async addCampaignParticipant(campaignId: number, userId: number): Promise<void> {}
+
+  async isUserCampaignObserver(campaignId: number, userId: number): Promise<boolean> {
+    return this.observed.some((c) => c.id === campaignId);
+  }
+
+  async addCampaignObserver(campaignId: number, userId: number): Promise<void> {}
+
+  async removeCampaignObserver(campaignId: number, userId: number): Promise<void> {}
+
+  async findCampaignObservers(campaignId: number): Promise<any[]> {
+    return [];
+  }
 }
 
 describe('CampaignQueries', () => {
@@ -194,6 +211,42 @@ describe('CampaignQueries', () => {
     characterName: 'Deckard',
   };
 
+  const sampleObservedCampaignActive: CampaignSummary = {
+    id: 6,
+    name: 'Campagne Observateur Active',
+    mjId: 88,
+    mjUsername: 'tiers_mj',
+    nbJoueurs: 4,
+    nbJoueursActuel: 2,
+    banniere: '',
+    systeme: 'Call of Cthulhu',
+    univers: 'Horreur',
+    description: 'Aventure observée',
+    statut: 0,
+    isArchived: false,
+    isRecrutementOpen: false,
+    userRole: 'observer',
+    isObserving: true,
+  };
+
+  const sampleObservedCampaignArchived: CampaignSummary = {
+    id: 7,
+    name: 'Campagne Observateur Archivée',
+    mjId: 88,
+    mjUsername: 'tiers_mj',
+    nbJoueurs: 3,
+    nbJoueursActuel: 3,
+    banniere: '',
+    systeme: 'Vampire',
+    univers: 'Gothique',
+    description: 'Partie observée terminée',
+    statut: 2,
+    isArchived: true,
+    isRecrutementOpen: false,
+    userRole: 'observer',
+    isObserving: true,
+  };
+
   it('should return only active mastered campaigns by default (includeArchived = false)', async () => {
     const repo = new MockCampaignRepository([sampleMasteredCampaignActive, sampleMasteredCampaignArchived]);
     const queries = new CampaignQueries(repo);
@@ -230,19 +283,42 @@ describe('CampaignQueries', () => {
     assert.equal(result.length, 2);
   });
 
-  it('should return both active mastered and player campaigns when role = "all" or omitted', async () => {
+  it('should return only active observed campaigns by default when role = "observer"', async () => {
+    const repo = new MockCampaignRepository([], [], [], [], [], [sampleObservedCampaignActive, sampleObservedCampaignArchived]);
+    const queries = new CampaignQueries(repo);
+
+    const result = await queries.getMyCampaigns(42, 'observer', false);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].id, 6);
+    assert.equal(result[0].userRole, 'observer');
+    assert.equal(result[0].isObserving, true);
+  });
+
+  it('should return all observed campaigns when role = "observer" and includeArchived = true', async () => {
+    const repo = new MockCampaignRepository([], [], [], [], [], [sampleObservedCampaignActive, sampleObservedCampaignArchived]);
+    const queries = new CampaignQueries(repo);
+
+    const result = await queries.getMyCampaigns(42, 'observer', true);
+    assert.equal(result.length, 2);
+  });
+
+  it('should return active mastered, player and observed campaigns when role = "all" or omitted', async () => {
     const repo = new MockCampaignRepository(
       [sampleMasteredCampaignActive, sampleMasteredCampaignArchived],
-      [samplePlayerCampaignActive, samplePlayerCampaignArchived]
+      [samplePlayerCampaignActive, samplePlayerCampaignArchived],
+      [],
+      [],
+      [],
+      [sampleObservedCampaignActive, sampleObservedCampaignArchived]
     );
     const queries = new CampaignQueries(repo);
 
     const result = await queries.getMyCampaigns(42, 'all', false);
-    assert.equal(result.length, 2);
-    assert.deepEqual(result.map((c) => c.id).sort(), [1, 3]);
+    assert.equal(result.length, 3);
+    assert.deepEqual(result.map((c) => c.id).sort(), [1, 3, 6]);
 
     const resultAll = await queries.getMyCampaigns(42, 'all', true);
-    assert.equal(resultAll.length, 4);
+    assert.equal(resultAll.length, 6);
   });
 
   it('should return only active campaigns by default for getAllCampaigns', async () => {

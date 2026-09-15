@@ -32,7 +32,14 @@ export class CampaignQueries {
   }
 
   /**
-   * Récupère la liste des campagnes selon le rôle (all, master ou player) et le filtre d'archivage
+   * Récupère les campagnes observées par l'utilisateur
+   */
+  async getMyObservedCampaigns(userId: number, includeArchived: boolean = false): Promise<CampaignSummary[]> {
+    return this.campaignRepo.findObservedCampaigns(userId, includeArchived);
+  }
+
+  /**
+   * Récupère la liste des campagnes selon le rôle (all, master, player ou observer) et le filtre d'archivage
    */
   async getMyCampaigns(userId: number, role: CampaignRole = 'all', includeArchived: boolean = false): Promise<CampaignSummary[]> {
     if (role === 'master') {
@@ -41,10 +48,14 @@ export class CampaignQueries {
     if (role === 'player') {
       return this.getMyPlayerCampaigns(userId, includeArchived);
     }
+    if (role === 'observer') {
+      return this.getMyObservedCampaigns(userId, includeArchived);
+    }
 
-    const [mastered, player] = await Promise.all([
+    const [mastered, player, observed] = await Promise.all([
       this.getMyMasteredCampaigns(userId, includeArchived),
       this.getMyPlayerCampaigns(userId, includeArchived),
+      this.getMyObservedCampaigns(userId, includeArchived),
     ]);
 
     const campaignMap = new Map<number, CampaignSummary>();
@@ -52,6 +63,11 @@ export class CampaignQueries {
       campaignMap.set(c.id, c);
     }
     for (const c of player) {
+      if (!campaignMap.has(c.id)) {
+        campaignMap.set(c.id, c);
+      }
+    }
+    for (const c of observed) {
       if (!campaignMap.has(c.id)) {
         campaignMap.set(c.id, c);
       }
@@ -76,7 +92,8 @@ export class CampaignQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
     }
 
-    let userRole: 'mj' | 'player' | undefined = undefined;
+    let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
+    let isObserving = false;
     if (currentUserId) {
       if (campaign.mjId === currentUserId) {
         userRole = 'mj';
@@ -84,6 +101,11 @@ export class CampaignQueries {
         const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, currentUserId);
         if (isParticipant) {
           userRole = 'player';
+        } else {
+          isObserving = await this.campaignRepo.isUserCampaignObserver(campaignId, currentUserId);
+          if (isObserving) {
+            userRole = 'observer';
+          }
         }
       }
     }
@@ -182,6 +204,7 @@ export class CampaignQueries {
       campaign: {
         ...campaign,
         userRole: userRole ?? campaign.userRole,
+        isObserving: isObserving || campaign.isObserving,
       },
       categories,
     };
@@ -207,7 +230,8 @@ export class CampaignQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
     }
 
-    let userRole: 'mj' | 'player' | undefined = undefined;
+    let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
+    let isObserving = false;
     if (currentUserId) {
       if (campaign.mjId === currentUserId) {
         userRole = 'mj';
@@ -215,6 +239,11 @@ export class CampaignQueries {
         const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, currentUserId);
         if (isParticipant) {
           userRole = 'player';
+        } else {
+          isObserving = await this.campaignRepo.isUserCampaignObserver(campaignId, currentUserId);
+          if (isObserving) {
+            userRole = 'observer';
+          }
         }
       }
     }
@@ -222,6 +251,7 @@ export class CampaignQueries {
     return {
       ...campaign,
       userRole: userRole ?? campaign.userRole,
+      isObserving: isObserving || campaign.isObserving,
     };
   }
 

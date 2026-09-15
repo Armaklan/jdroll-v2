@@ -19,6 +19,8 @@ import {
   MessageSquare,
   Clock,
   PauseCircle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export interface CampaignCardProps {
@@ -28,6 +30,8 @@ export interface CampaignCardProps {
   onJoin?: (campaign: CampaignSummary, e: React.MouseEvent) => void;
   isJoining?: boolean;
   onConfigure?: (campaignId: number) => void;
+  onToggleObserve?: (campaign: CampaignSummary, isCurrentlyObserving: boolean, e: React.MouseEvent) => void;
+  isObservingLoading?: boolean;
   roleContext?: CampaignRole | null;
   showRoleBadge?: boolean;
   cardClickAction?: 'forum' | 'detail';
@@ -40,6 +44,8 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   onJoin,
   isJoining = false,
   onConfigure,
+  onToggleObserve,
+  isObservingLoading = false,
   roleContext,
   showRoleBadge = true,
   cardClickAction,
@@ -51,6 +57,11 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   const isPlayer = Boolean(
     campaign.userRole === 'player' ||
     (user && campaign.characterName)
+  );
+  const isObserver = Boolean(
+    campaign.userRole === 'observer' ||
+    campaign.isObserving ||
+    roleContext === 'observer'
   );
   const isArchived = Boolean(campaign.isArchived || campaign.statut === 2);
   const isRecruitmentOpen = Boolean(campaign.isRecrutementOpen && !isArchived && campaign.statut !== 3);
@@ -109,6 +120,13 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
     e.stopPropagation();
     if (onJoin) {
       onJoin(campaign, e);
+    }
+  };
+
+  const handleToggleObserveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onToggleObserve) {
+      onToggleObserve(campaign, isObserver, e);
     }
   };
 
@@ -238,7 +256,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
           </h2>
 
           {/* Role presentation if relevant */}
-          {showRoleBadge && (roleContext || isMj || isPlayer) && (
+          {showRoleBadge && (roleContext || isMj || isPlayer || isObserver) && (
             <div className="text-xs text-slate-600 flex flex-wrap items-center gap-2">
               {(roleContext === 'master' || isMj) && (
                 <div className="flex items-center gap-1.5 font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
@@ -251,6 +269,13 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
                 <div className="flex items-center gap-1 font-medium text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
                   <span className="text-slate-400 text-[10px]">PJ :</span>
                   <span>{campaign.characterName}</span>
+                </div>
+              )}
+
+              {(!isMj && !isPlayer && isObserver) && (
+                <div className="flex items-center gap-1.5 font-medium text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">
+                  <Eye className="w-3.5 h-3.5 text-sky-600" />
+                  <span>Observateur</span>
                 </div>
               )}
             </div>
@@ -321,6 +346,33 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
                 <>
                   <UserCheck className="w-3.5 h-3.5" />
                   <span>Rejoindre</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {/* Observer / Ne plus observer button */}
+          {onToggleObserve && user && !isMj && !isPlayer && (
+            <button
+              type="button"
+              onClick={handleToggleObserveClick}
+              disabled={isObservingLoading}
+              className={`inline-flex items-center gap-1 px-2.5 py-1.5 font-semibold rounded-lg text-xs transition cursor-pointer ${
+                isObserver
+                  ? 'bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+              title={isObserver ? "Ne plus observer cette campagne" : "Observer cette campagne"}
+            >
+              {isObserver ? (
+                <>
+                  <EyeOff className="w-3.5 h-3.5 text-sky-600" />
+                  <span>Ne plus observer</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Observer</span>
                 </>
               )}
             </button>

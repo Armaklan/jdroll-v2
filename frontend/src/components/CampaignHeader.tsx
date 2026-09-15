@@ -1,6 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { campaignsApi } from '../api/campaigns';
 import { CampaignSummary } from '../types/campaign';
 import {
   Crown,
@@ -17,6 +18,8 @@ import {
   X,
   Clock,
   PauseCircle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 export interface CampaignHeaderProps {
@@ -28,6 +31,7 @@ export interface CampaignHeaderProps {
   isUploadingBanner?: boolean;
   bannerUploadError?: string | null;
   onClearBannerUploadError?: () => void;
+  onObserveChange?: (isObserving: boolean) => void;
 }
 
 export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
@@ -39,18 +43,47 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
   isUploadingBanner = false,
   bannerUploadError = null,
   onClearBannerUploadError,
+  onObserveChange,
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const [isDraggingBanner, setIsDraggingBanner] = useState<boolean>(false);
+  const [isObserving, setIsObserving] = useState<boolean>(
+    Boolean(campaign.isObserving || campaign.userRole === 'observer')
+  );
+  const [isObservingLoading, setIsObservingLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsObserving(Boolean(campaign.isObserving || campaign.userRole === 'observer'));
+  }, [campaign.isObserving, campaign.userRole]);
 
   const isMj = Boolean(
     user && (user.id === campaign.mjId || campaign.userRole === 'mj')
   );
+  const isPlayer = Boolean(campaign.userRole === 'player');
   const isCampaignMember = Boolean(
-    user && (isMj || campaign.userRole === 'player')
+    user && (isMj || isPlayer)
   );
+
+  const handleToggleObserve = async () => {
+    if (!user) {
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
+    setIsObservingLoading(true);
+    try {
+      const res = await campaignsApi.toggleObserveCampaign(campaign.id, isObserving);
+      setIsObserving(res.isObserving);
+      if (onObserveChange) {
+        onObserveChange(res.isObserving);
+      }
+    } catch (err) {
+      console.error("Erreur lors de la modification de l'observation :", err);
+    } finally {
+      setIsObservingLoading(false);
+    }
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     if (!isAdminMode || !onBannerUpload) return;
@@ -246,6 +279,12 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
               <Crown className="w-3 h-3" /> Vous êtes le Maître du Jeu
             </span>
           )}
+
+          {isObserving && !isMj && !isPlayer && (
+            <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-sky-100 text-sky-800 border border-sky-200 flex items-center gap-1">
+              <Eye className="w-3 h-3 text-sky-600" /> Observateur
+            </span>
+          )}
         </div>
 
         {/* 3 Main Action Links + Admin Config */}
@@ -304,6 +343,32 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
             >
               <Dices className="w-3.5 h-3.5 text-indigo-500" />
               <span>Tour à dé</span>
+            </button>
+          )}
+
+          {/* Observer / Ne plus observer button */}
+          {user && !isMj && !isPlayer && (
+            <button
+              onClick={handleToggleObserve}
+              disabled={isObservingLoading}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold text-xs border shadow-2xs transition cursor-pointer ${
+                isObserving
+                  ? 'bg-sky-50 hover:bg-sky-100 text-sky-800 border-sky-200'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 hover:text-sky-700 border-slate-200'
+              }`}
+              title={isObserving ? 'Ne plus observer cette campagne' : 'Observer cette campagne'}
+            >
+              {isObserving ? (
+                <>
+                  <EyeOff className="w-3.5 h-3.5 text-sky-600" />
+                  <span>Ne plus observer</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-3.5 h-3.5 text-slate-500" />
+                  <span>Observer</span>
+                </>
+              )}
             </button>
           )}
         </div>

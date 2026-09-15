@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
@@ -22,6 +22,8 @@ import {
   Feather,
   Clock,
   PauseCircle,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface CampaignDetailModalProps {
@@ -29,6 +31,7 @@ interface CampaignDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   onJoinSuccess?: (campaignId: number, message: string) => void;
+  onObserveChange?: (campaignId: number, isObserving: boolean) => void;
 }
 
 export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
@@ -36,16 +39,32 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
   isOpen,
   onClose,
   onJoinSuccess,
+  onObserveChange,
 }) => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [isJoining, setIsJoining] = useState<boolean>(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [joinSuccessMessage, setJoinSuccessMessage] = useState<string | null>(null);
+  const [isObserving, setIsObserving] = useState<boolean>(false);
+  const [isObservingLoading, setIsObservingLoading] = useState<boolean>(false);
+  const [observeError, setObserveError] = useState<string | null>(null);
+  const [observeSuccessMessage, setObserveSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (campaign) {
+      setIsObserving(Boolean(campaign.isObserving || campaign.userRole === 'observer'));
+      setJoinError(null);
+      setJoinSuccessMessage(null);
+      setObserveError(null);
+      setObserveSuccessMessage(null);
+    }
+  }, [campaign]);
 
   if (!isOpen || !campaign) return null;
 
-  const isMj = user && user.id === campaign.mjId;
+  const isMj = Boolean(user && user.id === campaign.mjId);
+  const isPlayer = Boolean(campaign.userRole === 'player' || (user && campaign.characterName));
   const isArchived = campaign.isArchived || campaign.statut === 2;
   const isRecruitmentOpen = campaign.isRecrutementOpen && !isArchived && campaign.statut !== 3;
 
@@ -75,6 +94,30 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
       setJoinError(err.message || 'Impossible de rejoindre la campagne.');
     } finally {
       setIsJoining(false);
+    }
+  };
+
+  const handleToggleObserve = async () => {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
+
+    setIsObservingLoading(true);
+    setObserveError(null);
+    setObserveSuccessMessage(null);
+
+    try {
+      const response = await campaignsApi.toggleObserveCampaign(campaign.id, isObserving);
+      setIsObserving(response.isObserving);
+      setObserveSuccessMessage(response.message);
+      if (onObserveChange) {
+        onObserveChange(campaign.id, response.isObserving);
+      }
+    } catch (err: any) {
+      setObserveError(err.message || "Impossible de modifier l'état d'observation.");
+    } finally {
+      setIsObservingLoading(false);
     }
   };
 
@@ -147,6 +190,13 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
                 Recrutement Fermé
               </span>
             )}
+
+            {isObserving && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-600 text-white shadow-md">
+                <Eye className="w-3.5 h-3.5" />
+                Observateur
+              </span>
+            )}
           </div>
 
           {/* Bottom Gradient and MJ / Players overlay */}
@@ -173,20 +223,20 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
         {/* Modal Body - Scrollable content */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1 text-slate-800">
           {/* Feedback banners */}
-          {joinSuccessMessage && (
+          {(joinSuccessMessage || observeSuccessMessage) && (
             <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3 text-emerald-800">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
               <div className="flex-1 text-sm font-medium">
-                {joinSuccessMessage}
+                {joinSuccessMessage || observeSuccessMessage}
               </div>
             </div>
           )}
 
-          {joinError && (
+          {(joinError || observeError) && (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3 text-red-800">
               <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
               <div className="flex-1 text-sm font-medium">
-                {joinError}
+                {joinError || observeError}
               </div>
             </div>
           )}
@@ -310,6 +360,32 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
               <BookOpen className="w-4 h-4 text-slate-600" />
               <span>Voir le forum</span>
             </button>
+
+            {/* Observer / Ne plus observer button */}
+            {!isMj && !isPlayer && (
+              <button
+                onClick={handleToggleObserve}
+                disabled={isObservingLoading}
+                className={`inline-flex items-center gap-2 px-4 py-2.5 font-semibold rounded-xl text-sm transition border ${
+                  isObserving
+                    ? 'bg-sky-50 hover:bg-sky-100 text-sky-800 border-sky-200'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                }`}
+                title={isObserving ? 'Ne plus observer cette campagne' : 'Observer cette campagne'}
+              >
+                {isObserving ? (
+                  <>
+                    <EyeOff className="w-4 h-4 text-sky-600" />
+                    <span>Ne plus observer</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="w-4 h-4 text-slate-600" />
+                    <span>Observer la partie</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {isRecruitmentOpen && !isMj && (
               <button

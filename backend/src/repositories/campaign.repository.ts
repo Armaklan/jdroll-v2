@@ -63,6 +63,7 @@ export interface UpdateCampaignData {
 export interface ICampaignRepository {
   findMasteredCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findPlayerCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
+  findObservedCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findAllCampaigns(options?: { includeArchived?: boolean; search?: string }): Promise<CampaignSummary[]>;
   findById(id: number): Promise<CampaignSummary | null>;
   createCampaign(data: CreateCampaignData): Promise<number>;
@@ -104,6 +105,10 @@ export interface ICampaignRepository {
   findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]>;
   isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean>;
   addCampaignParticipant(campaignId: number, userId: number): Promise<void>;
+  isUserCampaignObserver(campaignId: number, userId: number): Promise<boolean>;
+  addCampaignObserver(campaignId: number, userId: number): Promise<void>;
+  removeCampaignObserver(campaignId: number, userId: number): Promise<void>;
+  findCampaignObservers(campaignId: number): Promise<Array<{ id: number; username: string; avatar: string | null }>>;
 }
 
 export class MysqlCampaignRepository implements ICampaignRepository {
@@ -351,6 +356,128 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       userRole: 'player',
       characterName: row.characterName || null,
       characterAvatar: row.characterAvatar || null,
+      hasUnread: Boolean(row.hasUnread),
+    }));
+  }
+
+  async findObservedCampaigns(userId: number, includeArchived: boolean = false): Promise<CampaignSummary[]> {
+    const archiveCondition = includeArchived ? '' : 'AND c.statut != 2';
+    const sql = `
+      SELECT 
+        c.id,
+        c.mj_id AS mjId,
+        u.username AS mjUsername,
+        u.avatar AS mjAvatar,
+        c.nb_joueurs AS nbJoueurs,
+        c.nb_joueurs_actuel AS nbJoueursActuel,
+        c.name,
+        c.banniere,
+        c.systeme,
+        c.univers,
+        c.description,
+        c.statut,
+        c.is_recrutement_open AS isRecrutementOpen,
+        c.rythme,
+        c.rp,
+        cc.dialogue_color AS dialogueColor,
+        cc.pensee_color AS penseeColor,
+        cc.rp1_color AS rp1Color,
+        cc.rp2_color AS rp2Color,
+        cc.quote_color AS quoteColor,
+        cc.sidebar_color AS sidebarColor,
+        cc.odd_line_color AS oddLineColor,
+        cc.even_line_color AS evenLineColor,
+        cc.text_color AS textColor,
+        cc.link_color AS linkColor,
+        cc.link_sidebar_color AS linkSidebarColor,
+        cc.banniere AS banniereForum,
+        EXISTS (
+          SELECT 1
+          FROM sections s
+          JOIN topics t ON t.section_id = s.id
+          LEFT JOIN (
+            SELECT topic_id, MAX(post_id) AS post_id
+            FROM read_post
+            WHERE user_id = ?
+            GROUP BY topic_id
+          ) rp ON rp.topic_id = t.id
+          WHERE s.campagne_id = c.id
+            AND t.last_post_id IS NOT NULL
+            AND (rp.post_id IS NULL OR rp.post_id < t.last_post_id)
+        ) AS hasUnread
+      FROM campagne_favoris cf
+      JOIN campagne c ON cf.campagne_id = c.id
+      JOIN user u ON c.mj_id = u.id
+      LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
+      WHERE cf.user_id = ?
+        ${archiveCondition}
+      ORDER BY c.id DESC
+    `;
+
+    interface RawObservedCampaignRow {
+      id: number;
+      mjId: number;
+      mjUsername: string;
+      mjAvatar: string | null;
+      nbJoueurs: number;
+      nbJoueursActuel: number;
+      name: string;
+      banniere: string | null;
+      banniereForum: string | null;
+      systeme: string;
+      univers: string;
+      description: string;
+      statut: number;
+      isRecrutementOpen: number;
+      rythme: number | null;
+      rp: number | null;
+      dialogueColor: string | null;
+      penseeColor: string | null;
+      rp1Color: string | null;
+      rp2Color: string | null;
+      quoteColor: string | null;
+      sidebarColor: string | null;
+      oddLineColor: string | null;
+      evenLineColor: string | null;
+      textColor: string | null;
+      linkColor: string | null;
+      linkSidebarColor: string | null;
+      hasUnread?: number | boolean;
+    }
+
+    const rows = await query<RawObservedCampaignRow>(sql, [userId, userId]);
+
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      mjId: row.mjId,
+      mjUsername: row.mjUsername,
+      mjAvatar: row.mjAvatar || '',
+      nbJoueurs: row.nbJoueurs,
+      nbJoueursActuel: row.nbJoueursActuel,
+      banniere: row.banniere || '',
+      banniereForum: row.banniereForum || null,
+      systeme: row.systeme,
+      univers: row.univers,
+      description: row.description,
+      statut: row.statut,
+      isArchived: row.statut === 2,
+      isRecrutementOpen: Boolean(row.isRecrutementOpen),
+      rythme: row.rythme ?? undefined,
+      rp: row.rp ?? undefined,
+      dialogueColor: row.dialogueColor || null,
+      penseeColor: row.penseeColor || null,
+      rp1Color: row.rp1Color || null,
+      rp2Color: row.rp2Color || null,
+      quoteColor: row.quoteColor || null,
+      sidebarColor: row.sidebarColor || null,
+      oddLineColor: row.oddLineColor || null,
+      evenLineColor: row.evenLineColor || null,
+      textColor: row.textColor || null,
+      linkColor: row.linkColor || null,
+      linkSidebarColor: row.linkSidebarColor || null,
+      userRole: 'observer',
+      isObserving: true,
       hasUnread: Boolean(row.hasUnread),
     }));
   }
@@ -1006,6 +1133,36 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       WHERE id = ?
     `;
     await execute(countSql, [campaignId, campaignId]);
+  }
+
+  async isUserCampaignObserver(campaignId: number, userId: number): Promise<boolean> {
+    const sql = `SELECT user_id FROM campagne_favoris WHERE campagne_id = ? AND user_id = ?`;
+    const row = await queryOne<{ user_id: number }>(sql, [campaignId, userId]);
+    return Boolean(row);
+  }
+
+  async addCampaignObserver(campaignId: number, userId: number): Promise<void> {
+    const sql = `INSERT IGNORE INTO campagne_favoris (campagne_id, user_id) VALUES (?, ?)`;
+    await execute(sql, [campaignId, userId]);
+  }
+
+  async removeCampaignObserver(campaignId: number, userId: number): Promise<void> {
+    const sql = `DELETE FROM campagne_favoris WHERE campagne_id = ? AND user_id = ?`;
+    await execute(sql, [campaignId, userId]);
+  }
+
+  async findCampaignObservers(campaignId: number): Promise<Array<{ id: number; username: string; avatar: string | null }>> {
+    const sql = `
+      SELECT 
+        u.id,
+        u.username,
+        u.avatar
+      FROM campagne_favoris cf
+      JOIN user u ON cf.user_id = u.id
+      WHERE cf.campagne_id = ?
+      ORDER BY u.username ASC
+    `;
+    return query<{ id: number; username: string; avatar: string | null }>(sql, [campaignId]);
   }
 }
 

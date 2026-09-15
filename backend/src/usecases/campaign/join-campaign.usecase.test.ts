@@ -53,6 +53,17 @@ function createMockCampaignRepo(initialCampaigns: CampaignSummary[] = []) {
         c.nbJoueursActuel += 1;
       }
     },
+    async findObservedCampaigns(): Promise<CampaignSummary[]> {
+      return [];
+    },
+    async isUserCampaignObserver(): Promise<boolean> {
+      return false;
+    },
+    async addCampaignObserver(): Promise<void> {},
+    async removeCampaignObserver(): Promise<void> {},
+    async findCampaignObservers(): Promise<any[]> {
+      return [];
+    },
   };
 
   return { repo, campaigns, participants };

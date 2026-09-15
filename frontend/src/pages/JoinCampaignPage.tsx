@@ -116,6 +116,22 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
     }
   };
 
+  const handleToggleObserve = async (campagne: CampaignSummary, currentlyObserving: boolean) => {
+    try {
+      const response = await campaignsApi.toggleObserveCampaign(campagne.id, currentlyObserving);
+      setActionFeedback({
+        type: 'success',
+        message: response.message,
+      });
+      fetchCampaigns();
+    } catch (err: any) {
+      setActionFeedback({
+        type: 'error',
+        message: err.message || "Erreur lors de la modification de l'observation",
+      });
+    }
+  };
+
   const handleJoinSuccess = (_campaignId: number, message: string) => {
     setActionFeedback({
       type: 'success',
@@ -326,6 +342,7 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
               onSelectCampaign={(id) => navigate(`/forum/${id}`)}
               onJoin={handleDirectJoin}
               isJoining={joiningId === campagne.id}
+              onToggleObserve={handleToggleObserve}
             />
           ))}
         </div>
@@ -337,6 +354,7 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onJoinSuccess={handleJoinSuccess}
+        onObserveChange={() => fetchCampaigns()}
       />
     </div>
   );

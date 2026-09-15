@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
-import { CampaignSummary } from '../types/campaign';
+import { CampaignSummary, CampaignRole } from '../types/campaign';
 import { CampaignDetailModal } from '../components/CampaignDetailModal';
 import { CampaignCard } from '../components/CampaignCard';
 import { CampaignGridSkeleton } from '../components/CampaignCardSkeleton';
@@ -19,6 +19,9 @@ import {
   Sparkles,
   Gamepad2,
   X,
+  Eye,
+  Crown,
+  Users,
 } from 'lucide-react';
 
 interface MyCampaignsPageProps {
@@ -29,6 +32,7 @@ interface MyCampaignsPageProps {
 export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, onSelectCampaign }) => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const [roleFilter, setRoleFilter] = useState<CampaignRole>('all');
   const [includeArchived, setIncludeArchived] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
@@ -63,7 +67,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
     setIsLoading(true);
     setError(null);
     try {
-      const data = await campaignsApi.getMyCampaigns('all', includeArchived);
+      const data = await campaignsApi.getMyCampaigns(roleFilter, includeArchived);
       setCampaigns(data);
     } catch (err: any) {
       setError(err.message || 'Impossible de charger la liste de vos campagnes.');
@@ -72,11 +76,20 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
     }
   };
 
+  const handleToggleObserve = async (campaign: CampaignSummary, currentlyObserving: boolean) => {
+    try {
+      await campaignsApi.toggleObserveCampaign(campaign.id, currentlyObserving);
+      await fetchCampaigns();
+    } catch (err: any) {
+      setError(err.message || "Erreur lors de la mise à jour de l'observation");
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchCampaigns();
     }
-  }, [includeArchived, isAuthenticated]);
+  }, [roleFilter, includeArchived, isAuthenticated]);
 
   const filteredCampaigns = useMemo(() => {
     if (!searchQuery.trim()) return campaigns;
@@ -125,7 +138,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
             Mes Campagnes
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Retrouvez l'ensemble de vos tables de jeu, que vous soyez Maître du Jeu ou joueur.
+            Retrouvez l'ensemble de vos tables de jeu, que vous soyez Maître du Jeu, joueur ou observateur.
           </p>
         </div>
 
@@ -160,7 +173,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
 
       {/* Filter Toolbar */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           {/* Search bar */}
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -182,31 +195,83 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
             )}
           </div>
 
-          {/* Archive Filter Toggle */}
-          <div className="flex items-center gap-3">
-            <span className="text-xs sm:text-sm font-medium text-slate-600">Affichage :</span>
-            <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
-              <button
-                onClick={() => setIncludeArchived(false)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  !includeArchived
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Parties en cours
-              </button>
-              <button
-                onClick={() => setIncludeArchived(true)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  includeArchived
-                    ? 'bg-white text-slate-900 shadow-2xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Archive className="w-3.5 h-3.5 text-slate-400" />
-                <span>Toutes (avec archives)</span>
-              </button>
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Role Filter Tabs */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-medium text-slate-600">Rôle :</span>
+              <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                <button
+                  onClick={() => setRoleFilter('all')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    roleFilter === 'all'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Toutes
+                </button>
+                <button
+                  onClick={() => setRoleFilter('master')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    roleFilter === 'master'
+                      ? 'bg-white text-amber-900 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Crown className="w-3.5 h-3.5 text-amber-500" />
+                  <span>MJ</span>
+                </button>
+                <button
+                  onClick={() => setRoleFilter('player')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    roleFilter === 'player'
+                      ? 'bg-white text-indigo-900 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Users className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Joueur</span>
+                </button>
+                <button
+                  onClick={() => setRoleFilter('observer')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    roleFilter === 'observer'
+                      ? 'bg-white text-sky-900 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5 text-sky-500" />
+                  <span>Observateur</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Archive Filter Toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-medium text-slate-600">Statut :</span>
+              <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
+                <button
+                  onClick={() => setIncludeArchived(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    !includeArchived
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  En cours
+                </button>
+                <button
+                  onClick={() => setIncludeArchived(true)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    includeArchived
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Archive className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Avec archives</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -311,6 +376,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
               onOpenDetail={handleOpenDetail}
               onSelectCampaign={handleSelectCampaign}
               onConfigure={() => navigate(`/campaigns/${campaign.id}/edit`)}
+              onToggleObserve={handleToggleObserve}
             />
           ))}
         </div>
@@ -321,6 +387,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
         campaign={selectedCampaign}
         isOpen={isModalOpen}
         onClose={handleCloseModal}
+        onObserveChange={() => fetchCampaigns()}
       />
     </div>
   );

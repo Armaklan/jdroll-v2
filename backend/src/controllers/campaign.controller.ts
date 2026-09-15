@@ -19,6 +19,8 @@ import { createCharacterUseCase, CreateCharacterUseCase } from '../usecases/char
 import { updateCharacterUseCase, UpdateCharacterUseCase } from '../usecases/character/update-character.usecase.js';
 import { uploadCharacterAvatarUseCase, UploadCharacterAvatarUseCase } from '../usecases/character/upload-character-avatar.usecase.js';
 import { uploadCampaignBannerUseCase, UploadCampaignBannerUseCase } from '../usecases/campaign/upload-campaign-banner.usecase.js';
+import { observeCampaignUseCase, ObserveCampaignUseCase } from '../usecases/campaign/observe-campaign.usecase.js';
+import { unobserveCampaignUseCase, UnobserveCampaignUseCase } from '../usecases/campaign/unobserve-campaign.usecase.js';
 import { JWTPayload } from '../types/index.js';
 import {
   CampaignNotFoundError,
@@ -31,7 +33,7 @@ import {
 } from '../errors/domain.errors.js';
 
 const getMyCampaignsSchema = z.object({
-  role: z.enum(['all', 'master', 'player']).default('all'),
+  role: z.enum(['all', 'master', 'player', 'observer']).default('all'),
   includeArchived: z
     .preprocess((val) => {
       if (typeof val === 'string') {
@@ -237,7 +239,9 @@ export class CampaignController {
     private readonly updateCharacterUseCaseService: UpdateCharacterUseCase = updateCharacterUseCase,
     private readonly uploadCharacterAvatarUseCaseService: UploadCharacterAvatarUseCase = uploadCharacterAvatarUseCase,
     private readonly uploadCampaignBannerUseCaseService: UploadCampaignBannerUseCase = uploadCampaignBannerUseCase,
-    private readonly joinCampaignUseCaseService: JoinCampaignUseCase = joinCampaignUseCase
+    private readonly joinCampaignUseCaseService: JoinCampaignUseCase = joinCampaignUseCase,
+    private readonly observeCampaignUseCaseService: ObserveCampaignUseCase = observeCampaignUseCase,
+    private readonly unobserveCampaignUseCaseService: UnobserveCampaignUseCase = unobserveCampaignUseCase
   ) {}
 
   /**
@@ -1343,6 +1347,74 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/campaigns/:id/observe
+   * Permet à un utilisateur connecté d'observer une campagne
+   */
+  async observeCampaign(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.observeCampaignUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        userId: user.id,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de l’observation de la campagne' });
+    }
+  }
+
+  /**
+   * DELETE /api/campaigns/:id/observe (ou POST /api/campaigns/:id/unobserve)
+   * Permet à un utilisateur connecté de ne plus observer une campagne
+   */
+  async unobserveCampaign(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.unobserveCampaignUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        userId: user.id,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de l’arrêt de l’observation' });
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur
    */
   registerRoutes(app: FastifyInstance) {
@@ -1354,6 +1426,23 @@ export class CampaignController {
       '/api/campaigns/:id/join',
       { preHandler: [app.authenticate] },
       (req, rep) => this.joinCampaign(req, rep)
+    );
+
+    // Routes authentifiées pour observer / ne plus observer une campagne
+    app.post(
+      '/api/campaigns/:id/observe',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.observeCampaign(req, rep)
+    );
+    app.delete(
+      '/api/campaigns/:id/observe',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.unobserveCampaign(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/unobserve',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.unobserveCampaign(req, rep)
     );
 
     // Route pour voir les détails d'une campagne

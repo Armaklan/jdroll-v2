@@ -81,6 +81,25 @@ export const campaignsApi = {
     });
   },
 
+  async observeCampaign(campaignId: number): Promise<{ success: boolean; message: string; campaignId: number; isObserving: boolean }> {
+    return request<{ success: boolean; message: string; campaignId: number; isObserving: boolean }>(`/api/campaigns/${campaignId}/observe`, {
+      method: 'POST',
+    });
+  },
+
+  async unobserveCampaign(campaignId: number): Promise<{ success: boolean; message: string; campaignId: number; isObserving: boolean }> {
+    return request<{ success: boolean; message: string; campaignId: number; isObserving: boolean }>(`/api/campaigns/${campaignId}/observe`, {
+      method: 'DELETE',
+    });
+  },
+
+  async toggleObserveCampaign(campaignId: number, currentlyObserving: boolean): Promise<{ success: boolean; message: string; campaignId: number; isObserving: boolean }> {
+    if (currentlyObserving) {
+      return this.unobserveCampaign(campaignId);
+    }
+    return this.observeCampaign(campaignId);
+  },
+
   async createCampaign(payload: CreateCampaignPayload): Promise<CampaignSummary> {
     const result = await request<{ campaign: CampaignSummary }>('/api/campaigns', {
       method: 'POST',

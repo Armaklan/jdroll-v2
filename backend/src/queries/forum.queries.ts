@@ -29,7 +29,8 @@ export class ForumQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
     }
 
-    let userRole: 'mj' | 'player' | undefined = undefined;
+    let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
+    let isObserving = false;
     if (userId) {
       if (campaign.mjId === userId) {
         userRole = 'mj';
@@ -37,6 +38,11 @@ export class ForumQueries {
         const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, userId);
         if (isParticipant) {
           userRole = 'player';
+        } else {
+          isObserving = await this.campaignRepo.isUserCampaignObserver(campaignId, userId);
+          if (isObserving) {
+            userRole = 'observer';
+          }
         }
       }
     }
@@ -47,6 +53,7 @@ export class ForumQueries {
       campaign: {
         ...campaign,
         userRole: userRole ?? campaign.userRole,
+        isObserving: isObserving || campaign.isObserving,
       },
       sections,
     };

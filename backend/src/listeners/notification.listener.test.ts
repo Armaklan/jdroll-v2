@@ -33,6 +33,10 @@ describe('NotificationListener', () => {
     { id: 3, username: 'Player3', avatar: null },
   ];
 
+  const mockObservers = [
+    { id: 4, username: 'Observer4', avatar: null },
+  ];
+
   const mockCanReadUsers = [
     { id: 2, username: 'Player2', avatar: '' },
   ];
@@ -44,6 +48,7 @@ describe('NotificationListener', () => {
     const mockCampaignRepo: Partial<ICampaignRepository> = {
       findById: async (id: number) => (id === 100 ? (mockCampaign as any) : null),
       findCampaignParticipants: async (id: number) => (id === 100 ? mockParticipants : []),
+      findCampaignObservers: async (id: number) => (id === 100 ? mockObservers : []),
     };
 
     const mockForumRepo: Partial<IForumRepository> = {
@@ -72,7 +77,7 @@ describe('NotificationListener', () => {
   });
 
   describe('PostCreated event', () => {
-    it('should notify MJ and all participants except the author in a public campaign topic', async () => {
+    it('should notify MJ, all participants and observers except the author in a public campaign topic', async () => {
       // User 2 (player) posts in a public topic
       await eventBus.publish({
         name: 'PostCreated',
@@ -84,10 +89,10 @@ describe('NotificationListener', () => {
         isPrivate: 0,
       });
 
-      // Recipient should be MJ (1) and Player3 (3), excluding Player2 (2)
-      assert.equal(notificationsCreated.length, 2);
+      // Recipient should be MJ (1), Player3 (3), and Observer4 (4), excluding Player2 (2)
+      assert.equal(notificationsCreated.length, 3);
       const notifiedUserIds = notificationsCreated.map((n) => n.userId).sort();
-      assert.deepEqual(notifiedUserIds, [1, 3]);
+      assert.deepEqual(notifiedUserIds, [1, 3, 4]);
       assert.equal(notificationsCreated[0].type, 'topic');
       assert.equal(notificationsCreated[0].targetId, 15);
       assert.equal(notificationsCreated[0].url, '/forum/100/15/page/1#post10');
@@ -147,7 +152,7 @@ describe('NotificationListener', () => {
       assert.equal(notificationsCreated.length, 0);
     });
 
-    it('should notify campaign participants when rolled in a topic post', async () => {
+    it('should notify campaign participants and observers when rolled in a topic post', async () => {
       // Player 2 rolls in public topic 15
       await eventBus.publish({
         name: 'RollCreated',
@@ -162,9 +167,9 @@ describe('NotificationListener', () => {
         result: '42',
       });
 
-      assert.equal(notificationsCreated.length, 2);
+      assert.equal(notificationsCreated.length, 3);
       const notifiedUserIds = notificationsCreated.map((n) => n.userId).sort();
-      assert.deepEqual(notifiedUserIds, [1, 3]);
+      assert.deepEqual(notifiedUserIds, [1, 3, 4]);
     });
   });
 
