@@ -50,27 +50,28 @@ export function AppContent() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
-          {/* Communiquer */}
+          {/* Messagerie */}
           <Route
             path="/messages"
             element={
               <ProtectedRoute>
                 <SectionPlaceholderPage
                   title="Messagerie Privée"
-                  category="Communiquer"
+                  category="Messagerie"
                   description="Consultez vos messages privés, vos notifications de jeu et échangez avec d'autres joueurs ou maîtres du jeu."
                   icon={Mail}
                 />
               </ProtectedRoute>
             }
           />
+          {/* Tchat */}
           <Route
             path="/chat"
             element={
               <ProtectedRoute>
                 <SectionPlaceholderPage
                   title="Tchat en Direct"
-                  category="Communiquer"
+                  category="Tchat"
                   description="Salon de discussion instantané pour échanger en direct avec la communauté et les membres connectés."
                   icon={MessagesSquare}
                 />
