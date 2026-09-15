@@ -10,7 +10,6 @@ import {
   LogOut,
   User as UserIcon,
   UserPlus,
-  Shield,
   ChevronDown,
   Home,
   MessageSquare,
@@ -361,15 +360,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               </div>
 
               <div className="flex items-center gap-2 bg-slate-100/80 border border-slate-200 px-3 py-1.5 rounded-xl">
-                <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
-                  {user.username.charAt(0).toUpperCase()}
-                </div>
                 <span className="text-sm font-semibold text-slate-800">{user.username}</span>
-                {user.profil === 1 && (
-                  <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
-                    <Shield className="w-3 h-3" /> Admin
-                  </span>
-                )}
               </div>
               <button
                 onClick={handleLogout}
