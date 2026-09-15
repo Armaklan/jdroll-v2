@@ -243,6 +243,8 @@ export interface TopicDetail {
   totalPages: number;
   pageSize: number;
   lastReadPostId: number | null;
+  firstUnreadPostId?: number | null;
+  allRead?: boolean;
   canPost: boolean;
   userRole?: 'mj' | 'player' | 'user' | null;
   availableCharacters: CharacterSummary[];

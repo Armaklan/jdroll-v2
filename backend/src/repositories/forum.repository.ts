@@ -24,6 +24,8 @@ export interface IForumRepository {
   countPostsByTopicId(topicId: number): Promise<number>;
   findPostsByTopicId(topicId: number, offset: number, limit: number, userId?: number): Promise<ForumPost[]>;
   getUserLastReadPostId(topicId: number, userId: number): Promise<number | null>;
+  findFirstUnreadPost(topicId: number, lastReadPostId: number): Promise<{ id: number } | null>;
+  findFirstPost(topicId: number): Promise<{ id: number } | null>;
   countPostsAfterPostId(topicId: number, postId: number): Promise<number>;
   getPostById(postId: number, userId?: number): Promise<ForumPost | null>;
   createPost(data: { topicId: number; userId: number | null; persoId: number | null; content: string; editor?: number }): Promise<number>;
@@ -358,6 +360,38 @@ export class MysqlForumRepository implements IForumRepository {
 
     const row = await queryOne<ReadPostRow>(sql, [topicId, userId]);
     return row && row.postId !== null ? Number(row.postId) : null;
+  }
+
+  async findFirstUnreadPost(topicId: number, lastReadPostId: number): Promise<{ id: number } | null> {
+    const sql = `
+      SELECT id
+      FROM posts
+      WHERE topic_id = ? AND id > ?
+      ORDER BY id ASC
+      LIMIT 1
+    `;
+
+    interface FirstUnreadRow {
+      id: number;
+    }
+
+    return queryOne<FirstUnreadRow>(sql, [topicId, lastReadPostId]);
+  }
+
+  async findFirstPost(topicId: number): Promise<{ id: number } | null> {
+    const sql = `
+      SELECT id
+      FROM posts
+      WHERE topic_id = ?
+      ORDER BY id ASC
+      LIMIT 1
+    `;
+
+    interface FirstPostRow {
+      id: number;
+    }
+
+    return queryOne<FirstPostRow>(sql, [topicId]);
   }
 
   async countPostsAfterPostId(topicId: number, postId: number): Promise<number> {

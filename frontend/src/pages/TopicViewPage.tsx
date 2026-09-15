@@ -125,9 +125,20 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     }
   }, [effectiveTopicId, targetPageFromUrl]);
 
-  // Défilement automatique vers l'ancre du post (ex: #post1081687)
+  // Défilement automatique vers l'ancre du post (ex: #post1081687), vers le 1er non lu, ou vers la zone de post si tout lu
   useEffect(() => {
     if (!isLoading && topicDetail) {
+      const campId = topicDetail.campagneId ?? (params.campaignId ? Number(params.campaignId) : 0);
+
+      // Mettre à jour l'URL sans rechargement pour refléter la page chargée si non spécifiée dans l'URL
+      if (pageFromParam === undefined && topicDetail.page) {
+        window.history.replaceState(
+          null,
+          '',
+          `/forum/${campId}/${effectiveTopicId}/page/${topicDetail.page}${window.location.hash}`
+        );
+      }
+
       const hash = window.location.hash;
       if (hash) {
         const cleanId = hash.replace(/^#/, '');
@@ -145,6 +156,31 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             setTimeout(() => {
               el.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2');
             }, 3000);
+          }
+        }, 150);
+
+        return () => clearTimeout(timer);
+      } else if (pageFromParam === undefined && pageFromQuery === undefined) {
+        // Arrivée sur le topic depuis la liste du forum sans numéro de page explicite
+        const timer = setTimeout(() => {
+          if (topicDetail.firstUnreadPostId) {
+            const el =
+              document.getElementById(`post${topicDetail.firstUnreadPostId}`) ||
+              document.getElementById(`post-${topicDetail.firstUnreadPostId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              el.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-2', 'transition-all');
+              setTimeout(() => {
+                el.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-2');
+              }, 3000);
+            }
+          } else {
+            // Tout est lu -> défilement jusqu'à la zone de réponse
+            if (formRef.current) {
+              formRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }
           }
         }, 150);
 
@@ -517,6 +553,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
         <div className="space-y-4">
           {topicDetail.posts.map((post, postIdx) => {
             const isLastRead = topicDetail.lastReadPostId === post.id;
+            const isFirstUnread = topicDetail.firstUnreadPostId === post.id;
             const isSystem = !post.perso && (!post.user || !post.user.id || post.user.id === 0 || post.user.username === 'Système');
             const authorName = post.perso?.name || (isSystem ? 'Jet de dés' : post.user.username);
             const avatarUrl = post.perso?.avatar || post.user.avatar;
@@ -542,7 +579,9 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                   ...(postTextColor ? { '--text-color': postTextColor } : {}),
                 } as React.CSSProperties}
                 className={`border rounded-2xl p-5 shadow-xs transition duration-150 ${
-                  isLastRead
+                  isFirstUnread
+                    ? 'border-indigo-500 ring-2 ring-indigo-200'
+                    : isLastRead
                     ? 'border-indigo-400 ring-2 ring-indigo-100'
                     : 'border-slate-200 hover:border-slate-300'
                 } ${!postBg ? 'bg-white' : ''}`}
@@ -563,8 +602,14 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {isLastRead && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    {isFirstUnread && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
+                        <Sparkles className="w-3 h-3 text-amber-500" />
+                        <span>1er non lu</span>
+                      </span>
+                    )}
+                    {isLastRead && !isFirstUnread && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs">
                         <BookmarkCheck className="w-3 h-3" />
                         <span>Dernier lu</span>
                       </span>

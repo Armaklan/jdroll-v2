@@ -85,6 +85,8 @@ describe('RollDiceUseCase', () => {
       countPostsByTopicId: async () => 5,
       findPostsByTopicId: async () => [],
       getUserLastReadPostId: async () => null,
+      findFirstUnreadPost: async () => null,
+      findFirstPost: async () => null,
       countPostsAfterPostId: async () => 0,
       getPostById: async (postId: number): Promise<ForumPost | null> => {
         const found = createdPosts.find((p) => p.id === postId);

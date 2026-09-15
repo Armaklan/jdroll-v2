@@ -90,6 +90,8 @@ describe('CreatePostUseCase', () => {
       countPostsByTopicId: async (): Promise<number> => 5,
       findPostsByTopicId: async (): Promise<ForumPost[]> => [],
       getUserLastReadPostId: async (): Promise<number | null> => null,
+      findFirstUnreadPost: async () => null,
+      findFirstPost: async () => null,
       countPostsAfterPostId: async (): Promise<number> => 0,
       getPostById: async (postId: number): Promise<ForumPost | null> => {
         const found = createdPosts.find((p) => p.id === postId);

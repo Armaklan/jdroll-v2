@@ -236,6 +236,15 @@ class MockForumRepository implements IForumRepository {
     return this.lastReadPostId;
   }
 
+  async findFirstUnreadPost(_topicId: number, lastReadPostId: number): Promise<{ id: number } | null> {
+    const unread = this.allPosts.filter((p) => p.id > lastReadPostId).sort((a, b) => a.id - b.id);
+    return unread.length > 0 ? { id: unread[0].id } : null;
+  }
+
+  async findFirstPost(_topicId: number): Promise<{ id: number } | null> {
+    return this.allPosts.length > 0 ? { id: this.allPosts[0].id } : null;
+  }
+
   async countPostsAfterPostId(_topicId: number, postId: number): Promise<number> {
     return this.allPosts.filter((p) => p.id > postId).length;
   }
@@ -456,9 +465,9 @@ describe('ForumQueries', () => {
     assert.equal(result.posts[4].id, 5);
   });
 
-  it('should automatically open the page containing the last read post when page is not specified and update read marker with last visible post', async () => {
+  it('should automatically open the page containing the first unread post when page is not specified and update read marker with last visible post', async () => {
     // 25 posts au total, l'utilisateur a lu jusqu'au post #12 (il reste 13 posts après #12)
-    // 13 posts après -> floor(13 / 10) + 1 = page 2 (posts 6 à 15)
+    // 1er non lu = #13. 12 posts après #13 -> floor(12 / 10) + 1 = page 2 (posts 6 à 15)
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, 12);
     const queries = new ForumQueries(campaignRepo, forumRepo);
@@ -466,6 +475,8 @@ describe('ForumQueries', () => {
     const result = await queries.getTopicPosts(101, undefined, 2);
 
     assert.equal(result.page, 2);
+    assert.equal(result.firstUnreadPostId, 13);
+    assert.equal(result.allRead, false);
     // Le dernier post visible sur la page 2 est le #15, qui devient le nouveau lastReadPostId
     assert.equal(result.lastReadPostId, 15);
     assert.equal(result.posts[0].id, 6);
@@ -475,8 +486,27 @@ describe('ForumQueries', () => {
     assert.deepEqual(forumRepo.markTopicAsReadCalls[0], { topicId: 101, userId: 2, postId: 15 });
   });
 
-  it('should automatically mark last visible post as read when opening a topic for the first time', async () => {
-    // Utilisateur sans historique de lecture (null), ouvre la page 1 par défaut (posts 16 à 25)
+  it('should automatically open page 3 (first post #1) when opening a topic for the first time without page specified', async () => {
+    // Utilisateur sans historique de lecture (null), le 1er non lu est le post #1 (page 3)
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, undefined, 2);
+
+    assert.equal(result.page, 3);
+    assert.equal(result.firstUnreadPostId, 1);
+    assert.equal(result.allRead, false);
+    assert.equal(result.lastReadPostId, 5);
+    assert.equal(result.posts[0].id, 1);
+    assert.equal(result.posts[4].id, 5);
+    assert.equal(result.posts.every((p) => p.isRead), true);
+    assert.equal(forumRepo.markTopicAsReadCalls.length, 1);
+    assert.deepEqual(forumRepo.markTopicAsReadCalls[0], { topicId: 101, userId: 2, postId: 5 });
+  });
+
+  it('should automatically mark last visible post as read when opening a topic on page 1 explicitly', async () => {
+    // Utilisateur sans historique de lecture (null), ouvre la page 1 explicitement (posts 16 à 25)
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
     const queries = new ForumQueries(campaignRepo, forumRepo);

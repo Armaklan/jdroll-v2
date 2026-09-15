@@ -94,16 +94,48 @@ export class ForumQueries {
     const lastReadPostId = userId ? await this.forumRepo.getUserLastReadPostId(topicId, userId) : null;
 
     let targetPage = 1;
+    let firstUnreadPostId: number | null = null;
+    let allRead = false;
 
     if (requestedPage !== undefined && requestedPage !== null && !isNaN(requestedPage)) {
       targetPage = Math.max(1, Math.min(requestedPage, totalPages));
-    } else if (lastReadPostId !== null) {
-      // Trouver la page contenant le dernier message lu
-      const newerPostsCount = await this.forumRepo.countPostsAfterPostId(topicId, lastReadPostId);
-      targetPage = Math.floor(newerPostsCount / pageSize) + 1;
-      targetPage = Math.max(1, Math.min(targetPage, totalPages));
+      if (userId && lastReadPostId !== null) {
+        const firstUnread = await this.forumRepo.findFirstUnreadPost(topicId, lastReadPostId);
+        if (firstUnread) {
+          firstUnreadPostId = firstUnread.id;
+        } else {
+          allRead = true;
+        }
+      }
+    } else if (userId) {
+      if (lastReadPostId !== null) {
+        // Trouver le premier message non lu (id > lastReadPostId)
+        const firstUnread = await this.forumRepo.findFirstUnreadPost(topicId, lastReadPostId);
+        if (firstUnread) {
+          firstUnreadPostId = firstUnread.id;
+          const newerPostsCount = await this.forumRepo.countPostsAfterPostId(topicId, firstUnread.id);
+          targetPage = Math.floor(newerPostsCount / pageSize) + 1;
+          targetPage = Math.max(1, Math.min(targetPage, totalPages));
+        } else {
+          // Tous les messages ont été lus
+          allRead = true;
+          targetPage = 1;
+        }
+      } else {
+        // L'utilisateur n'a jamais lu ce topic : le premier non lu est le premier post du topic
+        const firstPost = await this.forumRepo.findFirstPost(topicId);
+        if (firstPost) {
+          firstUnreadPostId = firstPost.id;
+          const newerPostsCount = await this.forumRepo.countPostsAfterPostId(topicId, firstPost.id);
+          targetPage = Math.floor(newerPostsCount / pageSize) + 1;
+          targetPage = Math.max(1, Math.min(targetPage, totalPages));
+        } else {
+          allRead = true;
+          targetPage = 1;
+        }
+      }
     } else {
-      // Par défaut, la page 1 correspond aux 10 derniers messages
+      // Par défaut pour les invités, la page 1 correspond aux 10 derniers messages
       targetPage = 1;
     }
 
@@ -212,6 +244,8 @@ export class ForumQueries {
       totalPages,
       pageSize,
       lastReadPostId: currentLastReadPostId,
+      firstUnreadPostId,
+      allRead,
       canPost,
       userRole,
       availableCharacters,

@@ -204,7 +204,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     if (onSelectTopic) {
       onSelectTopic(topicId);
     } else {
-      navigate(`/forum/${effectiveCampaignId}/${topicId}/page/1`);
+      navigate(`/forum/${effectiveCampaignId}/${topicId}`);
     }
   };
 
