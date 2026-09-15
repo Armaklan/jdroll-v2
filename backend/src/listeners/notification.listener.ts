@@ -30,9 +30,11 @@ export class NotificationListener {
   async handlePostCreated(event: PostCreatedEvent): Promise<void> {
     const recipientIds = new Set<number>();
 
+    let campaignName = 'Forum';
     if (event.campagneId) {
       const campaign = await this.campaignRepo.findById(event.campagneId);
       if (!campaign) return;
+      campaignName = campaign.name;
 
       if (event.isPrivate === 1) {
         recipientIds.add(campaign.mjId);
@@ -64,12 +66,14 @@ export class NotificationListener {
       recipientIds.delete(event.userId);
     }
 
+    const postUrl = `/forum/${event.campagneId || 0}/${event.topicId}/page/1#post${event.postId}`;
+
     for (const recipientId of recipientIds) {
       await this.notifUseCase.execute({
         userId: recipientId,
-        title: event.topicTitle,
-        content: `Nouveau message dans le sujet "${event.topicTitle}"`,
-        url: `/forum/${event.campagneId || 0}/${event.topicId}/page/1#post${event.postId}`,
+        title: `${campaignName} - Nouveau post`,
+        content: `Nouveau message dans le sujet <a href="${postUrl}">${event.topicTitle}</a>`,
+        url: postUrl,
         type: 'topic',
         targetId: event.topicId,
       });
@@ -82,11 +86,12 @@ export class NotificationListener {
       if (!campaign) return;
 
       if (campaign.mjId !== event.userId) {
+        const towerUrl = `/campaigns/${event.campagneId}/dice`;
         await this.notifUseCase.execute({
           userId: campaign.mjId,
-          title: campaign.name,
-          content: `Nouveau jet de dés dans la tour à dés : ${event.formula} (${event.result})`,
-          url: `/campaigns/${event.campagneId}/dice`,
+          title: `${campaign.name} - Jet de dé`,
+          content: `Nouveau jet de dés dans <a href="${towerUrl}">la tour à dés</a> : ${event.formula} (${event.result})`,
+          url: towerUrl,
           type: 'dice',
           targetId: event.campagneId,
         });
@@ -96,10 +101,12 @@ export class NotificationListener {
 
     if (event.topicId) {
       const recipientIds = new Set<number>();
+      let campaignName = 'Forum';
 
       if (event.campagneId) {
         const campaign = await this.campaignRepo.findById(event.campagneId);
         if (!campaign) return;
+        campaignName = campaign.name;
 
         if (event.isPrivate === 1) {
           recipientIds.add(campaign.mjId);
@@ -139,8 +146,8 @@ export class NotificationListener {
       for (const recipientId of recipientIds) {
         await this.notifUseCase.execute({
           userId: recipientId,
-          title: topicTitle,
-          content: `Nouveau jet de dé dans le sujet "${topicTitle}"`,
+          title: `${campaignName} - Jet de dé`,
+          content: `Nouveau jet de dé dans le sujet <a href="${topicUrl}">${topicTitle}</a>`,
           url: topicUrl,
           type: 'topic',
           targetId: event.topicId,
@@ -162,12 +169,14 @@ export class NotificationListener {
 
     recipientIds.delete(event.modifierUserId);
 
+    const charUrl = `/campaigns/${event.campagneId}/characters`;
+
     for (const recipientId of recipientIds) {
       await this.notifUseCase.execute({
         userId: recipientId,
-        title: event.characterName,
-        content: `Le personnage "${event.characterName}" a été mis à jour`,
-        url: `/campaigns/${event.campagneId}/characters`,
+        title: `${campaign.name} - Modification de personnage`,
+        content: `Le personnage <a href="${charUrl}">${event.characterName}</a> a été mis à jour`,
+        url: charUrl,
         type: 'perso',
         targetId: event.characterId,
       });

@@ -138,9 +138,10 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                     )}
                   </div>
 
-                  <p className="text-xs text-slate-600 mt-0.5 line-clamp-2 leading-relaxed">
-                    {notif.content}
-                  </p>
+                  <div
+                    className="text-xs text-slate-600 mt-0.5 line-clamp-2 leading-relaxed [&_a]:text-indigo-600 [&_a]:hover:underline"
+                    dangerouslySetInnerHTML={{ __html: notif.content }}
+                  />
 
                   <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-400">
                     <span>{formatNotificationDate(notif.lastUpdate)}</span>
