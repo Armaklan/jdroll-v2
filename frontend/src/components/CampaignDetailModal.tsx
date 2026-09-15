@@ -47,7 +47,7 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
 
   const isMj = user && user.id === campaign.mjId;
   const isArchived = campaign.isArchived || campaign.statut === 2;
-  const isRecruitmentOpen = campaign.isRecrutementOpen && !isArchived;
+  const isRecruitmentOpen = campaign.isRecrutementOpen && !isArchived && campaign.statut !== 3;
 
   const handleGoToForum = () => {
     onClose();

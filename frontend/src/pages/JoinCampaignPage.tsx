@@ -50,9 +50,9 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
     try {
       const data = await campaignsApi.getAllCampaigns(showAll && includeArchived, searchQuery);
       if (showAll) {
-        setCampaigns(data);
+        setCampaigns(data.filter((c) => c.statut !== 3));
       } else {
-        const recruitingCampaigns = data.filter((c) => c.isRecrutementOpen && !c.isArchived && c.statut !== 2);
+        const recruitingCampaigns = data.filter((c) => c.isRecrutementOpen && !c.isArchived && c.statut !== 2 && c.statut !== 3);
         setCampaigns(recruitingCampaigns);
       }
     } catch (err: any) {

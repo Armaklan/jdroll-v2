@@ -360,6 +360,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     const conditions: string[] = [];
     const params: any[] = [];
 
+    // Exclure les campagnes en préparation (statut = 3)
+    conditions.push('c.statut != 3');
+
     if (!includeArchived) {
       conditions.push('c.statut != 2');
     }

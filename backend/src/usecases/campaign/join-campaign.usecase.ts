@@ -36,6 +36,10 @@ export class JoinCampaignUseCase {
       throw new ValidationError('Impossible de rejoindre une campagne archivée');
     }
 
+    if (campaign.statut === 3) {
+      throw new ValidationError('Impossible de rejoindre une campagne en préparation');
+    }
+
     if (!campaign.isRecrutementOpen) {
       throw new ValidationError('Le recrutement pour cette campagne est actuellement fermé');
     }

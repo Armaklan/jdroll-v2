@@ -97,6 +97,18 @@ describe('JoinCampaignUseCase', () => {
     );
   });
 
+  it('lève une ValidationError si la campagne est en préparation', async () => {
+    const { repo } = createMockCampaignRepo([
+      { ...sampleCampaign, id: 13, statut: 3 },
+    ]);
+    const useCase = new JoinCampaignUseCase(repo);
+
+    await assert.rejects(
+      () => useCase.execute({ campaignId: 13, userId: 2 }),
+      ValidationError
+    );
+  });
+
   it('lève une ValidationError si le recrutement est fermé', async () => {
     const { repo } = createMockCampaignRepo([
       { ...sampleCampaign, id: 12, isRecrutementOpen: false },

@@ -53,7 +53,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
     (user && campaign.characterName)
   );
   const isArchived = Boolean(campaign.isArchived || campaign.statut === 2);
-  const isRecruitmentOpen = Boolean(campaign.isRecrutementOpen && !isArchived);
+  const isRecruitmentOpen = Boolean(campaign.isRecrutementOpen && !isArchived && campaign.statut !== 3);
 
   const rythmeLabel = getRythmeLabel(campaign.rythme);
   const rpLabel = getRpLabel(campaign.rp);

@@ -64,6 +64,9 @@ class MockCampaignRepository implements ICampaignRepository {
   async findAllCampaigns(options: { includeArchived?: boolean; search?: string } = {}): Promise<CampaignSummary[]> {
     const { includeArchived = false, search } = options;
     return this.allCampaigns.filter((c) => {
+      if (c.statut === 3) {
+        return false;
+      }
       if (!includeArchived && c.isArchived) {
         return false;
       }
@@ -243,11 +246,29 @@ describe('CampaignQueries', () => {
   });
 
   it('should return only active campaigns by default for getAllCampaigns', async () => {
+    const samplePreparationCampaign: CampaignSummary = {
+      id: 5,
+      name: 'Campagne En Préparation',
+      mjId: 42,
+      mjUsername: 'admin',
+      nbJoueurs: 4,
+      nbJoueursActuel: 1,
+      banniere: '',
+      systeme: 'D&D 5',
+      univers: 'Fantasy',
+      description: 'Campagne pas prête',
+      statut: 3,
+      isArchived: false,
+      isRecrutementOpen: true,
+      userRole: 'mj',
+    };
+
     const all = [
       sampleMasteredCampaignActive,
       sampleMasteredCampaignArchived,
       samplePlayerCampaignActive,
       samplePlayerCampaignArchived,
+      samplePreparationCampaign,
     ];
     const repo = new MockCampaignRepository([], [], all);
     const queries = new CampaignQueries(repo);
