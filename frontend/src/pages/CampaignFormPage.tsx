@@ -104,7 +104,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   // Game rules & options
   const [statut, setStatut] = useState<number>(3);
   const [isRecrutementOpen, setIsRecrutementOpen] = useState<boolean>(true);
-  const [rythme, setRythme] = useState<number>(2);
+  const [rythme, setRythme] = useState<number>(1);
   const [rp, setRp] = useState<number>(1);
   const [isMultiCharacter, setIsMultiCharacter] = useState<boolean>(false);
   const [defaultDice, setDefaultDice] = useState<string>('1d20');
@@ -160,7 +160,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
         setStatut(campaign.statut ?? 3);
         setIsRecrutementOpen(Boolean(campaign.isRecrutementOpen));
-        setRythme(campaign.rythme ?? 2);
+        setRythme(campaign.rythme ?? 1);
         setRp(campaign.rp ?? 1);
         setIsMultiCharacter(Boolean(campaign.isMultiCharacter));
         setDefaultDice(campaign.defaultDice || '1d20');
@@ -868,11 +868,11 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </label>
                   <div className="space-y-2">
                     {[
-                      { val: 1, label: '1 post par mois', desc: 'Rythme mensuel très posé' },
-                      { val: 2, label: '1 post par semaine', desc: 'Rythme hebdomadaire régulier' },
-                      { val: 3, label: '1 post pour 3 jours', desc: 'Rythme soutenu tous les 3 jours' },
-                      { val: 4, label: '1 post par jour', desc: 'Rythme quotidien actif' },
-                      { val: 5, label: 'Plusieurs posts par jour', desc: 'Rythme très rapide et intensif' },
+                      { val: 0, label: '1 post par mois', desc: 'Rythme mensuel très posé' },
+                      { val: 1, label: '1 post par semaine', desc: 'Rythme hebdomadaire régulier' },
+                      { val: 2, label: '1 post pour 3 jours', desc: 'Rythme soutenu tous les 3 jours' },
+                      { val: 3, label: '1 post par jour', desc: 'Rythme quotidien actif' },
+                      { val: 4, label: 'Plusieurs posts par jour', desc: 'Rythme très rapide et intensif' },
                     ].map((r) => (
                       <label
                         key={r.val}
@@ -907,10 +907,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </label>
                   <div className="space-y-2">
                     {[
-                      { val: 1, label: 'Roman de gare', desc: "Peu d'exigence en terme de Roleplay" },
-                      { val: 2, label: 'Standard', desc: 'Exigence standard : action décrite correctement, quelques pensées, ...' },
-                      { val: 3, label: 'Théâtre', desc: 'Exigence forte : la description prime, il faudra faire des efforts.' },
-                      { val: 4, label: 'Cyrano', desc: 'De haut vol : le roleplay est au centre même de la partie !' },
+                      { val: 0, label: 'Roman de gare', desc: "Peu d'exigence en terme de Roleplay" },
+                      { val: 1, label: 'Standard', desc: 'Exigence standard : action décrite correctement, quelques pensées, ...' },
+                      { val: 2, label: 'Théâtre', desc: 'Exigence forte : la description prime, il faudra faire des efforts.' },
+                      { val: 3, label: 'Cyrano', desc: 'De haut vol : le roleplay est au centre même de la partie !' },
                     ].map((lvl) => (
                       <label
                         key={lvl.val}

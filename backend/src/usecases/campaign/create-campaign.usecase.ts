@@ -72,7 +72,7 @@ export class CreateCampaignUseCase {
       banniereForum: dto.banniereForum !== undefined ? (dto.banniereForum?.trim() || null) : undefined,
       statut: dto.statut ?? 0,
       isRecrutementOpen: dto.isRecrutementOpen !== false,
-      rythme: dto.rythme ?? 2,
+      rythme: dto.rythme ?? 1,
       rp: dto.rp ?? 1,
       isMultiCharacter: Boolean(dto.isMultiCharacter),
       dialogueColor: dto.dialogueColor || null,

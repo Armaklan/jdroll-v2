@@ -145,33 +145,33 @@ describe('UpdateCampaignUseCase', () => {
     assert.equal(result.penseeColor, '#10b981');
   });
 
-  it('met à jour correctement les différents statuts (3, 0, 1, 2), rythmes (1..5) et exigences rp (1..4)', async () => {
+  it('met à jour correctement les différents statuts (3, 0, 1, 2), rythmes (0..4) et exigences rp (0..3)', async () => {
     const { repo } = createMockCampaignRepo();
     const useCase = new UpdateCampaignUseCase(repo, createMockForumRepo());
 
-    // Statut 3 : En préparation, Rythme 5 : Plusieurs posts par jour, RP 4 : Cyrano
+    // Statut 3 : En préparation, Rythme 4 : Plusieurs posts par jour, RP 3 : Cyrano
     const resultPrep = await useCase.execute({
       campaignId: 1,
       userId: 10,
       statut: 3,
-      rythme: 5,
-      rp: 4,
+      rythme: 4,
+      rp: 3,
     });
     assert.equal(resultPrep.statut, 3);
-    assert.equal(resultPrep.rythme, 5);
-    assert.equal(resultPrep.rp, 4);
+    assert.equal(resultPrep.rythme, 4);
+    assert.equal(resultPrep.rp, 3);
 
-    // Statut 2 : Archivé
+    // Statut 2 : Archivé, Rythme 0 : 1 post par mois, RP 0 : Roman de gare
     const resultArchived = await useCase.execute({
       campaignId: 1,
       userId: 10,
       statut: 2,
-      rythme: 1,
-      rp: 1,
+      rythme: 0,
+      rp: 0,
     });
     assert.equal(resultArchived.statut, 2);
     assert.equal(resultArchived.isArchived, true);
-    assert.equal(resultArchived.rythme, 1);
-    assert.equal(resultArchived.rp, 1);
+    assert.equal(resultArchived.rythme, 0);
+    assert.equal(resultArchived.rp, 0);
   });
 });

@@ -36,7 +36,7 @@ describe('CreateCampaignUseCase', () => {
           statut: data.statut ?? 0,
           isArchived: (data.statut ?? 0) === 2,
           isRecrutementOpen: data.isRecrutementOpen !== false,
-          rythme: data.rythme ?? 2,
+          rythme: data.rythme ?? 1,
           rp: data.rp ?? 1,
           isMultiCharacter: Boolean(data.isMultiCharacter),
           dialogueColor: data.dialogueColor || null,
@@ -132,7 +132,7 @@ describe('CreateCampaignUseCase', () => {
     assert.equal(createdList.length, 1);
   });
 
-  it('crée avec succès une campagne avec statut 3 (En préparation), rythme 5 et exigence rp 4 (Cyrano)', async () => {
+  it('crée avec succès une campagne avec statut 3 (En préparation), rythme 4 (Plusieurs posts/jour) et exigence rp 3 (Cyrano)', async () => {
     const { repo, createdList } = createMockCampaignRepo();
     const useCase = new CreateCampaignUseCase(repo);
 
@@ -140,17 +140,17 @@ describe('CreateCampaignUseCase', () => {
       mjId: 10,
       name: 'Campagne Cyrano',
       statut: 3,
-      rythme: 5,
-      rp: 4,
+      rythme: 4,
+      rp: 3,
     });
 
     assert.equal(result.name, 'Campagne Cyrano');
     assert.equal(result.statut, 3);
-    assert.equal(result.rythme, 5);
-    assert.equal(result.rp, 4);
+    assert.equal(result.rythme, 4);
+    assert.equal(result.rp, 3);
     assert.equal(createdList.length, 1);
     assert.equal(createdList[0].statut, 3);
-    assert.equal(createdList[0].rythme, 5);
-    assert.equal(createdList[0].rp, 4);
+    assert.equal(createdList[0].rythme, 4);
+    assert.equal(createdList[0].rp, 3);
   });
 });
