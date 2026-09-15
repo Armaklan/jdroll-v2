@@ -62,6 +62,17 @@ describe('UpdateCampaignUseCase', () => {
           if (data.rp !== undefined) c.rp = data.rp;
           if (data.dialogueColor !== undefined) c.dialogueColor = data.dialogueColor;
           if (data.penseeColor !== undefined) c.penseeColor = data.penseeColor;
+          if (data.rp1Color !== undefined) c.rp1Color = data.rp1Color;
+          if (data.rp2Color !== undefined) c.rp2Color = data.rp2Color;
+          if (data.quoteColor !== undefined) c.quoteColor = data.quoteColor;
+          if (data.sidebarColor !== undefined) c.sidebarColor = data.sidebarColor;
+          if (data.oddLineColor !== undefined) c.oddLineColor = data.oddLineColor;
+          if (data.evenLineColor !== undefined) c.evenLineColor = data.evenLineColor;
+          if (data.textColor !== undefined) c.textColor = data.textColor;
+          if (data.linkColor !== undefined) c.linkColor = data.linkColor;
+          if (data.linkSidebarColor !== undefined) c.linkSidebarColor = data.linkSidebarColor;
+          if (data.width !== undefined) c.width = data.width;
+          if (data.defaultDice !== undefined) c.defaultDice = data.defaultDice;
           if (data.template !== undefined) c.template = data.template;
           if (data.templateHtml !== undefined) c.templateHtml = data.templateHtml;
           if (data.templateImg !== undefined) c.templateImg = data.templateImg;
@@ -202,5 +213,58 @@ describe('UpdateCampaignUseCase', () => {
     assert.equal(result.templateHtml, '<div class="sheet"><h1>Fiche</h1></div>');
     assert.equal(result.templateFields, '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="2"></div>');
     assert.equal(result.template, '<p>Nouveau template</p>');
+  });
+
+  it('met à jour correctement une campagne avec un payload complet contenant des couleurs nulles et template vide', async () => {
+    const { repo } = createMockCampaignRepo();
+    const useCase = new UpdateCampaignUseCase(repo, createMockForumRepo());
+
+    const payload = {
+      name: 'Le secret du Poètes',
+      systeme: '7Mer V3',
+      univers: '7Mer',
+      description: "<p>Une aventure d'épouvante au cœur des brumes de Barovie sous la coupe du seigneur vampire Strahd von Zarovich.</p>",
+      nbJoueurs: 4,
+      banniere: '/files/1/bbe069f24b893b1a3a1d7ead29c47095.png',
+      banniereForum: '/files/1/bbe069f24b893b1a3a1d7ead29c47095.png',
+      statut: 0,
+      isRecrutementOpen: true,
+      rythme: 2,
+      rp: 2,
+      isMultiCharacter: false,
+      defaultDice: '1d20',
+      dialogueColor: '#4488cc',
+      penseeColor: '#8844cc',
+      rp1Color: '#ff6600',
+      rp2Color: '#5eff6c',
+      quoteColor: null,
+      sidebarColor: null,
+      oddLineColor: null,
+      evenLineColor: null,
+      textColor: null,
+      linkColor: null,
+      linkSidebarColor: null,
+      width: '800px',
+      template: '',
+      templateImg: '/files/1/4ec9f08b7524df922cf76b5553f4a882.jpg',
+      templateHtml: '',
+      templateFields: '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="0"></div>',
+    };
+
+    const result = await useCase.execute({
+      campaignId: 1,
+      userId: 10,
+      ...payload,
+    });
+
+    assert.equal(result.name, 'Le secret du Poètes');
+    assert.equal(result.systeme, '7Mer V3');
+    assert.equal(result.univers, '7Mer');
+    assert.equal(result.dialogueColor, '#4488cc');
+    assert.equal(result.quoteColor, null);
+    assert.equal(result.linkSidebarColor, '');
+    assert.equal(result.template, '');
+    assert.equal(result.templateImg, '/files/1/4ec9f08b7524df922cf76b5553f4a882.jpg');
+    assert.equal(result.templateFields, '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="0"></div>');
   });
 });

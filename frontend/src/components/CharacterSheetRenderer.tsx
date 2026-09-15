@@ -53,6 +53,11 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
   // Determine actual background type if not explicitly set
   const bgType = initialBgType ?? (templateImg && templateImg.trim() ? 'image' : 'html');
 
+  // Canvas width (default 800px to match standard campaign configuration and old site)
+  const effectiveCanvasWidth = canvasWidth
+    ? (typeof canvasWidth === 'number' ? `${canvasWidth}px` : canvasWidth)
+    : '800px';
+
   // Fields & MaxCount internal state
   const [internalFields, setInternalFields] = useState<TemplateField[]>(() => {
     if (controlledFields) return controlledFields;
@@ -569,7 +574,7 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
           }}
           style={{
             position: 'relative',
-            width: canvasWidth || '100%',
+            width: effectiveCanvasWidth,
             minHeight: '600px',
           }}
           className="bg-white rounded-xl shadow-xs overflow-hidden mx-auto select-none"

@@ -128,6 +128,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const [textColor, setTextColor] = useState<string>('');
   const [linkColor, setLinkColor] = useState<string>('');
   const [linkSidebarColor, setLinkSidebarColor] = useState<string>('');
+  const [width, setWidth] = useState<string>('800px');
 
   // Character Sheet Configuration
   const [template, setTemplate] = useState<string>('');
@@ -196,6 +197,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         setTextColor(campaign.textColor || '');
         setLinkColor(campaign.linkColor || '');
         setLinkSidebarColor(campaign.linkSidebarColor || '');
+        setWidth(campaign.width || '800px');
 
         // Character Sheet
         setTemplate(campaign.template || '');
@@ -399,6 +401,54 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
       const serializedSheetFields = serializeTemplateFields(sheetMaxCount, sheetFields);
 
       if (isEditMode) {
+        let finalBanniere =
+          vignetteMode === 'url'
+            ? vignetteUrl.trim()
+            : !vignetteFile
+            ? vignetteUrl
+            : '';
+
+        if (vignetteFile) {
+          try {
+            const vignetteRes = await campaignsApi.uploadCampaignImage(campaignId, vignetteFile);
+            finalBanniere = vignetteRes.url;
+          } catch (uploadErr) {
+            console.error('Erreur lors du téléversement de la vignette:', uploadErr);
+          }
+        }
+
+        let finalBanniereForum =
+          forumBannerMode === 'url'
+            ? forumBannerUrl.trim() || null
+            : !forumBannerFile
+            ? forumBannerUrl || null
+            : null;
+
+        if (forumBannerFile) {
+          try {
+            const bannerRes = await campaignsApi.uploadCampaignBanner(campaignId, forumBannerFile);
+            finalBanniereForum = bannerRes.url;
+          } catch (uploadErr) {
+            console.error('Erreur lors du téléversement de la bannière de forum:', uploadErr);
+          }
+        }
+
+        let finalSheetImg =
+          sheetImgMode === 'url'
+            ? sheetImgUrl.trim()
+            : !sheetImgFile
+            ? sheetImgUrl
+            : '';
+
+        if (sheetImgFile && sheetBgType === 'image') {
+          try {
+            const sheetRes = await campaignsApi.uploadCampaignImage(campaignId, sheetImgFile);
+            finalSheetImg = sheetRes.url;
+          } catch (uploadErr) {
+            console.error("Erreur lors du téléversement de l'image de fond de la feuille:", uploadErr);
+          }
+        }
+
         // Update payload
         const payload: UpdateCampaignPayload = {
           name: trimmedName,
@@ -406,8 +456,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           univers: trimmedUnivers,
           description: trimmedDescription,
           nbJoueurs,
-          banniere: initialBanniere,
-          banniereForum: initialBanniereForum,
+          banniere: finalBanniere,
+          banniereForum: finalBanniereForum,
           statut,
           isRecrutementOpen,
           rythme,
@@ -425,43 +475,14 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           textColor: textColor || null,
           linkColor: linkColor || null,
           linkSidebarColor: linkSidebarColor || null,
+          width: width || '800px',
           template: template || '',
-          templateImg: sheetBgType === 'image' ? initialSheetImg : '',
+          templateImg: sheetBgType === 'image' ? finalSheetImg : '',
           templateHtml: sheetBgType === 'html' ? sheetHtml : '',
           templateFields: serializedSheetFields,
         };
 
         const updated = await campaignsApi.updateCampaign(campaignId, payload);
-
-        // Upload vignette file if provided
-        if (vignetteFile) {
-          try {
-            const vignetteRes = await campaignsApi.uploadCampaignImage(campaignId, vignetteFile);
-            await campaignsApi.updateCampaign(campaignId, { banniere: vignetteRes.url });
-          } catch (uploadErr) {
-            console.error('Erreur lors du téléversement de la vignette:', uploadErr);
-          }
-        }
-
-        // Upload forum banner file if provided
-        if (forumBannerFile) {
-          try {
-            await campaignsApi.uploadCampaignBanner(campaignId, forumBannerFile);
-          } catch (uploadErr) {
-            console.error('Erreur lors du téléversement de la bannière de forum:', uploadErr);
-          }
-        }
-
-        // Upload sheet image file if provided
-        if (sheetImgFile && sheetBgType === 'image') {
-          try {
-            const sheetRes = await campaignsApi.uploadCampaignImage(campaignId, sheetImgFile);
-            await campaignsApi.updateCampaign(campaignId, { templateImg: sheetRes.url });
-          } catch (uploadErr) {
-            console.error("Erreur lors du téléversement de l'image de fond de la feuille:", uploadErr);
-          }
-        }
-
         navigate(`/forum/${updated.id}`);
       } else {
         // Create payload
@@ -1930,6 +1951,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
                 <CharacterSheetRenderer
                   mode="edit-sheet"
+                  canvasWidth={width || '800px'}
                   bgType={sheetBgType}
                   templateImg={sheetBgType === 'image' ? (sheetImgPreview || sheetImgUrl) : undefined}
                   templateHtml={sheetBgType === 'html' ? sheetHtml : undefined}

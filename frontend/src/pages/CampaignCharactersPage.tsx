@@ -873,6 +873,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                   </h3>
                   <CharacterSheetRenderer
                     mode="read-only"
+                    canvasWidth={data?.campaign?.width || '800px'}
                     bgType={
                       (selectedCharacter.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
                     }
@@ -1310,6 +1311,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                     </p>
                     <CharacterSheetRenderer
                       mode="fill"
+                      canvasWidth={data?.campaign?.width || '800px'}
                       bgType={
                         (editingCharacter?.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
                       }

@@ -854,7 +854,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     }
     if (data.banniere !== undefined) {
       campagneFields.push('banniere = ?');
-      campagneParams.push(data.banniere);
+      campagneParams.push(data.banniere ?? '');
     }
     if (data.statut !== undefined) {
       campagneFields.push('statut = ?');
@@ -882,80 +882,131 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       await execute(`UPDATE campagne SET ${campagneFields.join(', ')} WHERE id = ?`, campagneParams);
     }
 
-    const hasConfigField =
-      data.dialogueColor !== undefined ||
-      data.penseeColor !== undefined ||
-      data.rp1Color !== undefined ||
-      data.rp2Color !== undefined ||
-      data.quoteColor !== undefined ||
-      data.sidebarColor !== undefined ||
-      data.oddLineColor !== undefined ||
-      data.evenLineColor !== undefined ||
-      data.textColor !== undefined ||
-      data.linkColor !== undefined ||
-      data.linkSidebarColor !== undefined ||
-      data.hr !== undefined ||
-      data.width !== undefined ||
-      data.defaultDice !== undefined ||
-      data.template !== undefined ||
-      data.templateHtml !== undefined ||
-      data.templateImg !== undefined ||
-      data.templateFields !== undefined ||
-      data.banniereForum !== undefined;
+    const configFields: string[] = [];
+    const configParams: any[] = [];
 
-    if (hasConfigField) {
-      const configUpsertSql = `
-        INSERT INTO campagne_config (
-          campagne_id, banniere, hr, odd_line_color, even_line_color,
-          sidebar_color, link_color, template, sidebar_text, link_sidebar_color,
-          text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
-          quote_color, width, widgets, default_dice,
-          template_html, template_img, template_fields
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          banniere = COALESCE(VALUES(banniere), banniere),
-          hr = COALESCE(VALUES(hr), hr),
-          odd_line_color = VALUES(odd_line_color),
-          even_line_color = VALUES(even_line_color),
-          sidebar_color = VALUES(sidebar_color),
-          link_color = VALUES(link_color),
-          link_sidebar_color = VALUES(link_sidebar_color),
-          text_color = VALUES(text_color),
-          dialogue_color = VALUES(dialogue_color),
-          pensee_color = VALUES(pensee_color),
-          rp1_color = VALUES(rp1_color),
-          rp2_color = VALUES(rp2_color),
-          quote_color = VALUES(quote_color),
-          width = COALESCE(VALUES(width), width),
-          default_dice = COALESCE(VALUES(default_dice), default_dice),
-          template = COALESCE(VALUES(template), template),
-          template_html = VALUES(template_html),
-          template_img = VALUES(template_img),
-          template_fields = VALUES(template_fields)
-      `;
+    if (data.banniereForum !== undefined) {
+      configFields.push('banniere = ?');
+      configParams.push(data.banniereForum);
+    }
+    if (data.hr !== undefined) {
+      configFields.push('hr = ?');
+      configParams.push(data.hr);
+    }
+    if (data.oddLineColor !== undefined) {
+      configFields.push('odd_line_color = ?');
+      configParams.push(data.oddLineColor);
+    }
+    if (data.evenLineColor !== undefined) {
+      configFields.push('even_line_color = ?');
+      configParams.push(data.evenLineColor);
+    }
+    if (data.sidebarColor !== undefined) {
+      configFields.push('sidebar_color = ?');
+      configParams.push(data.sidebarColor);
+    }
+    if (data.linkColor !== undefined) {
+      configFields.push('link_color = ?');
+      configParams.push(data.linkColor);
+    }
+    if (data.linkSidebarColor !== undefined) {
+      configFields.push('link_sidebar_color = ?');
+      configParams.push(data.linkSidebarColor ?? '');
+    }
+    if (data.textColor !== undefined) {
+      configFields.push('text_color = ?');
+      configParams.push(data.textColor);
+    }
+    if (data.dialogueColor !== undefined) {
+      configFields.push('dialogue_color = ?');
+      configParams.push(data.dialogueColor);
+    }
+    if (data.penseeColor !== undefined) {
+      configFields.push('pensee_color = ?');
+      configParams.push(data.penseeColor);
+    }
+    if (data.rp1Color !== undefined) {
+      configFields.push('rp1_color = ?');
+      configParams.push(data.rp1Color);
+    }
+    if (data.rp2Color !== undefined) {
+      configFields.push('rp2_color = ?');
+      configParams.push(data.rp2Color);
+    }
+    if (data.quoteColor !== undefined) {
+      configFields.push('quote_color = ?');
+      configParams.push(data.quoteColor);
+    }
+    if (data.width !== undefined) {
+      configFields.push('width = ?');
+      configParams.push(data.width ?? '800px');
+    }
+    if (data.defaultDice !== undefined) {
+      configFields.push('default_dice = ?');
+      configParams.push(data.defaultDice ?? '1d20');
+    }
+    if (data.template !== undefined) {
+      configFields.push('template = ?');
+      configParams.push(data.template ?? '');
+    }
+    if (data.templateHtml !== undefined) {
+      configFields.push('template_html = ?');
+      configParams.push(data.templateHtml);
+    }
+    if (data.templateImg !== undefined) {
+      configFields.push('template_img = ?');
+      configParams.push(data.templateImg);
+    }
+    if (data.templateFields !== undefined) {
+      configFields.push('template_fields = ?');
+      configParams.push(data.templateFields);
+    }
 
-      await execute(configUpsertSql, [
-        id,
-        data.banniereForum ?? null,
-        data.hr ?? null,
-        data.oddLineColor ?? null,
-        data.evenLineColor ?? null,
-        data.sidebarColor ?? null,
-        data.linkColor ?? null,
-        data.template ?? '',
-        data.linkSidebarColor ?? '',
-        data.textColor ?? null,
-        data.dialogueColor ?? '#4488cc',
-        data.penseeColor ?? '#8844cc',
-        data.rp1Color ?? '#ff6600',
-        data.rp2Color ?? '#5eff6c',
-        data.quoteColor ?? null,
-        data.width ?? '800px',
-        data.defaultDice ?? '1d20',
-        data.templateHtml ?? null,
-        data.templateImg ?? null,
-        data.templateFields ?? null,
-      ]);
+    if (configFields.length > 0) {
+      const existingConfig = await queryOne<{ campagne_id: number }>(
+        'SELECT campagne_id FROM campagne_config WHERE campagne_id = ?',
+        [id]
+      );
+
+      if (existingConfig) {
+        configParams.push(id);
+        await execute(
+          `UPDATE campagne_config SET ${configFields.join(', ')} WHERE campagne_id = ?`,
+          configParams
+        );
+      } else {
+        const insertSql = `
+          INSERT INTO campagne_config (
+            campagne_id, banniere, hr, odd_line_color, even_line_color,
+            sidebar_color, link_color, template, sidebar_text, link_sidebar_color,
+            text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
+            quote_color, width, widgets, default_dice,
+            template_html, template_img, template_fields
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, ?)
+        `;
+        await execute(insertSql, [
+          id,
+          data.banniereForum ?? null,
+          data.hr ?? null,
+          data.oddLineColor ?? null,
+          data.evenLineColor ?? null,
+          data.sidebarColor ?? null,
+          data.linkColor ?? null,
+          data.template ?? '',
+          data.linkSidebarColor ?? '',
+          data.textColor ?? null,
+          data.dialogueColor ?? '#4488cc',
+          data.penseeColor ?? '#8844cc',
+          data.rp1Color ?? '#ff6600',
+          data.rp2Color ?? '#5eff6c',
+          data.quoteColor ?? null,
+          data.width ?? '800px',
+          data.defaultDice ?? '1d20',
+          data.templateHtml ?? null,
+          data.templateImg ?? null,
+          data.templateFields ?? null,
+        ]);
+      }
     }
   }
 
