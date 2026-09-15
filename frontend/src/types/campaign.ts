@@ -35,6 +35,10 @@ export interface CampaignSummary {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  template?: string | null;
+  templateHtml?: string | null;
+  templateImg?: string | null;
+  templateFields?: string | null;
   hasUnread?: boolean;
   hasAlert?: boolean;
 }
@@ -66,6 +70,10 @@ export interface CreateCampaignPayload {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  template?: string | null;
+  templateHtml?: string | null;
+  templateImg?: string | null;
+  templateFields?: string | null;
 }
 
 export type UpdateCampaignPayload = Partial<CreateCampaignPayload>;
@@ -173,6 +181,9 @@ export interface CampaignCharacter {
   categoryName: string;
   isPlayer: boolean;
   persoFields?: string | null;
+  templateHtml?: string | null;
+  templateImg?: string | null;
+  templateFields?: string | null;
   widgets?: string | null;
 }
 
@@ -215,6 +226,7 @@ export interface CreateCharacterPayload {
   catId?: number | null;
   assignedUserId?: number | null;
   statut?: number;
+  persoFields?: string | null;
 }
 
 export interface UpdateCharacterPayload {
@@ -227,6 +239,7 @@ export interface UpdateCharacterPayload {
   catId?: number | null;
   assignedUserId?: number | null;
   statut?: number;
+  persoFields?: string | null;
 }
 
 export interface TopicDetail {

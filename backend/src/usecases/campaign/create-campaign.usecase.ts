@@ -30,6 +30,10 @@ export interface CreateCampaignDTO {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  template?: string | null;
+  templateHtml?: string | null;
+  templateImg?: string | null;
+  templateFields?: string | null;
 }
 
 export class CreateCampaignUseCase {
@@ -89,6 +93,10 @@ export class CreateCampaignUseCase {
       hr: dto.hr || null,
       width: dto.width || null,
       defaultDice: dto.defaultDice || null,
+      template: dto.template || null,
+      templateHtml: dto.templateHtml || null,
+      templateImg: dto.templateImg || null,
+      templateFields: dto.templateFields || null,
     });
 
     const createdCampaign = await this.campaignRepo.findById(campaignId);

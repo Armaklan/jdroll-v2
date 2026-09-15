@@ -1,0 +1,2 @@
+<input type="hidden" id="JDRollUserControlLink1_child_hidden" value="Abou Ibn Battuta"><input type="hidden" id="JDRollUserControlLink2_child_hidden" value="Esquive acrobatique
+Attaque sournoise"><input type="hidden" id="JDRollUserControlLink5_child_hidden" value="16"><input type="hidden" id="JDRollUserControlLink9_child_hidden" value="Jeune marin agile"><input type="hidden" id="JDRollUserControlLink10_child_hidden" value="Curieux discret sachant se faire oublier">

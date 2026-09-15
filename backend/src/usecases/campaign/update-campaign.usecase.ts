@@ -32,6 +32,10 @@ export interface UpdateCampaignDTO {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  template?: string | null;
+  templateHtml?: string | null;
+  templateImg?: string | null;
+  templateFields?: string | null;
 }
 
 export class UpdateCampaignUseCase {
@@ -109,6 +113,10 @@ export class UpdateCampaignUseCase {
       hr: dto.hr,
       width: dto.width,
       defaultDice: dto.defaultDice,
+      template: dto.template,
+      templateHtml: dto.templateHtml,
+      templateImg: dto.templateImg,
+      templateFields: dto.templateFields,
     });
 
     const updated = await this.campaignRepo.findById(dto.campaignId);

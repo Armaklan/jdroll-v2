@@ -5,6 +5,8 @@ import { campaignsApi } from '../api/campaigns';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignHeader } from '../components/CampaignHeader';
+import { CharacterSheetRenderer } from '../components/CharacterSheetRenderer';
+import { parsePersoFields, serializePersoFields } from '../utils/character-sheet';
 import {
   CampaignCharactersData,
   CampaignCharacter,
@@ -36,6 +38,7 @@ import {
   Upload,
   Link as LinkIcon,
   Loader2,
+  LayoutTemplate,
 } from 'lucide-react';
 
 interface CampaignCharactersPageProps {
@@ -52,6 +55,7 @@ interface CharacterFormData {
   publicDescription: string;
   privateDescription: string;
   technical: string;
+  persoFields: Record<string, string>;
 }
 
 const emptyFormData: CharacterFormData = {
@@ -63,6 +67,7 @@ const emptyFormData: CharacterFormData = {
   publicDescription: '',
   privateDescription: '',
   technical: '',
+  persoFields: {},
 };
 
 export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
@@ -231,7 +236,8 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       assignedUserId: null,
       publicDescription: '',
       privateDescription: '',
-      technical: '',
+      technical: data?.campaign?.template || '',
+      persoFields: {},
     });
     setAvatarMode('url');
     setUploadError(null);
@@ -253,6 +259,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       publicDescription: char.publicDescription || '',
       privateDescription: char.privateDescription || '',
       technical: char.technical || '',
+      persoFields: parsePersoFields(char.persoFields),
     });
     setAvatarMode(char.avatar && char.avatar.startsWith('/files/') ? 'upload' : 'url');
     setUploadError(null);
@@ -272,6 +279,8 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
     setFormError(null);
 
     try {
+      const serializedPersoFields = serializePersoFields(formData.persoFields);
+
       if (editingCharacter) {
         // Edit mode
         const payload: UpdateCharacterPayload = {
@@ -281,6 +290,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           publicDescription: formData.publicDescription,
           privateDescription: formData.privateDescription,
           technical: formData.technical,
+          persoFields: serializedPersoFields,
         };
 
         if (isMj) {
@@ -310,6 +320,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
             publicDescription: updated.publicDescription,
             privateDescription: updated.privateDescription,
             technical: updated.technical,
+            persoFields: updated.persoFields ?? serializedPersoFields,
             catId: updated.catId,
             userId: updated.userId,
           });
@@ -325,6 +336,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           publicDescription: formData.publicDescription,
           privateDescription: formData.privateDescription,
           technical: formData.technical,
+          persoFields: serializedPersoFields,
         };
 
         const created = await campaignsApi.createCharacter(effectiveCampaignId, payload);
@@ -706,7 +718,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       {/* Character Full Detail Modal */}
       {selectedCharacter && !isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 relative my-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 relative my-auto">
             {/* Modal Header Bar with Close Button & Edit Button */}
             <div className="sticky top-0 bg-white/95 backdrop-blur-md px-6 py-4 border-b border-slate-100 flex items-center justify-between z-10">
               <div className="flex items-center gap-2">
@@ -844,6 +856,33 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                   />
                 </div>
               )}
+
+              {/* Character Sheet (Graphique / Interactif) */}
+              {Boolean(
+                selectedCharacter.templateImg ||
+                selectedCharacter.templateHtml ||
+                data?.campaign?.templateImg ||
+                data?.campaign?.templateHtml ||
+                data?.campaign?.templateFields ||
+                selectedCharacter.templateFields
+              ) && (
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <LayoutTemplate className="w-4 h-4 text-indigo-600" />
+                    <span>Feuille de personnage</span>
+                  </h3>
+                  <CharacterSheetRenderer
+                    mode="read-only"
+                    bgType={
+                      (selectedCharacter.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
+                    }
+                    templateImg={selectedCharacter.templateImg || data?.campaign?.templateImg}
+                    templateHtml={selectedCharacter.templateHtml || data?.campaign?.templateHtml}
+                    templateFields={selectedCharacter.templateFields || data?.campaign?.templateFields}
+                    persoFields={selectedCharacter.persoFields}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}
@@ -873,7 +912,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       {/* Create / Edit Character Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto animate-in fade-in duration-150">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 relative my-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto shadow-2xl border border-slate-200 relative my-auto">
             {/* Modal Header */}
             <div className="sticky top-0 bg-white/95 backdrop-blur-md px-6 py-4 border-b border-slate-100 flex items-center justify-between z-10">
               <div className="flex items-center gap-2">
@@ -1251,6 +1290,39 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                     }}
                   />
                 </div>
+
+                {/* Feuille de personnage interactive */}
+                {Boolean(
+                  data?.campaign?.templateImg ||
+                  data?.campaign?.templateHtml ||
+                  data?.campaign?.templateFields ||
+                  editingCharacter?.templateImg ||
+                  editingCharacter?.templateHtml ||
+                  editingCharacter?.templateFields
+                ) && (
+                  <div className="space-y-2 pt-4 border-t border-slate-100">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <LayoutTemplate className="w-4 h-4 text-indigo-600" />
+                      <span>Feuille de personnage interactive</span>
+                    </label>
+                    <p className="text-xs text-slate-500">
+                      Remplissez les valeurs des champs superposés sur le fond de la fiche.
+                    </p>
+                    <CharacterSheetRenderer
+                      mode="fill"
+                      bgType={
+                        (editingCharacter?.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
+                      }
+                      templateImg={editingCharacter?.templateImg || data?.campaign?.templateImg}
+                      templateHtml={editingCharacter?.templateHtml || data?.campaign?.templateHtml}
+                      templateFields={editingCharacter?.templateFields || data?.campaign?.templateFields}
+                      values={formData.persoFields}
+                      onValuesChange={(newValues) =>
+                        setFormData((prev) => ({ ...prev, persoFields: newValues }))
+                      }
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Modal Footer Actions */}

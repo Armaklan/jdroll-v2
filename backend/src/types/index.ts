@@ -68,6 +68,10 @@ export interface CampaignSummary {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  template?: string | null;
+  templateHtml?: string | null;
+  templateImg?: string | null;
+  templateFields?: string | null;
   hasUnread?: boolean;
   hasAlert?: boolean;
 }

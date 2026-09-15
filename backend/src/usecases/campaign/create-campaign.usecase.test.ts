@@ -50,6 +50,10 @@ describe('CreateCampaignUseCase', () => {
           textColor: data.textColor || null,
           linkColor: data.linkColor || null,
           linkSidebarColor: data.linkSidebarColor || null,
+          template: data.template || null,
+          templateHtml: data.templateHtml || null,
+          templateImg: data.templateImg || null,
+          templateFields: data.templateFields || null,
         };
         campaigns.push(summary);
         return id;
@@ -160,5 +164,24 @@ describe('CreateCampaignUseCase', () => {
     assert.equal(createdList[0].statut, 3);
     assert.equal(createdList[0].rythme, 4);
     assert.equal(createdList[0].rp, 3);
+  });
+
+  it('crée avec succès une campagne avec configuration de fiche de personnage (template_img, template_fields)', async () => {
+    const { repo, createdList } = createMockCampaignRepo();
+    const useCase = new CreateCampaignUseCase(repo);
+
+    const result = await useCase.execute({
+      mjId: 10,
+      name: 'Campagne avec Fiche',
+      templateImg: 'https://images.com/sheet-bg.png',
+      templateFields: '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="1"></div>',
+      template: '<p>Description technique</p>',
+    });
+
+    assert.equal(result.name, 'Campagne avec Fiche');
+    assert.equal(result.templateImg, 'https://images.com/sheet-bg.png');
+    assert.equal(result.templateFields, '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="1"></div>');
+    assert.equal(result.template, '<p>Description technique</p>');
+    assert.equal(createdList.length, 1);
   });
 });

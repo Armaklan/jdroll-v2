@@ -15,7 +15,6 @@ import {
   Mail,
   MessagesSquare,
   Gamepad2,
-  HelpCircle,
   Menu,
   X,
   Bell,

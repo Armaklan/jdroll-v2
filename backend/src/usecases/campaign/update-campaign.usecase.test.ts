@@ -62,6 +62,10 @@ describe('UpdateCampaignUseCase', () => {
           if (data.rp !== undefined) c.rp = data.rp;
           if (data.dialogueColor !== undefined) c.dialogueColor = data.dialogueColor;
           if (data.penseeColor !== undefined) c.penseeColor = data.penseeColor;
+          if (data.template !== undefined) c.template = data.template;
+          if (data.templateHtml !== undefined) c.templateHtml = data.templateHtml;
+          if (data.templateImg !== undefined) c.templateImg = data.templateImg;
+          if (data.templateFields !== undefined) c.templateFields = data.templateFields;
         }
       },
       findCampaignCharacters: async () => [],
@@ -181,5 +185,22 @@ describe('UpdateCampaignUseCase', () => {
     assert.equal(resultArchived.isArchived, true);
     assert.equal(resultArchived.rythme, 0);
     assert.equal(resultArchived.rp, 0);
+  });
+
+  it('met à jour avec succès la configuration de la feuille de personnage (template_html, template_fields)', async () => {
+    const { repo } = createMockCampaignRepo();
+    const useCase = new UpdateCampaignUseCase(repo, createMockForumRepo());
+
+    const result = await useCase.execute({
+      campaignId: 1,
+      userId: 10,
+      templateHtml: '<div class="sheet"><h1>Fiche</h1></div>',
+      templateFields: '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="2"></div>',
+      template: '<p>Nouveau template</p>',
+    });
+
+    assert.equal(result.templateHtml, '<div class="sheet"><h1>Fiche</h1></div>');
+    assert.equal(result.templateFields, '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="2"></div>');
+    assert.equal(result.template, '<p>Nouveau template</p>');
   });
 });

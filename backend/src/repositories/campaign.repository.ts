@@ -29,6 +29,10 @@ export interface CreateCampaignData {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  template?: string | null;
+  templateHtml?: string | null;
+  templateImg?: string | null;
+  templateFields?: string | null;
 }
 
 export interface UpdateCampaignData {
@@ -58,6 +62,10 @@ export interface UpdateCampaignData {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  template?: string | null;
+  templateHtml?: string | null;
+  templateImg?: string | null;
+  templateFields?: string | null;
 }
 
 export interface ICampaignRepository {
@@ -662,6 +670,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.hr,
         cc.width,
         cc.default_dice AS defaultDice,
+        cc.template,
+        cc.template_html AS templateHtml,
+        cc.template_img AS templateImg,
+        cc.template_fields AS templateFields,
         cc.banniere AS banniereForum
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
@@ -702,6 +714,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       hr: string | null;
       width: string | null;
       defaultDice: string | null;
+      template: string | null;
+      templateHtml: string | null;
+      templateImg: string | null;
+      templateFields: string | null;
     }
 
     const rows = await query<RawCampaignRow>(sql, [id]);
@@ -743,6 +759,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       hr: row.hr || null,
       width: row.width || null,
       defaultDice: row.defaultDice || null,
+      template: row.template || null,
+      templateHtml: row.templateHtml || null,
+      templateImg: row.templateImg || null,
+      templateFields: row.templateFields || null,
     };
   }
 
@@ -777,8 +797,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         campagne_id, banniere, hr, odd_line_color, even_line_color,
         sidebar_color, link_color, template, sidebar_text, link_sidebar_color,
         text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
-        quote_color, width, widgets, default_dice
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?, ?, ?, ?, '', ?)
+        quote_color, width, widgets, default_dice,
+        template_html, template_img, template_fields
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?)
     `;
 
     await execute(configSql, [
@@ -789,6 +810,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       data.evenLineColor || null,
       data.sidebarColor || null,
       data.linkColor || null,
+      data.template || '',
       data.linkSidebarColor || '',
       data.textColor || null,
       data.dialogueColor || '#4488cc',
@@ -798,6 +820,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       data.quoteColor || null,
       data.width || '800px',
       data.defaultDice || '1d20',
+      data.templateHtml || null,
+      data.templateImg || null,
+      data.templateFields || null,
     ]);
 
     return campaignId;
@@ -872,6 +897,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       data.hr !== undefined ||
       data.width !== undefined ||
       data.defaultDice !== undefined ||
+      data.template !== undefined ||
+      data.templateHtml !== undefined ||
+      data.templateImg !== undefined ||
+      data.templateFields !== undefined ||
       data.banniereForum !== undefined;
 
     if (hasConfigField) {
@@ -880,8 +909,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
           campagne_id, banniere, hr, odd_line_color, even_line_color,
           sidebar_color, link_color, template, sidebar_text, link_sidebar_color,
           text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
-          quote_color, width, widgets, default_dice
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?, ?, ?, ?, '', ?)
+          quote_color, width, widgets, default_dice,
+          template_html, template_img, template_fields
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           banniere = COALESCE(VALUES(banniere), banniere),
           hr = COALESCE(VALUES(hr), hr),
@@ -897,7 +927,11 @@ export class MysqlCampaignRepository implements ICampaignRepository {
           rp2_color = VALUES(rp2_color),
           quote_color = VALUES(quote_color),
           width = COALESCE(VALUES(width), width),
-          default_dice = COALESCE(VALUES(default_dice), default_dice)
+          default_dice = COALESCE(VALUES(default_dice), default_dice),
+          template = COALESCE(VALUES(template), template),
+          template_html = VALUES(template_html),
+          template_img = VALUES(template_img),
+          template_fields = VALUES(template_fields)
       `;
 
       await execute(configUpsertSql, [
@@ -908,6 +942,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         data.evenLineColor ?? null,
         data.sidebarColor ?? null,
         data.linkColor ?? null,
+        data.template ?? '',
         data.linkSidebarColor ?? '',
         data.textColor ?? null,
         data.dialogueColor ?? '#4488cc',
@@ -917,6 +952,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         data.quoteColor ?? null,
         data.width ?? '800px',
         data.defaultDice ?? '1d20',
+        data.templateHtml ?? null,
+        data.templateImg ?? null,
+        data.templateFields ?? null,
       ]);
     }
   }

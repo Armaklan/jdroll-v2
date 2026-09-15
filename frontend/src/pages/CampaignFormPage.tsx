@@ -22,7 +22,14 @@ import {
   X,
   Sliders,
   LayoutTemplate,
+  FileText,
 } from 'lucide-react';
+import { CharacterSheetRenderer } from '../components/CharacterSheetRenderer';
+import {
+  TemplateField,
+  parseTemplateFields,
+  serializeTemplateFields,
+} from '../utils/character-sheet';
 
 interface CampaignFormPageProps {
   mode?: 'create' | 'edit';
@@ -122,8 +129,21 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const [linkColor, setLinkColor] = useState<string>('');
   const [linkSidebarColor, setLinkSidebarColor] = useState<string>('');
 
+  // Character Sheet Configuration
+  const [template, setTemplate] = useState<string>('');
+  const [sheetBgType, setSheetBgType] = useState<'image' | 'html'>('image');
+  const [sheetImgMode, setSheetImgMode] = useState<'upload' | 'url'>('url');
+  const [sheetImgUrl, setSheetImgUrl] = useState<string>('');
+  const [sheetImgFile, setSheetImgFile] = useState<File | null>(null);
+  const [sheetImgPreview, setSheetImgPreview] = useState<string | null>(null);
+  const [isDraggingSheetImg, setIsDraggingSheetImg] = useState<boolean>(false);
+  const sheetImgInputRef = useRef<HTMLInputElement>(null);
+  const [sheetHtml, setSheetHtml] = useState<string>('');
+  const [sheetFields, setSheetFields] = useState<TemplateField[]>([]);
+  const [sheetMaxCount, setSheetMaxCount] = useState<number>(0);
+
   // Active tab in form
-  const [activeTab, setActiveTab] = useState<'general' | 'gameplay' | 'appearance'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'gameplay' | 'appearance' | 'sheet'>('general');
 
   // Load existing campaign data for edit mode
   useEffect(() => {
@@ -176,6 +196,18 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         setTextColor(campaign.textColor || '');
         setLinkColor(campaign.linkColor || '');
         setLinkSidebarColor(campaign.linkSidebarColor || '');
+
+        // Character Sheet
+        setTemplate(campaign.template || '');
+        const hasImgBg = Boolean(campaign.templateImg && campaign.templateImg.trim());
+        setSheetBgType(hasImgBg ? 'image' : campaign.templateHtml ? 'html' : 'image');
+        setSheetImgUrl(campaign.templateImg || '');
+        setSheetImgPreview(campaign.templateImg || null);
+        setSheetImgMode(campaign.templateImg?.startsWith('/files/') ? 'upload' : 'url');
+        setSheetHtml(campaign.templateHtml || '');
+        const parsedFields = parseTemplateFields(campaign.templateFields);
+        setSheetFields(parsedFields.fields);
+        setSheetMaxCount(parsedFields.maxCount);
       } catch (err: any) {
         setLoadError(err.message || 'Impossible de charger les données de la campagne.');
       } finally {
@@ -254,6 +286,40 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
     }
   };
 
+  // Handlers for Character Sheet Background Image
+  const handleSheetImgFileSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setFormError("Le fichier de l'image de fond doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).");
+      return;
+    }
+    setFormError(null);
+    setSheetImgFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setSheetImgPreview(objectUrl);
+    setSheetImgMode('upload');
+  };
+
+  const handleSheetImgDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingSheetImg(true);
+  };
+
+  const handleSheetImgDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingSheetImg(false);
+  };
+
+  const handleSheetImgDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingSheetImg(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleSheetImgFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
   const handleResetColors = () => {
     setDialogueColor(DEFAULT_DIALOGUE_COLOR);
     setPenseeColor(DEFAULT_PENSEE_COLOR);
@@ -323,6 +389,15 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           ? forumBannerUrl || null
           : null;
 
+      const initialSheetImg =
+        sheetImgMode === 'url'
+          ? sheetImgUrl.trim()
+          : isEditMode && !sheetImgFile
+          ? sheetImgUrl
+          : '';
+
+      const serializedSheetFields = serializeTemplateFields(sheetMaxCount, sheetFields);
+
       if (isEditMode) {
         // Update payload
         const payload: UpdateCampaignPayload = {
@@ -350,6 +425,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           textColor: textColor || null,
           linkColor: linkColor || null,
           linkSidebarColor: linkSidebarColor || null,
+          template: template || '',
+          templateImg: sheetBgType === 'image' ? initialSheetImg : '',
+          templateHtml: sheetBgType === 'html' ? sheetHtml : '',
+          templateFields: serializedSheetFields,
         };
 
         const updated = await campaignsApi.updateCampaign(campaignId, payload);
@@ -370,6 +449,16 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
             await campaignsApi.uploadCampaignBanner(campaignId, forumBannerFile);
           } catch (uploadErr) {
             console.error('Erreur lors du téléversement de la bannière de forum:', uploadErr);
+          }
+        }
+
+        // Upload sheet image file if provided
+        if (sheetImgFile && sheetBgType === 'image') {
+          try {
+            const sheetRes = await campaignsApi.uploadCampaignImage(campaignId, sheetImgFile);
+            await campaignsApi.updateCampaign(campaignId, { templateImg: sheetRes.url });
+          } catch (uploadErr) {
+            console.error("Erreur lors du téléversement de l'image de fond de la feuille:", uploadErr);
           }
         }
 
@@ -401,6 +490,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           textColor: textColor || null,
           linkColor: linkColor || null,
           linkSidebarColor: linkSidebarColor || null,
+          template: template || '',
+          templateImg: sheetBgType === 'image' ? initialSheetImg : '',
+          templateHtml: sheetBgType === 'html' ? sheetHtml : '',
+          templateFields: serializedSheetFields,
         };
 
         const created = await campaignsApi.createCampaign(payload);
@@ -421,6 +514,16 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
             await campaignsApi.uploadCampaignBanner(created.id, forumBannerFile);
           } catch (uploadErr) {
             console.error('Erreur lors du téléversement de la bannière de forum:', uploadErr);
+          }
+        }
+
+        // Upload sheet image file if provided
+        if (sheetImgFile && sheetBgType === 'image') {
+          try {
+            const sheetRes = await campaignsApi.uploadCampaignImage(created.id, sheetImgFile);
+            await campaignsApi.updateCampaign(created.id, { templateImg: sheetRes.url });
+          } catch (uploadErr) {
+            console.error("Erreur lors du téléversement de l'image de fond de la feuille:", uploadErr);
           }
         }
 
@@ -606,6 +709,19 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         >
           <Palette className="w-4 h-4" />
           <span>Bannières & Apparence</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('sheet')}
+          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold rounded-t-2xl border-b-2 transition whitespace-nowrap cursor-pointer ${
+            activeTab === 'sheet'
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <LayoutTemplate className="w-4 h-4" />
+          <span>Feuille de Personnage</span>
         </button>
       </div>
 
@@ -1602,6 +1718,228 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     </p>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: Character Sheet */}
+        {activeTab === 'sheet' && (
+          <div className="space-y-8">
+            {/* Card 1: Description technique par défaut */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-600" />
+                  <span>Template de Personnage (Description technique)</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Cette zone textuelle sera recopiée dans la section "Description technique" des personnages rejoignant la partie.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <WysiwygEditor
+                  value={template}
+                  onChange={setTemplate}
+                  placeholder="Ex: Caractéristiques (FOR, DEX, CON, INT, SAG, CHA), Compétences, Inventaire..."
+                  minHeight="150px"
+                />
+              </div>
+            </div>
+
+            {/* Card 2: Feuille de Personnage Graphique & Champs */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <LayoutTemplate className="w-5 h-5 text-indigo-600" />
+                  <span>Feuille de Personnage Graphique Interactive</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Configurez le fond de la fiche (image ou code HTML WYSIWYG) et positionnez les champs interactifs qui seront remplis par les joueurs.
+                </p>
+              </div>
+
+              {/* 1. Choix du mode de fond */}
+              <div className="space-y-4">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  1. Fond de la fiche de personnage
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label
+                    onClick={() => setSheetBgType('image')}
+                    className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition cursor-pointer ${
+                      sheetBgType === 'image'
+                        ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-200'
+                        : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="sheetBgType"
+                      checked={sheetBgType === 'image'}
+                      onChange={() => setSheetBgType('image')}
+                      className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div>
+                      <span className="block text-sm font-bold text-slate-900">
+                        Utiliser une image de fond
+                      </span>
+                      <span className="block text-xs text-slate-500 mt-0.5">
+                        Idéal pour une fiche de jeu de rôle scannée ou conçue graphiquement (PNG, JPG).
+                      </span>
+                    </div>
+                  </label>
+
+                  <label
+                    onClick={() => setSheetBgType('html')}
+                    className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition cursor-pointer ${
+                      sheetBgType === 'html'
+                        ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-200'
+                        : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="sheetBgType"
+                      checked={sheetBgType === 'html'}
+                      onChange={() => setSheetBgType('html')}
+                      className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div>
+                      <span className="block text-sm font-bold text-slate-900">
+                        Utiliser un fond HTML WYSIWYG
+                      </span>
+                      <span className="block text-xs text-slate-500 mt-0.5">
+                        Rédigez la structure de votre fiche avec tableaux, titres et texte formaté.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Paramètres selon le mode de fond */}
+              {sheetBgType === 'image' ? (
+                <div className="space-y-4 pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Image de fond
+                    </label>
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setSheetImgMode('upload')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition cursor-pointer ${
+                          sheetImgMode === 'upload'
+                            ? 'bg-white text-indigo-600 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Téléverser</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSheetImgMode('url')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition cursor-pointer ${
+                          sheetImgMode === 'url'
+                            ? 'bg-white text-indigo-600 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <LinkIcon className="w-3.5 h-3.5" />
+                        <span>URL externe</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {sheetImgMode === 'upload' ? (
+                    <div>
+                      <input
+                        ref={sheetImgInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleSheetImgFileSelect(e.target.files[0]);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                      <div
+                        onDragOver={handleSheetImgDragOver}
+                        onDragLeave={handleSheetImgDragLeave}
+                        onDrop={handleSheetImgDrop}
+                        onClick={() => sheetImgInputRef.current?.click()}
+                        className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition ${
+                          isDraggingSheetImg
+                            ? 'border-indigo-500 bg-indigo-50/50'
+                            : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-slate-50'
+                        }`}
+                      >
+                        <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                        <p className="text-sm font-semibold text-slate-700">
+                          {sheetImgFile ? sheetImgFile.name : 'Cliquez ou glissez une image ici'}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          PNG, JPG, WebP jusqu'à 10 Mo
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="url"
+                        value={sheetImgUrl}
+                        onChange={(e) => {
+                          setSheetImgUrl(e.target.value);
+                          setSheetImgPreview(e.target.value);
+                        }}
+                        placeholder="https://exemple.com/ma-feuille-de-perso.jpg"
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
+                      />
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-4 pt-2 border-t border-slate-100">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    Contenu HTML du gabarit
+                  </label>
+                  <WysiwygEditor
+                    value={sheetHtml}
+                    onChange={setSheetHtml}
+                    placeholder="Créez la structure de votre fiche (tableaux, rubriques, encarts)..."
+                    minHeight="250px"
+                  />
+                </div>
+              )}
+
+              {/* 2. Éditeur visuel interactif */}
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      2. Positionner les champs interactifs
+                    </label>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Glissez des champs depuis la barre d'outils sur la feuille, ajustez leur taille et leur valeur par défaut.
+                    </p>
+                  </div>
+                </div>
+
+                <CharacterSheetRenderer
+                  mode="edit-sheet"
+                  bgType={sheetBgType}
+                  templateImg={sheetBgType === 'image' ? (sheetImgPreview || sheetImgUrl) : undefined}
+                  templateHtml={sheetBgType === 'html' ? sheetHtml : undefined}
+                  fields={sheetFields}
+                  maxCount={sheetMaxCount}
+                  onFieldsChange={(newFields, newMax) => {
+                    setSheetFields(newFields);
+                    setSheetMaxCount(newMax);
+                  }}
+                />
               </div>
             </div>
           </div>
