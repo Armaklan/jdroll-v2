@@ -140,6 +140,19 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
 
                   <div
                     className="text-xs text-slate-600 mt-0.5 line-clamp-2 leading-relaxed [&_a]:text-indigo-600 [&_a]:hover:underline"
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      const anchor = target.closest('a');
+                      if (anchor) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const href = anchor.getAttribute('href') || notif.url;
+                        if (href) {
+                          onNavigateUrl(href);
+                          onClose();
+                        }
+                      }
+                    }}
                     dangerouslySetInnerHTML={{ __html: notif.content }}
                   />
 

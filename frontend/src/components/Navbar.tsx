@@ -80,6 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
   const [isNotifLoading, setIsNotifLoading] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
+  const mobileNotifRef = useRef<HTMLDivElement>(null);
 
   const fetchNotifications = useCallback(async () => {
     if (!isAuthenticated) {
@@ -125,13 +126,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
 
   // Close dropdown on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      const isInsideDesktop = notifRef.current && notifRef.current.contains(target);
+      const isInsideMobile = mobileNotifRef.current && mobileNotifRef.current.contains(target);
+      if (!isInsideDesktop && !isInsideMobile) {
         setIsNotifOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const getActiveView = (): AppView => {
@@ -345,7 +353,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
         {/* Mobile menu and notif button */}
         <div className="flex md:hidden items-center gap-2">
           {isAuthenticated && (
-            <div className="relative">
+            <div className="relative" ref={mobileNotifRef}>
               <button
                 onClick={() => setIsNotifOpen(!isNotifOpen)}
                 className="relative p-2 rounded-lg text-slate-700 hover:bg-slate-100 transition"
