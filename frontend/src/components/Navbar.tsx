@@ -1,6 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { notificationsApi } from '../api/notifications';
+import { NotificationItem } from '../types/notification';
+import { NotificationPopover } from './NotificationPopover';
 import {
   Dice6,
   LogIn,
@@ -17,6 +20,7 @@ import {
   HelpCircle,
   Menu,
   X,
+  Bell,
 } from 'lucide-react';
 
 export type AppView =
@@ -76,14 +80,63 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
   const [openDropdown, setOpenDropdown] = useState<'communicate' | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSubmenu, setMobileSubmenu] = useState<'communicate' | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isNotifLoading, setIsNotifLoading] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!isAuthenticated) {
+      setNotifications([]);
+      return;
+    }
+    try {
+      setIsNotifLoading(true);
+      const res = await notificationsApi.getNotifications();
+      setNotifications(res.notifications || []);
+    } catch {
+      // ignore
+    } finally {
+      setIsNotifLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications, location.pathname]);
+
+  const handleDeleteNotification = async (id: number) => {
+    try {
+      await notificationsApi.deleteNotification(id);
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleDeleteAllNotifications = async () => {
+    try {
+      await notificationsApi.deleteAllNotifications();
+      setNotifications([]);
+    } catch {
+      // ignore
+    }
+  };
 
   // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setOpenDropdown(null);
+      }
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -267,6 +320,40 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
         <div className="hidden md:flex items-center gap-3">
           {isAuthenticated && user ? (
             <div className="flex items-center gap-3">
+              {/* Notifications Button & Popover */}
+              <div className="relative" ref={notifRef}>
+                <button
+                  onClick={() => setIsNotifOpen(!isNotifOpen)}
+                  className={`relative p-2 rounded-xl transition cursor-pointer flex items-center justify-center ${
+                    isNotifOpen
+                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent'
+                  }`}
+                  title="Notifications"
+                  aria-label="Notifications"
+                >
+                  <Bell className="w-4 h-4" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                      {notifications.length > 99 ? '99+' : notifications.length}
+                    </span>
+                  )}
+                </button>
+
+                <NotificationPopover
+                  isOpen={isNotifOpen}
+                  onClose={() => setIsNotifOpen(false)}
+                  notifications={notifications}
+                  isLoading={isNotifLoading}
+                  onDelete={handleDeleteNotification}
+                  onDeleteAll={handleDeleteAllNotifications}
+                  onNavigateUrl={(url) => {
+                    navigate(url);
+                    setIsNotifOpen(false);
+                  }}
+                />
+              </div>
+
               <div className="flex items-center gap-2 bg-slate-100/80 border border-slate-200 px-3 py-1.5 rounded-xl">
                 <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
                   {user.username.charAt(0).toUpperCase()}
@@ -315,8 +402,37 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
           )}
         </div>
 
-        {/* Mobile menu button */}
+        {/* Mobile menu and notif button */}
         <div className="flex md:hidden items-center gap-2">
+          {isAuthenticated && (
+            <div className="relative">
+              <button
+                onClick={() => setIsNotifOpen(!isNotifOpen)}
+                className="relative p-2 rounded-lg text-slate-700 hover:bg-slate-100 transition"
+                aria-label="Notifications"
+              >
+                <Bell className="w-5 h-5" />
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                    {notifications.length > 99 ? '99+' : notifications.length}
+                  </span>
+                )}
+              </button>
+
+              <NotificationPopover
+                isOpen={isNotifOpen}
+                onClose={() => setIsNotifOpen(false)}
+                notifications={notifications}
+                isLoading={isNotifLoading}
+                onDelete={handleDeleteNotification}
+                onDeleteAll={handleDeleteAllNotifications}
+                onNavigateUrl={(url) => {
+                  navigate(url);
+                  setIsNotifOpen(false);
+                }}
+              />
+            </div>
+          )}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-lg text-slate-700 hover:bg-slate-100 transition"

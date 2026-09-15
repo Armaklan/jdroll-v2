@@ -8,12 +8,32 @@ import { getFilesDirectory } from './storage/file-storage.js';
 import { registerAuthPlugin } from './plugins/auth.plugin.js';
 import { authRoutes } from './controllers/auth.controller.js';
 import { campaignRoutes } from './controllers/campaign.controller.js';
+import { notificationRoutes } from './controllers/notification.controller.js';
+import { notificationListener } from './listeners/notification.listener.js';
 
 export async function buildApp() {
+  // Initialize listeners
+  notificationListener.register();
+
   const app = Fastify({
     logger: {
       level: process.env.NODE_ENV === 'test' ? 'silent' : 'info',
     },
+  });
+
+  // Support empty JSON bodies gracefully
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+    if (!body || (typeof body === 'string' && body.trim() === '')) {
+      done(null, undefined);
+      return;
+    }
+    try {
+      const json = JSON.parse(body as string);
+      done(null, json);
+    } catch (err: any) {
+      err.statusCode = 400;
+      done(err, undefined);
+    }
   });
 
   // Plugins
@@ -49,6 +69,7 @@ export async function buildApp() {
   // Routes
   await app.register(authRoutes);
   await app.register(campaignRoutes);
+  await app.register(notificationRoutes);
 
   return app;
 }

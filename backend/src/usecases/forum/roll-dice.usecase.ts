@@ -1,5 +1,6 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
 import { IDicerRepository, dicerRepository } from '../../repositories/dicer.repository.js';
+import { IEventBus, domainEventBus } from '../../events/event-bus.js';
 import { ForumPost } from '../../types/index.js';
 import {
   TopicNotFoundError,
@@ -31,7 +32,8 @@ export class RollDiceUseCase {
   constructor(
     private readonly forumRepo: IForumRepository = forumRepository,
     private readonly dicerRepo: IDicerRepository = dicerRepository,
-    private readonly rng: RngFunction = Math.random
+    private readonly rng: RngFunction = Math.random,
+    private readonly eventBus: IEventBus = domainEventBus
   ) {}
 
   async execute(dto: RollDiceDTO): Promise<RollDiceResult> {
@@ -124,6 +126,20 @@ export class RollDiceUseCase {
     if (!post) {
       throw new Error('Erreur lors de la récupération du message de dé créé');
     }
+
+    await this.eventBus.publish({
+      name: 'RollCreated',
+      rollId,
+      campagneId: topic.campagneId ?? 0,
+      userId: dto.userId,
+      topicId: dto.topicId,
+      topicTitle: topic.title,
+      isPrivate: isPrivateVal,
+      isTower: false,
+      formula: rawFormula,
+      result: evaluation.summaryText,
+      description,
+    });
 
     return {
       post,

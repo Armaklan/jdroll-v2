@@ -284,3 +284,27 @@ export interface RawTopicDetail {
   linkColor?: string | null;
   linkSidebarColor?: string | null;
 }
+
+export interface NotificationItem {
+  id: number;
+  userId: number;
+  title: string;
+  content: string;
+  url: string;
+  type: string;
+  targetId: number;
+  nb: number;
+  lastUpdate: string;
+}
+
+export interface RawNotificationRow {
+  id: number;
+  user_id: number;
+  title: string;
+  content: string;
+  url: string | null;
+  type: string | null;
+  target_id: number | null;
+  nb: number;
+  last_update: string;
+}

@@ -1,4 +1,5 @@
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
+import { IEventBus, domainEventBus } from '../../events/event-bus.js';
 import {
   CampaignNotFoundError,
   CharacterNotFoundError,
@@ -39,7 +40,10 @@ export interface UpdateCharacterOutput {
 }
 
 export class UpdateCharacterUseCase {
-  constructor(private readonly campaignRepo: ICampaignRepository = campaignRepository) {}
+  constructor(
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly eventBus: IEventBus = domainEventBus
+  ) {}
 
   async execute(input: UpdateCharacterInput): Promise<UpdateCharacterOutput> {
     const existingCharacter = await this.campaignRepo.findCharacterById(input.characterId);
@@ -135,6 +139,15 @@ export class UpdateCharacterUseCase {
 
     const updatedCharacter = await this.campaignRepo.findCharacterById(input.characterId);
     const char = updatedCharacter || existingCharacter;
+
+    await this.eventBus.publish({
+      name: 'CharacterUpdated',
+      characterId: input.characterId,
+      campagneId: existingCharacter.campagneId,
+      characterName: updatePayload.name ?? char.name,
+      characterOwnerId: char.userId,
+      modifierUserId: input.userId,
+    });
 
     return {
       id: char.id,

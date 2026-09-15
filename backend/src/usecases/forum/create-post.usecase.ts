@@ -1,4 +1,5 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import { IEventBus, domainEventBus } from '../../events/event-bus.js';
 import { ForumPost } from '../../types/index.js';
 import {
   TopicNotFoundError,
@@ -15,7 +16,10 @@ export interface CreatePostDTO {
 }
 
 export class CreatePostUseCase {
-  constructor(private readonly forumRepo: IForumRepository = forumRepository) {}
+  constructor(
+    private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly eventBus: IEventBus = domainEventBus
+  ) {}
 
   async execute(dto: CreatePostDTO): Promise<ForumPost> {
     const rawContent = (dto.content || '').trim();
@@ -100,6 +104,16 @@ export class CreatePostUseCase {
     if (!post) {
       throw new Error('Erreur lors de la récupération du message créé');
     }
+
+    await this.eventBus.publish({
+      name: 'PostCreated',
+      postId,
+      topicId: dto.topicId,
+      campagneId: topic.campagneId,
+      userId: dto.userId,
+      topicTitle: topic.title,
+      isPrivate: isPrivateVal,
+    });
 
     return post;
   }

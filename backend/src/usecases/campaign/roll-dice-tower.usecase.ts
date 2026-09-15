@@ -1,6 +1,7 @@
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
 import { IDicerRepository, dicerRepository, DicerRollWithUser } from '../../repositories/dicer.repository.js';
+import { IEventBus, domainEventBus } from '../../events/event-bus.js';
 import {
   CampaignNotFoundError,
   ForbiddenError,
@@ -29,7 +30,8 @@ export class RollDiceTowerUseCase {
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
     private readonly forumRepo: IForumRepository = forumRepository,
     private readonly dicerRepo: IDicerRepository = dicerRepository,
-    private readonly rng: RngFunction = Math.random
+    private readonly rng: RngFunction = Math.random,
+    private readonly eventBus: IEventBus = domainEventBus
   ) {}
 
   async execute(dto: RollDiceTowerDTO): Promise<RollDiceTowerResult> {
@@ -75,6 +77,17 @@ export class RollDiceTowerUseCase {
     if (!roll) {
       throw new Error('Erreur lors de la récupération du jet de dés créé');
     }
+
+    await this.eventBus.publish({
+      name: 'RollCreated',
+      rollId,
+      campagneId: dto.campaignId,
+      userId: dto.userId,
+      isTower: true,
+      formula: rawFormula,
+      result: evaluation.summaryText,
+      description,
+    });
 
     return {
       roll,

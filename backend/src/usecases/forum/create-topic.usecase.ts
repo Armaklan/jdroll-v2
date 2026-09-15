@@ -1,4 +1,5 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import { IEventBus, domainEventBus } from '../../events/event-bus.js';
 import {
   SectionNotFoundError,
   ForbiddenError,
@@ -29,7 +30,10 @@ export interface CreateTopicOutput {
 }
 
 export class CreateTopicUseCase {
-  constructor(private readonly forumRepo: IForumRepository = forumRepository) {}
+  constructor(
+    private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly eventBus: IEventBus = domainEventBus
+  ) {}
 
   async execute(input: CreateTopicInput): Promise<CreateTopicOutput> {
     const trimmedTitle = input.title ? input.title.trim() : '';
@@ -86,6 +90,16 @@ export class CreateTopicUseCase {
 
       await this.forumRepo.updateTopicLastPost(topicId, createdPostId);
       await this.forumRepo.markTopicAsRead(topicId, input.userId, createdPostId);
+
+      await this.eventBus.publish({
+        name: 'PostCreated',
+        postId: createdPostId,
+        topicId,
+        campagneId: section.campagneId,
+        userId: input.userId,
+        topicTitle: trimmedTitle,
+        isPrivate: isPrivateVal,
+      });
     }
 
     return {
