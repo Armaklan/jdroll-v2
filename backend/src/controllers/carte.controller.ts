@@ -63,12 +63,18 @@ export class CarteController {
       });
     }
 
-    const user = request.user as JWTPayload | undefined;
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      // Utilisateur anonyme
+    }
 
     try {
       const cartes = await this.carteQueryService.getCampaignCartes(
         parseParams.data.id,
-        user?.id
+        userId
       );
       return reply.status(200).send(cartes);
     } catch (error) {
@@ -91,10 +97,16 @@ export class CarteController {
       return reply.status(400).send({ error: 'Identifiant de carte invalide' });
     }
 
-    const user = request.user as JWTPayload | undefined;
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      // Utilisateur anonyme
+    }
 
     try {
-      const carte = await this.carteQueryService.getCarteById(carteId, user?.id);
+      const carte = await this.carteQueryService.getCarteById(carteId, userId);
       return reply.status(200).send(carte);
     } catch (error) {
       if (error instanceof CarteNotFoundError || error instanceof CampaignNotFoundError) {
