@@ -21,11 +21,12 @@ import {
   PauseCircle,
   Eye,
   EyeOff,
+  StickyNote,
 } from 'lucide-react';
 
 export interface CampaignHeaderProps {
   campaign: CampaignSummary;
-  activeTab?: 'forum' | 'characters' | 'topic' | 'none';
+  activeTab?: 'forum' | 'characters' | 'topic' | 'notes' | 'none';
   isAdminMode?: boolean;
   onOpenDiceTower?: () => void;
   onBannerUpload?: (file: File) => Promise<void> | void;
@@ -367,7 +368,26 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
             </button>
           )}
 
-          {/* Link 3: Tour à dé */}
+          {/* Link 3: Note */}
+          {isCampaignMember && (
+            activeTab === 'notes' ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-semibold text-xs border border-indigo-100">
+                <StickyNote className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Note</span>
+              </span>
+            ) : (
+              <button
+                onClick={() => navigate(`/campaigns/${campaign.id}/notes`)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
+                title="Accéder à vos notes personnelles pour cette campagne"
+              >
+                <StickyNote className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Note</span>
+              </button>
+            )
+          )}
+
+          {/* Link 4: Tour à dé */}
           {isCampaignMember && (
             <button
               onClick={onOpenDiceTower}

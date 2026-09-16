@@ -284,3 +284,18 @@ export interface TopicDetail {
   linkColor?: string | null;
   linkSidebarColor?: string | null;
 }
+
+export interface Note {
+  id: number;
+  campaignId: number;
+  userId: number;
+  content: string;
+  lastUpdate?: string;
+}
+
+export interface CampaignNotesData {
+  campaign: CampaignSummary;
+  notes: Note[];
+}
+
+export type CampaignNoteData = CampaignNotesData;

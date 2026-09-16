@@ -31,6 +31,10 @@ import { observeCampaignUseCase, ObserveCampaignUseCase } from '../usecases/camp
 import { unobserveCampaignUseCase, UnobserveCampaignUseCase } from '../usecases/campaign/unobserve-campaign.usecase.js';
 import { setCampaignAlertUseCase, SetCampaignAlertUseCase } from '../usecases/campaign/set-campaign-alert.usecase.js';
 import { removeCampaignAlertUseCase, RemoveCampaignAlertUseCase } from '../usecases/campaign/remove-campaign-alert.usecase.js';
+import { noteQueries, NoteQueries } from '../queries/note.queries.js';
+import { createNoteUseCase, CreateNoteUseCase } from '../usecases/note/create-note.usecase.js';
+import { updateNoteUseCase, UpdateNoteUseCase } from '../usecases/note/update-note.usecase.js';
+import { deleteNoteUseCase, DeleteNoteUseCase } from '../usecases/note/delete-note.usecase.js';
 import { JWTPayload } from '../types/index.js';
 import {
   CampaignNotFoundError,
@@ -42,6 +46,7 @@ import {
   TopicClosedError,
   ForbiddenError,
   ValidationError,
+  NoteNotFoundError,
 } from '../errors/domain.errors.js';
 
 const getMyCampaignsSchema = z.object({
@@ -269,6 +274,19 @@ const updatePnjCategoryBodySchema = z.object({
   defaultCollapse: z.boolean().optional(),
 });
 
+const noteParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  noteId: z.coerce.number().int().positive(),
+});
+
+const createNoteBodySchema = z.object({
+  content: z.string().optional().default(''),
+});
+
+const updateNoteBodySchema = z.object({
+  content: z.string(),
+});
+
 const deletePnjCategoryParamsSchema = z
   .object({
     id: z.coerce.number().int().positive().optional(),
@@ -325,7 +343,11 @@ export class CampaignController {
     private readonly observeCampaignUseCaseService: ObserveCampaignUseCase = observeCampaignUseCase,
     private readonly unobserveCampaignUseCaseService: UnobserveCampaignUseCase = unobserveCampaignUseCase,
     private readonly setCampaignAlertUseCaseService: SetCampaignAlertUseCase = setCampaignAlertUseCase,
-    private readonly removeCampaignAlertUseCaseService: RemoveCampaignAlertUseCase = removeCampaignAlertUseCase
+    private readonly removeCampaignAlertUseCaseService: RemoveCampaignAlertUseCase = removeCampaignAlertUseCase,
+    private readonly noteQueryService: NoteQueries = noteQueries,
+    private readonly createNoteUseCaseService: CreateNoteUseCase = createNoteUseCase,
+    private readonly updateNoteUseCaseService: UpdateNoteUseCase = updateNoteUseCase,
+    private readonly deleteNoteUseCaseService: DeleteNoteUseCase = deleteNoteUseCase
   ) {}
 
   /**
@@ -1918,11 +1940,191 @@ export class CampaignController {
   }
 
   /**
+   * GET /api/campaigns/:id/notes
+   * Récupère les notes personnelles d'un joueur ou MJ pour cette campagne
+   */
+  async getCampaignNotes(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const data = await this.noteQueryService.getCampaignNotes(parseParams.data.id, user.id);
+      return reply.status(200).send(data);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération des notes' });
+    }
+  }
+
+  /**
+   * POST /api/campaigns/:id/notes
+   * Crée une nouvelle note personnelle pour un joueur ou MJ
+   */
+  async createCampaignNote(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = createNoteBodySchema.safeParse(request.body ?? {});
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de note invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const note = await this.createNoteUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        userId: user.id,
+        content: parseBody.data.content,
+      });
+
+      return reply.status(201).send({ note });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la création de la note' });
+    }
+  }
+
+  /**
+   * PUT /api/campaigns/:id/notes/:noteId
+   * Met à jour une note personnelle
+   */
+  async updateCampaignNote(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = noteParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Paramètres invalides',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = updateNoteBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de note invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const note = await this.updateNoteUseCaseService.execute({
+        id: parseParams.data.noteId,
+        campaignId: parseParams.data.id,
+        userId: user.id,
+        content: parseBody.data.content,
+      });
+
+      return reply.status(200).send({ note });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError || error instanceof NoteNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la mise à jour de la note' });
+    }
+  }
+
+  /**
+   * DELETE /api/campaigns/:id/notes/:noteId
+   * Supprime une note personnelle
+   */
+  async deleteCampaignNote(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = noteParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Paramètres invalides',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      await this.deleteNoteUseCaseService.execute({
+        id: parseParams.data.noteId,
+        campaignId: parseParams.data.id,
+        userId: user.id,
+      });
+
+      return reply.status(200).send({ success: true });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError || error instanceof NoteNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la suppression de la note' });
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur
    */
   registerRoutes(app: FastifyInstance) {
     // Route publique pour voir toutes les campagnes
     app.get('/api/campaigns', (req, rep) => this.getAllCampaigns(req, rep));
+
+    // Routes authentifiées pour consulter, créer, modifier et supprimer les notes de campagne
+    app.get(
+      '/api/campaigns/:id/notes',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCampaignNotes(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/notes',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.createCampaignNote(req, rep)
+    );
+    app.put(
+      '/api/campaigns/:id/notes/:noteId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updateCampaignNote(req, rep)
+    );
+    app.delete(
+      '/api/campaigns/:id/notes/:noteId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deleteCampaignNote(req, rep)
+    );
 
     // Route authentifiée pour rejoindre une campagne
     app.post(

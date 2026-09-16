@@ -371,3 +371,26 @@ export interface MessageDetail {
   isSender: boolean;
   isRead: boolean;
 }
+
+export interface Note {
+  id: number;
+  campaignId: number;
+  userId: number;
+  content: string;
+  lastUpdate?: string;
+}
+
+export interface RawNoteRow {
+  id: number;
+  campagne_id: number;
+  user_id: number;
+  content: string;
+  last_update: string;
+}
+
+export interface CampaignNotesData {
+  campaign: CampaignSummary;
+  notes: Note[];
+}
+
+export type CampaignNoteData = CampaignNotesData;

@@ -9,6 +9,7 @@ import { MyCampaignsPage } from './pages/MyCampaignsPage';
 import { JoinCampaignPage } from './pages/JoinCampaignPage';
 import { CampaignForumPage } from './pages/CampaignForumPage';
 import { CampaignCharactersPage } from './pages/CampaignCharactersPage';
+import { CampaignNotesPage } from './pages/CampaignNotesPage';
 import { CampaignFormPage } from './pages/CampaignFormPage';
 import { GeneralForumPage } from './pages/GeneralForumPage';
 import { TopicViewPage } from './pages/TopicViewPage';
@@ -108,6 +109,22 @@ export function AppContent() {
           <Route path="/campaign-forum/:campaignId" element={<CampaignForumPage />} />
           <Route path="/campaigns/:campaignId/characters" element={<CampaignCharactersPage />} />
           <Route path="/campaigns/:campaignId/gallery" element={<CampaignCharactersPage />} />
+          <Route
+            path="/campaigns/:campaignId/notes"
+            element={
+              <ProtectedRoute>
+                <CampaignNotesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/campaigns/:campaignId/note"
+            element={
+              <ProtectedRoute>
+                <CampaignNotesPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Forum & Topics */}
           <Route path="/forum/0" element={<GeneralForumPage />} />

@@ -12,6 +12,8 @@ import {
   UpdateCharacterPayload,
   CampaignCharacter,
   CampaignDiceRoll,
+  CampaignNotesData,
+  Note,
 } from '../types/campaign';
 import { getToken } from './auth';
 
@@ -393,6 +395,30 @@ export const campaignsApi = {
     return request<{ success: boolean }>(`/api/campaigns/${campaignId}/topics/reorder`, {
       method: 'PUT',
       body: JSON.stringify({ sections }),
+    });
+  },
+
+  async getCampaignNotes(campaignId: number): Promise<CampaignNotesData> {
+    return request<CampaignNotesData>(`/api/campaigns/${campaignId}/notes`);
+  },
+
+  async createCampaignNote(campaignId: number, content?: string): Promise<{ note: Note }> {
+    return request<{ note: Note }>(`/api/campaigns/${campaignId}/notes`, {
+      method: 'POST',
+      body: JSON.stringify({ content: content ?? '' }),
+    });
+  },
+
+  async updateCampaignNote(campaignId: number, noteId: number, content: string): Promise<{ note: Note }> {
+    return request<{ note: Note }>(`/api/campaigns/${campaignId}/notes/${noteId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    });
+  },
+
+  async deleteCampaignNote(campaignId: number, noteId: number): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/api/campaigns/${campaignId}/notes/${noteId}`, {
+      method: 'DELETE',
     });
   },
 };

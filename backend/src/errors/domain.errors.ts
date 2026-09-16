@@ -65,6 +65,12 @@ export class PostNotFoundError extends DomainError {
   }
 }
 
+export class NoteNotFoundError extends DomainError {
+  constructor(message = 'Note introuvable') {
+    super(message);
+  }
+}
+
 export class TopicClosedError extends DomainError {
   constructor(message = 'Ce sujet est fermé') {
     super(message);
