@@ -34,6 +34,9 @@ import {
   ChevronUp,
   Globe,
   Users,
+  Pencil,
+  Trash2,
+  X,
 } from 'lucide-react';
 
 interface TopicViewPageProps {
@@ -84,6 +87,17 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   const [diceSuccess, setDiceSuccess] = useState<string | null>(null);
   const [showDiceHelp, setShowDiceHelp] = useState<boolean>(false);
   const [isDiceTowerOpen, setIsDiceTowerOpen] = useState<boolean>(false);
+
+  // État d'édition d'un message
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [editPostContent, setEditPostContent] = useState<string>('');
+  const [editPersoId, setEditPersoId] = useState<number | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // État de suppression d'un message
+  const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
+  const [isDeletingPost, setIsDeletingPost] = useState<boolean>(false);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -206,6 +220,76 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
       setTimeout(() => {
         previewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
+    }
+  };
+
+  const handleStartEdit = (post: any) => {
+    setEditingPostId(post.id);
+    setEditPostContent(post.content || '');
+    setEditPersoId(post.perso ? post.perso.id : null);
+    setEditError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPostId(null);
+    setEditPostContent('');
+    setEditPersoId(null);
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async (postId: number) => {
+    if (!editPostContent.trim()) {
+      setEditError('Le message ne peut pas être vide');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditError(null);
+    try {
+      const response = await campaignsApi.updatePost(postId, {
+        content: editPostContent,
+        persoId: editPersoId,
+      });
+
+      if (response && response.post) {
+        setTopicDetail((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            posts: prev.posts.map((p) => (p.id === postId ? response.post : p)),
+          };
+        });
+      }
+      setEditingPostId(null);
+      setEditPostContent('');
+      setEditPersoId(null);
+    } catch (err: any) {
+      setEditError(err.message || 'Erreur lors de la modification du message');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeletePost = async (postId: number) => {
+    const confirmed = window.confirm('Êtes-vous sûr de vouloir supprimer ce message ? Cette action est irréversible.');
+    if (!confirmed) return;
+
+    setDeletingPostId(postId);
+    setIsDeletingPost(true);
+    try {
+      await campaignsApi.deletePost(postId);
+      if (topicDetail) {
+        if (topicDetail.posts.length === 1 && topicDetail.page > 1) {
+          await fetchTopic(topicDetail.page - 1);
+        } else {
+          await fetchTopic(topicDetail.page);
+        }
+      }
+    } catch (err: any) {
+      alert(err.message || 'Erreur lors de la suppression du message');
+    } finally {
+      setDeletingPostId(null);
+      setIsDeletingPost(false);
     }
   };
 
@@ -559,6 +643,14 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             const avatarUrl = post.perso?.avatar || post.user.avatar;
             const isGm = !isSystem && post.user.profil === 1;
 
+            const isMj = topicDetail.userRole === 'mj' || Boolean(topicDetail.campaign && topicDetail.campaign.mjId === user?.id);
+            const isAuthor = Boolean(user && post.user && post.user.id === user.id);
+            const isTopicClosed = Boolean(topicDetail.isClosed);
+            const canEdit = Boolean(isAuthenticated && (isMj || (isAuthor && !isTopicClosed)));
+            const isLastPostInThread = topicDetail.page === 1 && postIdx === topicDetail.posts.length - 1;
+            const canDelete = Boolean(isAuthenticated && (isMj || (isAuthor && isLastPostInThread && !isTopicClosed)));
+            const isCurrentlyEditing = editingPostId === post.id;
+
             const isOdd = postIdx % 2 === 0;
             const postBg = isOdd
               ? topicDetail.oddLineColor
@@ -613,6 +705,35 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                         <BookmarkCheck className="w-3 h-3" />
                         <span>Dernier lu</span>
                       </span>
+                    )}
+
+                    {/* Actions : Édition & Suppression */}
+                    {!isCurrentlyEditing && (
+                      <div className="flex items-center gap-1 ml-1">
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(post)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition shadow-2xs cursor-pointer"
+                            title="Modifier ce message"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Éditer</span>
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePost(post.id)}
+                            disabled={isDeletingPost && deletingPostId === post.id}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-100 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                            title="Supprimer ce message"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Supprimer</span>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -689,18 +810,91 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
                   {/* Contenu du message (Droite) */}
                   <div className="md:col-span-9 min-w-0">
-                    <div
-                      className="post-content-container text-sm sm:text-base leading-relaxed space-y-3 prose max-w-none break-words"
-                      style={{
-                        color: postTextColor || undefined,
-                        '--tw-prose-body': postTextColor || 'inherit',
-                        '--tw-prose-headings': postTextColor || 'inherit',
-                        '--tw-prose-links': postLinkColor || '#2563eb',
-                        '--tw-prose-bold': postTextColor || 'inherit',
-                        '--tw-prose-quotes': postTextColor || 'inherit',
-                      } as React.CSSProperties}
-                      dangerouslySetInnerHTML={{ __html: parseDiceInHtml(post.content) }}
-                    />
+                    {isCurrentlyEditing ? (
+                      <div className="space-y-3 bg-slate-50/70 p-4 rounded-xl border border-slate-200 text-slate-800">
+                        {editError && (
+                          <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                            <span>{editError}</span>
+                          </div>
+                        )}
+
+                        {/* Choix du personnage si applicable */}
+                        {topicDetail.campagneId && topicDetail.availableCharacters && topicDetail.availableCharacters.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-slate-200">
+                            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                              <UserIcon className="w-3.5 h-3.5 text-indigo-500" />
+                              <span>Poster en tant que :</span>
+                            </label>
+                            <select
+                              value={editPersoId ?? ''}
+                              onChange={(e) => setEditPersoId(e.target.value ? Number(e.target.value) : null)}
+                              className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                            >
+                              <option value="">Aucun personnage ({post.user?.username || user?.username})</option>
+                              {(isMj
+                                ? topicDetail.availableCharacters
+                                : topicDetail.availableCharacters.filter((c) => c.userId === post.user?.id)
+                              ).map((perso) => (
+                                <option key={perso.id} value={perso.id}>
+                                  {perso.name} {perso.concept ? `(${perso.concept})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        <WysiwygEditor
+                          value={editPostContent}
+                          onChange={setEditPostContent}
+                          placeholder="Modifier votre message..."
+                          minHeight="160px"
+                        />
+
+                        <div className="flex items-center justify-end gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            disabled={isSavingEdit}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-semibold transition cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Annuler</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(post.id)}
+                            disabled={isSavingEdit || !editPostContent.trim()}
+                            className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer disabled:opacity-50"
+                          >
+                            {isSavingEdit ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                <span>Enregistrement...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Enregistrer</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        className="post-content-container text-sm sm:text-base leading-relaxed space-y-3 prose max-w-none break-words"
+                        style={{
+                          color: postTextColor || undefined,
+                          '--tw-prose-body': postTextColor || 'inherit',
+                          '--tw-prose-headings': postTextColor || 'inherit',
+                          '--tw-prose-links': postLinkColor || '#2563eb',
+                          '--tw-prose-bold': postTextColor || 'inherit',
+                          '--tw-prose-quotes': postTextColor || 'inherit',
+                        } as React.CSSProperties}
+                        dangerouslySetInnerHTML={{ __html: parseDiceInHtml(post.content) }}
+                      />
+                    )}
                   </div>
                 </div>
               </div>

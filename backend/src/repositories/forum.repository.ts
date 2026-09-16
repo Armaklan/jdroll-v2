@@ -29,7 +29,10 @@ export interface IForumRepository {
   countPostsAfterPostId(topicId: number, postId: number): Promise<number>;
   getPostById(postId: number, userId?: number): Promise<ForumPost | null>;
   createPost(data: { topicId: number; userId: number | null; persoId: number | null; content: string; editor?: number }): Promise<number>;
-  updateTopicLastPost(topicId: number, postId: number): Promise<void>;
+  updatePost(postId: number, data: { content?: string; persoId?: number | null; editor?: number }): Promise<void>;
+  deletePost(postId: number): Promise<void>;
+  findLastPost(topicId: number, excludePostId?: number): Promise<{ id: number } | null>;
+  updateTopicLastPost(topicId: number, postId: number | null): Promise<void>;
   markTopicAsRead(topicId: number, userId: number, postId: number): Promise<void>;
   findCampaignPersos(campagneId: number): Promise<CharacterSummary[]>;
   findUserCampaignPersos(campagneId: number, userId: number): Promise<CharacterSummary[]>;
@@ -221,7 +224,8 @@ export class MysqlForumRepository implements IForumRepository {
         t.stickable,
         t.is_private AS isPrivate,
         t.is_closed AS isClosed,
-        t.ordre
+        t.ordre,
+        t.last_post_id AS lastPostId
       FROM topics t
       JOIN sections s ON t.section_id = s.id
       LEFT JOIN campagne c ON s.campagne_id = c.id
@@ -516,14 +520,60 @@ export class MysqlForumRepository implements IForumRepository {
     return result.insertId;
   }
 
-  async updateTopicLastPost(topicId: number, postId: number): Promise<void> {
+  async updatePost(
+    postId: number,
+    data: { content?: string; persoId?: number | null; editor?: number }
+  ): Promise<void> {
+    const updates: string[] = [];
+    const values: unknown[] = [];
+
+    if (data.content !== undefined) {
+      updates.push('content = ?');
+      values.push(data.content);
+    }
+
+    if (data.persoId !== undefined) {
+      updates.push('perso_id = ?');
+      values.push(data.persoId);
+    }
+
+    if (data.editor !== undefined) {
+      updates.push('editor = ?');
+      values.push(data.editor);
+    }
+
+    if (updates.length === 0) return;
+
+    values.push(postId);
+    const sql = `UPDATE posts SET ${updates.join(', ')} WHERE id = ?`;
+    await execute(sql, values);
+  }
+
+  async deletePost(postId: number): Promise<void> {
+    const sql = `DELETE FROM posts WHERE id = ?`;
+    await execute(sql, [postId]);
+  }
+
+  async findLastPost(topicId: number, excludePostId?: number): Promise<{ id: number } | null> {
+    const sql = excludePostId
+      ? `SELECT id FROM posts WHERE topic_id = ? AND id != ? ORDER BY id DESC LIMIT 1`
+      : `SELECT id FROM posts WHERE topic_id = ? ORDER BY id DESC LIMIT 1`;
+
+    interface LastPostRow {
+      id: number;
+    }
+
+    return queryOne<LastPostRow>(sql, excludePostId ? [topicId, excludePostId] : [topicId]);
+  }
+
+  async updateTopicLastPost(topicId: number, postId: number | null): Promise<void> {
     const sql = `
       UPDATE topics
       SET last_post_id = ?
       WHERE id = ?
     `;
 
-    await execute(sql, [postId, topicId]);
+    await execute(sql, [postId ?? null, topicId]);
   }
 
   async markTopicAsRead(topicId: number, userId: number, postId: number): Promise<void> {

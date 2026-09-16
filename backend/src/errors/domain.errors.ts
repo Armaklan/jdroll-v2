@@ -53,6 +53,12 @@ export class MessageNotFoundError extends DomainError {
   }
 }
 
+export class PostNotFoundError extends DomainError {
+  constructor(message = 'Message introuvable') {
+    super(message);
+  }
+}
+
 export class TopicClosedError extends DomainError {
   constructor(message = 'Ce sujet est fermé') {
     super(message);

@@ -232,6 +232,19 @@ export const campaignsApi = {
     });
   },
 
+  async updatePost(postId: number, data: { content: string; persoId?: number | null }) {
+    return request<{ post: any }>(`/api/posts/${postId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deletePost(postId: number) {
+    return request<{ success: boolean; topicId: number; deletedPostId: number; newLastPostId: number | null }>(`/api/posts/${postId}`, {
+      method: 'DELETE',
+    });
+  },
+
   async rollDice(topicId: number, data: { formula: string; description?: string }) {
     return request<{ post: any; rollId: number; evaluation: any }>(`/api/topics/${topicId}/dice-roll`, {
       method: 'POST',

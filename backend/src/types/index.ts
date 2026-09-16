@@ -280,6 +280,7 @@ export interface RawTopicDetail {
   isPrivate: number;
   isClosed: number;
   ordre: number;
+  lastPostId?: number | null;
   dialogueColor?: string | null;
   penseeColor?: string | null;
   rp1Color?: string | null;

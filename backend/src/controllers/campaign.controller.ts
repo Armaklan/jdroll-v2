@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { campaignQueries, CampaignQueries } from '../queries/campaign.queries.js';
 import { forumQueries, ForumQueries } from '../queries/forum.queries.js';
 import { createPostUseCase, CreatePostUseCase } from '../usecases/forum/create-post.usecase.js';
+import { updatePostUseCase, UpdatePostUseCase } from '../usecases/forum/update-post.usecase.js';
+import { deletePostUseCase, DeletePostUseCase } from '../usecases/forum/delete-post.usecase.js';
 import { rollDiceUseCase, RollDiceUseCase } from '../usecases/forum/roll-dice.usecase.js';
 import { rollDiceTowerUseCase, RollDiceTowerUseCase } from '../usecases/campaign/roll-dice-tower.usecase.js';
 import { createCampaignUseCase, CreateCampaignUseCase } from '../usecases/campaign/create-campaign.usecase.js';
@@ -28,6 +30,7 @@ import {
   CampaignNotFoundError,
   CharacterNotFoundError,
   TopicNotFoundError,
+  PostNotFoundError,
   SectionNotFoundError,
   TopicClosedError,
   ForbiddenError,
@@ -116,6 +119,19 @@ const createPostParamsSchema = z.object({
 const createPostBodySchema = z.object({
   content: z.string().min(1, 'Le message ne peut pas être vide'),
   persoId: z.number().int().positive().nullable().optional(),
+});
+
+const updatePostParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const updatePostBodySchema = z.object({
+  content: z.string().min(1, 'Le message ne peut pas être vide'),
+  persoId: z.number().int().positive().nullable().optional(),
+});
+
+const deletePostParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
 });
 
 const rollDiceParamsSchema = z.object({
@@ -230,6 +246,8 @@ export class CampaignController {
     private readonly campaignQueryService: CampaignQueries = campaignQueries,
     private readonly forumQueryService: ForumQueries = forumQueries,
     private readonly createPostUseCaseService: CreatePostUseCase = createPostUseCase,
+    private readonly updatePostUseCaseService: UpdatePostUseCase = updatePostUseCase,
+    private readonly deletePostUseCaseService: DeletePostUseCase = deletePostUseCase,
     private readonly rollDiceUseCaseService: RollDiceUseCase = rollDiceUseCase,
     private readonly rollDiceTowerUseCaseService: RollDiceTowerUseCase = rollDiceTowerUseCase,
     private readonly createCampaignUseCaseService: CreateCampaignUseCase = createCampaignUseCase,
@@ -600,6 +618,96 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la création du message' });
+    }
+  }
+
+  /**
+   * PUT / PATCH /api/posts/:id
+   * Met à jour un message
+   */
+  async updatePost(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = updatePostParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de message invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = updatePostBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de message invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: postId } = parseParams.data;
+    const { content, persoId } = parseBody.data;
+
+    try {
+      const post = await this.updatePostUseCaseService.execute({
+        postId,
+        userId: user.id,
+        content,
+        persoId,
+      });
+
+      return reply.status(200).send({ post });
+    } catch (error) {
+      if (error instanceof PostNotFoundError || error instanceof TopicNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof TopicClosedError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la modification du message' });
+    }
+  }
+
+  /**
+   * DELETE /api/posts/:id
+   * Supprime un message
+   */
+  async deletePost(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = deletePostParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de message invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: postId } = parseParams.data;
+
+    try {
+      const result = await this.deletePostUseCaseService.execute({
+        postId,
+        userId: user.id,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof PostNotFoundError || error instanceof TopicNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof TopicClosedError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la suppression du message' });
     }
   }
 
@@ -1645,6 +1753,25 @@ export class CampaignController {
       '/api/topics/:id/posts',
       { preHandler: [app.authenticate] },
       (req, rep) => this.createPost(req, rep)
+    );
+
+    // Routes authentifiées pour modifier un message
+    app.put(
+      '/api/posts/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updatePost(req, rep)
+    );
+    app.patch(
+      '/api/posts/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updatePost(req, rep)
+    );
+
+    // Route authentifiée pour supprimer un message
+    app.delete(
+      '/api/posts/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deletePost(req, rep)
     );
 
     // Route authentifiée pour lancer des dés dans un sujet
