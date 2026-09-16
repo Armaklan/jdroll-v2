@@ -72,7 +72,7 @@ export interface ICampaignRepository {
   findMasteredCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findPlayerCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
   findObservedCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]>;
-  findAllCampaigns(options?: { includeArchived?: boolean; search?: string }): Promise<CampaignSummary[]>;
+  findAllCampaigns(options?: { includeArchived?: boolean; search?: string; includePreparation?: boolean }): Promise<CampaignSummary[]>;
   findById(id: number): Promise<CampaignSummary | null>;
   createCampaign(data: CreateCampaignData): Promise<number>;
   updateCampaign(id: number, data: UpdateCampaignData): Promise<void>;
@@ -541,13 +541,15 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     }));
   }
 
-  async findAllCampaigns(options: { includeArchived?: boolean; search?: string } = {}): Promise<CampaignSummary[]> {
-    const { includeArchived = false, search } = options;
+  async findAllCampaigns(options: { includeArchived?: boolean; search?: string; includePreparation?: boolean } = {}): Promise<CampaignSummary[]> {
+    const { includeArchived = false, search, includePreparation = false } = options;
     const conditions: string[] = [];
     const params: any[] = [];
 
-    // Exclure les campagnes en préparation (statut = 3)
-    conditions.push('c.statut != 3');
+    // Exclure les campagnes en préparation (statut = 3) sauf si demandé
+    if (!includePreparation) {
+      conditions.push('c.statut != 3');
+    }
 
     if (!includeArchived) {
       conditions.push('c.statut != 2');

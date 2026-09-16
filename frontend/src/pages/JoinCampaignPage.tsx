@@ -8,6 +8,7 @@ import { CampaignGridSkeleton } from '../components/CampaignCardSkeleton';
 import { FeedbackAlert } from '../components/FeedbackAlert';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../contexts/AuthContext';
+import { isUserAdmin } from '../utils/user';
 import { AppView } from '../components/Navbar';
 import {
   Sparkles,
@@ -17,17 +18,22 @@ import {
   X,
   Layers,
   Archive,
+  Clock,
 } from 'lucide-react';
 
 interface JoinCampaignPageProps {
   onNavigate?: (view: AppView) => void;
 }
 
+type FilterMode = 'recruiting' | 'all' | 'preparation';
+
 export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const isAdmin = isUserAdmin(user);
+
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showAll, setShowAll] = useState<boolean>(false);
+  const [filterMode, setFilterMode] = useState<FilterMode>('recruiting');
   const [includeArchived, setIncludeArchived] = useState<boolean>(false);
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -48,11 +54,26 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await campaignsApi.getAllCampaigns(showAll && includeArchived, searchQuery);
-      if (showAll) {
-        setCampaigns(data.filter((c) => c.statut !== 3));
+      const shouldIncludePreparation = isAdmin && (filterMode === 'preparation' || filterMode === 'all');
+      const shouldIncludeArchived = filterMode === 'all' && includeArchived;
+      const data = await campaignsApi.getAllCampaigns(
+        shouldIncludeArchived,
+        searchQuery,
+        shouldIncludePreparation
+      );
+
+      if (filterMode === 'preparation') {
+        setCampaigns(data.filter((c) => c.statut === 3));
+      } else if (filterMode === 'all') {
+        if (!isAdmin) {
+          setCampaigns(data.filter((c) => c.statut !== 3));
+        } else {
+          setCampaigns(data);
+        }
       } else {
-        const recruitingCampaigns = data.filter((c) => c.isRecrutementOpen && !c.isArchived && c.statut !== 2 && c.statut !== 3);
+        const recruitingCampaigns = data.filter(
+          (c) => c.isRecrutementOpen && !c.isArchived && c.statut !== 2 && c.statut !== 3
+        );
         setCampaigns(recruitingCampaigns);
       }
     } catch (err: any) {
@@ -68,7 +89,7 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, showAll, includeArchived]);
+  }, [searchQuery, filterMode, includeArchived, isAdmin]);
 
   const handleOpenDetail = (campaign: CampaignSummary) => {
     setSelectedCampaign(campaign);
@@ -146,24 +167,37 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold mb-2">
-            {!showAll ? (
+            {filterMode === 'recruiting' && (
               <>
                 <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Tables Ouvertes aux Joueurs</span>
               </>
-            ) : (
+            )}
+            {filterMode === 'all' && (
               <>
                 <Layers className="w-3.5 h-3.5 text-indigo-600" />
                 <span>Toutes les Campagnes</span>
               </>
             )}
+            {filterMode === 'preparation' && (
+              <>
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                <span>Parties en Préparation</span>
+              </>
+            )}
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            {!showAll ? 'Rejoindre une Campagne' : 'Toutes les Campagnes'}
+            {filterMode === 'recruiting'
+              ? 'Rejoindre une Campagne'
+              : filterMode === 'preparation'
+              ? 'Campagnes en Préparation'
+              : 'Toutes les Campagnes'}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            {!showAll
+            {filterMode === 'recruiting'
               ? "Découvrez toutes les campagnes actives actuellement en phase de recrutement. Consultez leur fiche détaillée pour découvrir l'univers et postuler."
+              : filterMode === 'preparation'
+              ? 'Consultez les campagnes actuellement en cours de préparation par les Maîtres du Jeu (accès réservé aux administrateurs).'
               : "Explorez l'ensemble des tables de jeu de la plateforme, qu'elles soient ouvertes aux recrutements, en cours de jeu ou archivées."}
           </p>
         </div>
@@ -211,13 +245,13 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
             )}
           </div>
 
-          {/* Filter Mode Toggle : Recrutement vs Voir tout */}
+          {/* Filter Mode Toggle : Recrutement vs Voir tout vs En préparation (Admin) */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
               <button
-                onClick={() => setShowAll(false)}
+                onClick={() => setFilterMode('recruiting')}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  !showAll
+                  filterMode === 'recruiting'
                     ? 'bg-white text-indigo-700 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
@@ -227,9 +261,9 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
               </button>
 
               <button
-                onClick={() => setShowAll(true)}
+                onClick={() => setFilterMode('all')}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                  showAll
+                  filterMode === 'all'
                     ? 'bg-white text-indigo-700 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
@@ -237,9 +271,23 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
                 <Layers className="w-3.5 h-3.5" />
                 <span>Voir tout</span>
               </button>
+
+              {isAdmin && (
+                <button
+                  onClick={() => setFilterMode('preparation')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                    filterMode === 'preparation'
+                      ? 'bg-white text-amber-700 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>En préparation</span>
+                </button>
+              )}
             </div>
 
-            {showAll && (
+            {filterMode === 'all' && (
               <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80">
                 <button
                   onClick={() => setIncludeArchived(!includeArchived)}
@@ -259,8 +307,10 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
 
         <div className="text-xs text-slate-500 flex items-center justify-between border-t border-slate-100 pt-3">
           <span className="font-semibold text-slate-700">
-            {!showAll
+            {filterMode === 'recruiting'
               ? `${campaigns.length} table${campaigns.length > 1 ? 's' : ''} ouverte${campaigns.length > 1 ? 's' : ''} au recrutement`
+              : filterMode === 'preparation'
+              ? `${campaigns.length} campagne${campaigns.length > 1 ? 's' : ''} en préparation`
               : `${campaigns.length} campagne${campaigns.length > 1 ? 's' : ''} au total`}
           </span>
           {searchQuery && (
@@ -297,13 +347,23 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
       {/* Empty State */}
       {!isLoading && !error && campaigns.length === 0 && (
         <EmptyState
-          icon={!showAll ? Sparkles : Layers}
-          title={searchQuery ? 'Aucune table trouvée' : !showAll ? 'Aucune campagne ne recrute actuellement' : 'Aucune campagne trouvée'}
+          icon={filterMode === 'recruiting' ? Sparkles : filterMode === 'preparation' ? Clock : Layers}
+          title={
+            searchQuery
+              ? 'Aucune table trouvée'
+              : filterMode === 'recruiting'
+              ? 'Aucune campagne ne recrute actuellement'
+              : filterMode === 'preparation'
+              ? 'Aucune campagne en préparation'
+              : 'Aucune campagne trouvée'
+          }
           description={
             searchQuery
               ? `Aucune table ne correspond à votre recherche "${searchQuery}".`
-              : !showAll
+              : filterMode === 'recruiting'
               ? 'Il n’y a actuellement aucune campagne ouverte aux nouveaux joueurs. Vous pouvez afficher toutes les tables existantes ou revenir bientôt !'
+              : filterMode === 'preparation'
+              ? 'Il n’y a pour le moment aucune campagne avec le statut en préparation.'
               : 'Il n’y a pour le moment aucune campagne disponible sur la plateforme.'
           }
           actions={[
@@ -316,11 +376,11 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
                   },
                 ]
               : []),
-            ...(!showAll
+            ...(filterMode !== 'all'
               ? [
                   {
                     label: 'Voir toutes les campagnes',
-                    onClick: () => setShowAll(true),
+                    onClick: () => setFilterMode('all'),
                     variant: 'primary' as const,
                     icon: Layers,
                   },

@@ -58,9 +58,10 @@ export const campaignsApi = {
     return result.campaigns;
   },
 
-  async getAllCampaigns(includeArchived: boolean = false, search?: string): Promise<CampaignSummary[]> {
+  async getAllCampaigns(includeArchived: boolean = false, search?: string, includePreparation: boolean = false): Promise<CampaignSummary[]> {
     const params = new URLSearchParams({
       includeArchived: String(includeArchived),
+      includePreparation: String(includePreparation),
     });
     if (search && search.trim()) {
       params.set('search', search.trim());

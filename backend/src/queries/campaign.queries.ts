@@ -82,10 +82,10 @@ export class CampaignQueries {
   }
 
   /**
-   * Récupère la liste de toutes les campagnes (avec filtre d'archivage et recherche par nom/système/univers)
+   * Récupère la liste de toutes les campagnes (avec filtre d'archivage, préparation et recherche par nom/système/univers)
    */
-  async getAllCampaigns(includeArchived: boolean = false, search?: string): Promise<CampaignSummary[]> {
-    return this.campaignRepo.findAllCampaigns({ includeArchived, search });
+  async getAllCampaigns(includeArchived: boolean = false, search?: string, includePreparation: boolean = false): Promise<CampaignSummary[]> {
+    return this.campaignRepo.findAllCampaigns({ includeArchived, search, includePreparation });
   }
 
   /**

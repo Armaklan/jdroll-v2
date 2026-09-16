@@ -66,10 +66,10 @@ class MockCampaignRepository implements ICampaignRepository {
     return this.observed.filter((c) => (includeArchived || !c.isArchived));
   }
 
-  async findAllCampaigns(options: { includeArchived?: boolean; search?: string } = {}): Promise<CampaignSummary[]> {
-    const { includeArchived = false, search } = options;
+  async findAllCampaigns(options: { includeArchived?: boolean; search?: string; includePreparation?: boolean } = {}): Promise<CampaignSummary[]> {
+    const { includeArchived = false, search, includePreparation = false } = options;
     return this.allCampaigns.filter((c) => {
-      if (c.statut === 3) {
+      if (!includePreparation && c.statut === 3) {
         return false;
       }
       if (!includeArchived && c.isArchived) {
@@ -384,6 +384,39 @@ describe('CampaignQueries', () => {
     const result = await queries.getAllCampaigns(false);
     assert.equal(result.length, 2);
     assert.deepEqual(result.map((c) => c.id), [1, 3]);
+  });
+
+  it('should return campaigns including preparation when includePreparation = true', async () => {
+    const samplePreparationCampaign: CampaignSummary = {
+      id: 5,
+      name: 'Campagne En Préparation',
+      mjId: 42,
+      mjUsername: 'admin',
+      nbJoueurs: 4,
+      nbJoueursActuel: 1,
+      banniere: '',
+      systeme: 'D&D 5',
+      univers: 'Fantasy',
+      description: 'Campagne pas prête',
+      statut: 3,
+      isArchived: false,
+      isRecrutementOpen: true,
+      userRole: 'mj',
+    };
+
+    const all = [
+      sampleMasteredCampaignActive,
+      sampleMasteredCampaignArchived,
+      samplePlayerCampaignActive,
+      samplePlayerCampaignArchived,
+      samplePreparationCampaign,
+    ];
+    const repo = new MockCampaignRepository([], [], all);
+    const queries = new CampaignQueries(repo);
+
+    const result = await queries.getAllCampaigns(false, undefined, true);
+    assert.equal(result.length, 3);
+    assert.deepEqual(result.map((c) => c.id), [1, 3, 5]);
   });
 
   it('should return all campaigns including archived for getAllCampaigns when includeArchived = true', async () => {

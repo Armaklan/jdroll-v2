@@ -65,6 +65,14 @@ const getAllCampaignsSchema = z.object({
       return Boolean(val);
     }, z.boolean())
     .default(false),
+  includePreparation: z
+    .preprocess((val) => {
+      if (typeof val === 'string') {
+        return val === 'true' || val === '1';
+      }
+      return Boolean(val);
+    }, z.boolean())
+    .default(false),
   search: z.string().optional(),
 });
 
@@ -458,7 +466,7 @@ export class CampaignController {
 
   /**
    * GET /api/campaigns
-   * Récupère toutes les campagnes avec filtre d'archive et recherche textuelle
+   * Récupère toutes les campagnes avec filtre d'archive, de préparation (admin) et recherche textuelle
    */
   async getAllCampaigns(request: FastifyRequest, reply: FastifyReply) {
     const parseResult = getAllCampaignsSchema.safeParse(request.query);
@@ -470,10 +478,21 @@ export class CampaignController {
       });
     }
 
-    const { includeArchived, search } = parseResult.data;
+    const { includeArchived, includePreparation, search } = parseResult.data;
+
+    let userProfil: number | undefined;
+    try {
+      await request.jwtVerify();
+      userProfil = (request.user as JWTPayload)?.profil;
+    } catch {
+      // Utilisateur anonyme
+    }
+
+    // Seuls les administrateurs (profil === 2) peuvent voir les campagnes en préparation
+    const allowedPreparation = userProfil === 2 && includePreparation;
 
     try {
-      const campaigns = await this.campaignQueryService.getAllCampaigns(includeArchived, search);
+      const campaigns = await this.campaignQueryService.getAllCampaigns(includeArchived, search, allowedPreparation);
       return reply.status(200).send({ campaigns });
     } catch (error) {
       request.log.error(error);

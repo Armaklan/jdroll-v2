@@ -30,15 +30,21 @@ export function getUserProfileColor(profil?: number | null): string | null {
 }
 
 /**
- * Indique si un profil correspond à un Administrateur (profil === 2)
+ * Indique si un utilisateur ou un profil correspond à un Administrateur (profil === 2)
  */
-export function isUserAdmin(profil?: number | null): boolean {
-  return Number(profil) === 2;
+export function isUserAdmin(userOrProfil?: number | null | { profil?: number | null }): boolean {
+  if (userOrProfil && typeof userOrProfil === 'object') {
+    return Number(userOrProfil.profil) === 2;
+  }
+  return Number(userOrProfil) === 2;
 }
 
 /**
- * Indique si un profil correspond à un Membre d'honneur (profil === 1)
+ * Indique si un utilisateur ou un profil correspond à un Membre d'honneur (profil === 1)
  */
-export function isUserHonored(profil?: number | null): boolean {
-  return Number(profil) === 1;
+export function isUserHonored(userOrProfil?: number | null | { profil?: number | null }): boolean {
+  if (userOrProfil && typeof userOrProfil === 'object') {
+    return Number(userOrProfil.profil) === 1;
+  }
+  return Number(userOrProfil) === 1;
 }
