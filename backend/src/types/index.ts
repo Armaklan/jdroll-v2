@@ -453,3 +453,29 @@ export interface RawCarteRow {
   config: string | null;
   mj_id?: number | null;
 }
+
+export interface ChatMessage {
+  id: number;
+  username: string;
+  userAvatar?: string | null;
+  userProfil?: number;
+  time: string;
+  message: string;
+  to: string;
+  to_username: string;
+}
+
+export interface SendChatMessageInput {
+  userId: number;
+  username: string;
+  message: string;
+  to?: string | null;
+  to_username?: string | null;
+}
+
+export interface ChatConnectedUser {
+  id: number;
+  username: string;
+  avatar?: string;
+  profil?: number;
+}

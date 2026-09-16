@@ -3,6 +3,7 @@ import cors from '@fastify/cors';
 import sensible from '@fastify/sensible';
 import multipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
+import fastifyWebsocket from '@fastify/websocket';
 import fs from 'node:fs';
 import { getFilesDirectory } from './storage/file-storage.js';
 import { registerAuthPlugin } from './plugins/auth.plugin.js';
@@ -11,6 +12,7 @@ import { campaignRoutes } from './controllers/campaign.controller.js';
 import { notificationRoutes } from './controllers/notification.controller.js';
 import { messageRoutes } from './controllers/message.controller.js';
 import { carteRoutes } from './controllers/carte.controller.js';
+import { chatRoutes } from './controllers/chat.controller.js';
 import { notificationListener } from './listeners/notification.listener.js';
 
 export async function buildApp() {
@@ -62,6 +64,7 @@ export async function buildApp() {
   });
 
   await registerAuthPlugin(app);
+  await app.register(fastifyWebsocket);
 
   // Health check
   app.get('/api/health', async () => {
@@ -74,6 +77,7 @@ export async function buildApp() {
   await app.register(carteRoutes);
   await app.register(notificationRoutes);
   await app.register(messageRoutes);
+  await app.register(chatRoutes);
 
   return app;
 }

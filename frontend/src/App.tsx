@@ -16,9 +16,9 @@ import { CampaignFormPage } from './pages/CampaignFormPage';
 import { GeneralForumPage } from './pages/GeneralForumPage';
 import { TopicViewPage } from './pages/TopicViewPage';
 import { MessagesPage } from './pages/MessagesPage';
+import { ChatPage } from './pages/ChatPage';
 import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
 import {
-  MessagesSquare,
   HelpCircle,
 } from 'lucide-react';
 
@@ -83,12 +83,7 @@ export function AppContent() {
             path="/chat"
             element={
               <ProtectedRoute>
-                <SectionPlaceholderPage
-                  title="Tchat en Direct"
-                  category="Tchat"
-                  description="Salon de discussion instantané pour échanger en direct avec la communauté et les membres connectés."
-                  icon={MessagesSquare}
-                />
+                <ChatPage />
               </ProtectedRoute>
             }
           />
