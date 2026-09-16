@@ -1,4 +1,5 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import { IEventBus, domainEventBus } from '../../events/event-bus.js';
 import {
   SectionNotFoundError,
@@ -9,6 +10,7 @@ import {
 export interface CreateTopicInput {
   sectionId: number;
   userId: number;
+  userProfil?: number;
   title: string;
   stickable?: boolean;
   isPrivate?: number | boolean;
@@ -32,7 +34,8 @@ export interface CreateTopicOutput {
 export class CreateTopicUseCase {
   constructor(
     private readonly forumRepo: IForumRepository = forumRepository,
-    private readonly eventBus: IEventBus = domainEventBus
+    private readonly eventBus: IEventBus = domainEventBus,
+    private readonly userRepo: IUserRepository = userRepository
   ) {}
 
   async execute(input: CreateTopicInput): Promise<CreateTopicOutput> {
@@ -57,6 +60,20 @@ export class CreateTopicUseCase {
       }
     }
 
+    let stickable = Boolean(input.stickable);
+    let isClosed = Boolean(input.isClosed);
+    if (!section.campagneId) {
+      let profil = input.userProfil;
+      if (profil === undefined && (stickable || isClosed)) {
+        const user = await this.userRepo.findById(input.userId);
+        profil = user?.profil ?? 0;
+      }
+      if (profil !== 2) {
+        stickable = false;
+        isClosed = false;
+      }
+    }
+
     const maxOrdre = await this.forumRepo.getMaxTopicOrdre(input.sectionId);
     const newOrdre = maxOrdre + 1;
 
@@ -70,9 +87,9 @@ export class CreateTopicUseCase {
     const topicId = await this.forumRepo.createTopic({
       sectionId: input.sectionId,
       title: trimmedTitle,
-      stickable: input.stickable ?? false,
+      stickable,
       isPrivate: isPrivateVal,
-      isClosed: input.isClosed ?? false,
+      isClosed,
       ordre: newOrdre,
       canReadUserIds: isPrivateVal === 1 ? input.canReadUserIds : [],
     });
@@ -106,9 +123,9 @@ export class CreateTopicUseCase {
       id: topicId,
       sectionId: input.sectionId,
       title: trimmedTitle,
-      stickable: input.stickable ?? false,
+      stickable,
       isPrivate: isPrivateVal,
-      isClosed: input.isClosed ?? false,
+      isClosed,
       ordre: newOrdre,
       postId: createdPostId,
     };

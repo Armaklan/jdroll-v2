@@ -1,4 +1,5 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import {
   SectionNotFoundError,
   ForbiddenError,
@@ -8,6 +9,7 @@ import {
 export interface UpdateSectionInput {
   sectionId: number;
   userId: number;
+  userProfil?: number;
   title?: string;
   defaultCollapse?: boolean;
   banniere?: string;
@@ -23,7 +25,10 @@ export interface UpdateSectionOutput {
 }
 
 export class UpdateSectionUseCase {
-  constructor(private readonly forumRepo: IForumRepository = forumRepository) {}
+  constructor(
+    private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly userRepo: IUserRepository = userRepository
+  ) {}
 
   async execute(input: UpdateSectionInput): Promise<UpdateSectionOutput> {
     const section = await this.forumRepo.findSectionById(input.sectionId);
@@ -35,6 +40,15 @@ export class UpdateSectionUseCase {
       const isMj = await this.forumRepo.isUserCampaignMj(section.campagneId, input.userId);
       if (!isMj) {
         throw new ForbiddenError('Seul le Maître du Jeu peut modifier cette section');
+      }
+    } else {
+      let profil = input.userProfil;
+      if (profil === undefined) {
+        const user = await this.userRepo.findById(input.userId);
+        profil = user?.profil ?? 0;
+      }
+      if (profil !== 2) {
+        throw new ForbiddenError('Seul un administrateur peut modifier une section du forum général');
       }
     }
 

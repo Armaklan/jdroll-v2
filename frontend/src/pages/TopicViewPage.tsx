@@ -4,6 +4,7 @@ import { campaignsApi } from '../api/campaigns';
 import { TopicDetail, CharacterSummary } from '../types/campaign';
 import { AppView, viewToPath } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
+import { getUserColorClass, isUserAdmin } from '../utils/user';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignHeader } from '../components/CampaignHeader';
@@ -644,11 +645,12 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             const isGm = !isSystem && post.user.profil === 1;
 
             const isMj = topicDetail.userRole === 'mj' || Boolean(topicDetail.campaign && topicDetail.campaign.mjId === user?.id);
+            const isGeneralForumAdmin = (!topicDetail.campagneId || topicDetail.campagneId === 0) && isUserAdmin(user?.profil);
             const isAuthor = Boolean(user && post.user && post.user.id === user.id);
             const isTopicClosed = Boolean(topicDetail.isClosed);
-            const canEdit = Boolean(isAuthenticated && (isMj || (isAuthor && !isTopicClosed)));
+            const canEdit = Boolean(isAuthenticated && (isMj || isGeneralForumAdmin || (isAuthor && !isTopicClosed)));
             const isLastPostInThread = topicDetail.page === 1 && postIdx === topicDetail.posts.length - 1;
-            const canDelete = Boolean(isAuthenticated && (isMj || (isAuthor && isLastPostInThread && !isTopicClosed)));
+            const canDelete = Boolean(isAuthenticated && (isMj || isGeneralForumAdmin || (isAuthor && isLastPostInThread && !isTopicClosed)));
             const isCurrentlyEditing = editingPostId === post.id;
 
             const isOdd = postIdx % 2 === 0;
@@ -773,7 +775,9 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                     {/* Détails Auteur */}
                     <div className="space-y-0.5 min-w-0">
                       <h4
-                        className="font-bold text-sm sm:text-base leading-tight"
+                        className={`font-bold text-sm sm:text-base leading-tight ${
+                          !post.perso ? getUserColorClass(post.user?.profil) : ''
+                        }`}
                         style={{ color: postLinkColor || postTextColor || undefined }}
                       >
                         {authorName}
@@ -794,7 +798,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                       {!isSystem && post.perso && (
                         <p className="text-[11px] opacity-75" style={{ color: postTextColor || undefined }}>
                           Joueur :{' '}
-                          <span className="font-medium" style={{ color: postLinkColor || postTextColor || undefined }}>
+                          <span className={`font-medium ${getUserColorClass(post.user?.profil)}`} style={{ color: postLinkColor || postTextColor || undefined }}>
                             {post.user.username}
                           </span>
                         </p>

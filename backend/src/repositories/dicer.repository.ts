@@ -12,6 +12,7 @@ export interface DicerRoll {
 export interface DicerRollWithUser extends DicerRoll {
   username: string;
   userAvatar: string | null;
+  userProfil?: number;
 }
 
 export interface IDicerRepository {
@@ -96,7 +97,8 @@ export class MysqlDicerRepository implements IDicerRepository {
         d.result,
         d.description,
         COALESCE(u.username, 'Inconnu') AS username,
-        u.avatar AS userAvatar
+        u.avatar AS userAvatar,
+        u.profil AS userProfil
       FROM dicer d
       LEFT JOIN user u ON d.user_id = u.id
       WHERE d.id = ?
@@ -111,6 +113,7 @@ export class MysqlDicerRepository implements IDicerRepository {
       description: string | null;
       username: string;
       userAvatar: string | null;
+      userProfil?: number | null;
     }
 
     const row = await queryOne<RawDicerWithUserRow>(sql, [id]);
@@ -128,6 +131,7 @@ export class MysqlDicerRepository implements IDicerRepository {
       description: row.description || '',
       username: row.username || 'Inconnu',
       userAvatar: row.userAvatar || null,
+      userProfil: row.userProfil ?? 0,
     };
   }
 
@@ -155,7 +159,8 @@ export class MysqlDicerRepository implements IDicerRepository {
         d.result,
         d.description,
         COALESCE(u.username, 'Inconnu') AS username,
-        u.avatar AS userAvatar
+        u.avatar AS userAvatar,
+        u.profil AS userProfil
       FROM dicer d
       LEFT JOIN user u ON d.user_id = u.id
       WHERE ${whereClauses.join(' AND ')}
@@ -172,6 +177,7 @@ export class MysqlDicerRepository implements IDicerRepository {
       description: string | null;
       username: string;
       userAvatar: string | null;
+      userProfil?: number | null;
     }
 
     const rows = await query<RawDicerWithUserRow>(sql, params);
@@ -187,6 +193,7 @@ export class MysqlDicerRepository implements IDicerRepository {
       description: row.description || '',
       username: row.username || 'Inconnu',
       userAvatar: row.userAvatar || null,
+      userProfil: row.userProfil ?? 0,
     }));
   }
 }

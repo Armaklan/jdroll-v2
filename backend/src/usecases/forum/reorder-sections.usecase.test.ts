@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { ReorderSectionsUseCase } from './reorder-sections.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
 import {
   CampaignNotFoundError,
   ForbiddenError,
@@ -15,6 +16,7 @@ describe('ReorderSectionsUseCase', () => {
   let useCase: ReorderSectionsUseCase;
   let mockCampaignRepo: ICampaignRepository;
   let mockForumRepo: IForumRepository;
+  let mockUserRepo: IUserRepository;
 
   const mockCampaign: CampaignSummary = {
     id: 1,
@@ -91,6 +93,16 @@ describe('ReorderSectionsUseCase', () => {
             banniere: '',
           };
         }
+        if (id === 20 || id === 21) {
+          return {
+            id,
+            campagneId: null, // Forum général
+            title: `Section Générale ${id}`,
+            ordre: 1,
+            defaultCollapse: false,
+            banniere: '',
+          };
+        }
         return null;
       },
       createSection: async () => 1,
@@ -128,7 +140,24 @@ describe('ReorderSectionsUseCase', () => {
       isUserTopicCanRead: async () => false,
     };
 
-    useCase = new ReorderSectionsUseCase(mockCampaignRepo, mockForumRepo);
+    mockUserRepo = {
+      findById: async (id: number) => ({
+        id,
+        username: `user${id}`,
+        mail: `user${id}@test.com`,
+        profil: id === 100 ? 2 : 0, // id 100 is admin
+        avatar: '',
+        description: '',
+        titre: '',
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async (d) => ({ id: 999, ...d, avatar: '', description: '', profil: 0, titre: '' }),
+    };
+
+    useCase = new ReorderSectionsUseCase(mockCampaignRepo, mockForumRepo, mockUserRepo);
   });
 
   it('réordonne les sections avec succès', async () => {
@@ -187,6 +216,36 @@ describe('ReorderSectionsUseCase', () => {
       },
       (err: any) => {
         assert(err instanceof ValidationError);
+        return true;
+      }
+    );
+  });
+  it('permet à un administrateur de réorganiser les sections du forum général', async () => {
+    const result = await useCase.execute({
+      campagneId: 0,
+      userId: 100, // Admin
+      userProfil: 2,
+      sectionIds: [21, 20],
+    });
+
+    assert.equal(result.success, true);
+    assert.deepEqual(result.sectionIds, [21, 20]);
+    assert.equal(reorderedCampaignId, 0);
+  });
+
+  it('interdit à un joueur standard de réorganiser les sections du forum général', async () => {
+    await assert.rejects(
+      async () => {
+        await useCase.execute({
+          campagneId: 0,
+          userId: 10,
+          userProfil: 0,
+          sectionIds: [20, 21],
+        });
+      },
+      (err: any) => {
+        assert(err instanceof ForbiddenError);
+        assert.match(err.message, /administrateur/);
         return true;
       }
     );

@@ -29,6 +29,7 @@ import {
   Upload,
   Link as LinkIcon,
   Pencil,
+  Trash2,
   Image as ImageIcon,
   Globe,
   Users,
@@ -174,6 +175,11 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const [isSubmittingEditSection, setIsSubmittingEditSection] = useState<boolean>(false);
   const [editSectionError, setEditSectionError] = useState<string | null>(null);
 
+  // Delete Section Modal state
+  const [deletingSection, setDeletingSection] = useState<ForumSectionSummary | null>(null);
+  const [isDeletingSection, setIsDeletingSection] = useState<boolean>(false);
+  const [deleteSectionError, setDeleteSectionError] = useState<string | null>(null);
+
   // Edit Topic Modal state
   const [editingTopic, setEditingTopic] = useState<{
     id: number;
@@ -191,6 +197,11 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const [editTopicIsClosed, setEditTopicIsClosed] = useState<boolean>(false);
   const [isSubmittingEditTopic, setIsSubmittingEditTopic] = useState<boolean>(false);
   const [editTopicError, setEditTopicError] = useState<string | null>(null);
+
+  // Delete Topic Modal state
+  const [deletingTopic, setDeletingTopic] = useState<ForumTopicSummary | null>(null);
+  const [isDeletingTopic, setIsDeletingTopic] = useState<boolean>(false);
+  const [deleteTopicError, setDeleteTopicError] = useState<string | null>(null);
 
   const handleBack = () => {
     if (onBack) {
@@ -516,6 +527,30 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     }
   };
 
+  // Section Deletion
+  const handleOpenDeleteSection = (section: ForumSectionSummary) => {
+    setDeletingSection(section);
+    setDeleteSectionError(null);
+  };
+
+  const handleDeleteSectionConfirm = async () => {
+    if (!deletingSection) return;
+    setIsDeletingSection(true);
+    setDeleteSectionError(null);
+
+    try {
+      await campaignsApi.deleteSection(deletingSection.id, effectiveCampaignId);
+      await fetchForum();
+      setDeletingSection(null);
+      setSaveStatusMessage('Section et ses sujets supprimés avec succès !');
+      setTimeout(() => setSaveStatusMessage(null), 3000);
+    } catch (err: any) {
+      setDeleteSectionError(err.message || 'Erreur lors de la suppression de la section.');
+    } finally {
+      setIsDeletingSection(false);
+    }
+  };
+
   // Topic Edition
   const handleOpenEditTopic = (sectionId: number, topic: ForumTopicSummary) => {
     const isPrivateNum = topic.isPrivate === true || (topic.isPrivate as any) === 1 ? 1 : ((topic.isPrivate as any) === 2 ? 2 : 0);
@@ -569,6 +604,30 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
       setEditTopicError(err.message || 'Erreur lors de la modification du sujet.');
     } finally {
       setIsSubmittingEditTopic(false);
+    }
+  };
+
+  // Topic Deletion
+  const handleOpenDeleteTopic = (topic: ForumTopicSummary) => {
+    setDeletingTopic(topic);
+    setDeleteTopicError(null);
+  };
+
+  const handleDeleteTopicConfirm = async () => {
+    if (!deletingTopic) return;
+    setIsDeletingTopic(true);
+    setDeleteTopicError(null);
+
+    try {
+      await campaignsApi.deleteTopic(deletingTopic.id, effectiveCampaignId);
+      await fetchForum();
+      setDeletingTopic(null);
+      setSaveStatusMessage('Sujet et ses messages supprimés avec succès !');
+      setTimeout(() => setSaveStatusMessage(null), 3000);
+    } catch (err: any) {
+      setDeleteTopicError(err.message || 'Erreur lors de la suppression du sujet.');
+    } finally {
+      setIsDeletingTopic(false);
     }
   };
 
@@ -1077,6 +1136,17 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                           <Plus className="w-3.5 h-3.5" />
                           <span>Nouveau sujet</span>
                         </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDeleteSection(section);
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-white/90 hover:bg-red-50 text-slate-700 hover:text-red-600 rounded-lg text-xs font-semibold shadow-2xs border border-slate-200/80 transition cursor-pointer"
+                          title="Supprimer cette section"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </>
                     )}
 
@@ -1275,18 +1345,31 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                 </div>
 
                                 {isAdminMode && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenEditTopic(section.id, topic);
-                                    }}
-                                    className="inline-flex items-center gap-1 px-2 py-1 bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs transition cursor-pointer shrink-0 ml-2"
-                                    title="Éditer ce sujet"
-                                  >
-                                    <Pencil className="w-3 h-3 text-slate-500" />
-                                    <span>Éditer</span>
-                                  </button>
+                                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenEditTopic(section.id, topic);
+                                      }}
+                                      className="inline-flex items-center gap-1 px-2 py-1 bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs transition cursor-pointer"
+                                      title="Éditer ce sujet"
+                                    >
+                                      <Pencil className="w-3 h-3 text-slate-500" />
+                                      <span>Éditer</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenDeleteTopic(topic);
+                                      }}
+                                      className="inline-flex items-center p-1 bg-white hover:bg-red-50 text-slate-500 hover:text-red-600 border border-slate-200 rounded-lg text-xs font-semibold shadow-2xs transition cursor-pointer"
+                                      title="Supprimer ce sujet"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
                                 )}
                               </div>
 
@@ -2160,6 +2243,100 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
           </div>
         </div>
       )}
+      {/* Modal: Confirmation de suppression de Section */}
+      {deletingSection && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-center gap-3 text-red-600 font-bold">
+              <div className="p-2.5 rounded-2xl bg-red-50 border border-red-100">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <h3 className="text-base text-slate-900">Supprimer la section ?</h3>
+            </div>
+
+            {deleteSectionError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{deleteSectionError}</span>
+              </div>
+            )}
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Êtes-vous sûr de vouloir supprimer la section <strong className="text-slate-900 font-bold">« {deletingSection.title} »</strong> ?
+              <br />
+              <span className="text-red-600 font-semibold mt-1 block">
+                Attention : Cette action est irréversible et supprimera l'ensemble des {deletingSection.topics.length} sujet(s) et messages contenus dans cette catégorie.
+              </span>
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeletingSection(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteSectionConfirm}
+                disabled={isDeletingSection}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition disabled:opacity-50 cursor-pointer"
+              >
+                {isDeletingSection ? 'Suppression...' : 'Confirmer la suppression'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Confirmation de suppression de Sujet */}
+      {deletingTopic && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-center gap-3 text-red-600 font-bold">
+              <div className="p-2.5 rounded-2xl bg-red-50 border border-red-100">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <h3 className="text-base text-slate-900">Supprimer le sujet ?</h3>
+            </div>
+
+            {deleteTopicError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{deleteTopicError}</span>
+              </div>
+            )}
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Êtes-vous sûr de vouloir supprimer le sujet <strong className="text-slate-900 font-bold">« {deletingTopic.title} »</strong> ?
+              <br />
+              <span className="text-red-600 font-semibold mt-1 block">
+                Attention : Cette action est irréversible et supprimera l'intégralité des {deletingTopic.postsCount} message(s) de ce sujet.
+              </span>
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setDeletingTopic(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteTopicConfirm}
+                disabled={isDeletingTopic}
+                className="px-4 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition disabled:opacity-50 cursor-pointer"
+              >
+                {isDeletingTopic ? 'Suppression...' : 'Confirmer la suppression'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Tour à dés */}
       {isCampaignMember && (
         <DiceTowerModal

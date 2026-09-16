@@ -59,11 +59,12 @@ export class MysqlMessageRepository implements IMessageRepository {
       fromId: number;
       fromUsername: string;
       fromAvatar: string | null;
+      fromProfil?: number | null;
       title: string;
       time: string;
       statut: number;
     }>(
-      `SELECT m.id, m.from_id AS fromId, m.from_username AS fromUsername, u.avatar AS fromAvatar,
+      `SELECT m.id, m.from_id AS fromId, m.from_username AS fromUsername, u.avatar AS fromAvatar, u.profil AS fromProfil,
               m.title, m.time, mt.statut
        FROM messages_to mt
        JOIN messages m ON m.id = mt.id_message
@@ -85,6 +86,7 @@ export class MysqlMessageRepository implements IMessageRepository {
       fromId: row.fromId,
       fromUsername: row.fromUsername,
       fromAvatar: row.fromAvatar,
+      fromProfil: row.fromProfil ?? 0,
       title: row.title,
       time: row.time,
       statut: row.statut,
@@ -98,12 +100,14 @@ export class MysqlMessageRepository implements IMessageRepository {
       id: number;
       fromId: number;
       fromUsername: string;
+      fromProfil?: number | null;
       title: string;
       time: string;
       statut: number;
     }>(
-      `SELECT m.id, m.from_id AS fromId, m.from_username AS fromUsername, m.title, m.time, m.statut
+      `SELECT m.id, m.from_id AS fromId, m.from_username AS fromUsername, u.profil AS fromProfil, m.title, m.time, m.statut
        FROM messages m
+       LEFT JOIN user u ON u.id = m.from_id
        WHERE m.from_id = ? AND m.statut = 0
        ORDER BY m.time DESC, m.id DESC`,
       [userId]
@@ -123,6 +127,7 @@ export class MysqlMessageRepository implements IMessageRepository {
         id: row.id,
         fromId: row.fromId,
         fromUsername: row.fromUsername,
+        fromProfil: row.fromProfil ?? 0,
         title: row.title,
         time: row.time,
         statut: row.statut,
@@ -145,8 +150,9 @@ export class MysqlMessageRepository implements IMessageRepository {
       username: string;
       statut: number;
       avatar: string | null;
+      profil?: number | null;
     }>(
-      `SELECT mt.id_message AS idMessage, mt.to_id AS id, mt.to_username AS username, mt.statut, u.avatar
+      `SELECT mt.id_message AS idMessage, mt.to_id AS id, mt.to_username AS username, mt.statut, u.avatar, u.profil
        FROM messages_to mt
        LEFT JOIN user u ON u.id = mt.to_id
        WHERE mt.id_message IN (${placeholders})`,
@@ -159,6 +165,7 @@ export class MysqlMessageRepository implements IMessageRepository {
         id: r.id,
         username: r.username,
         avatar: r.avatar,
+        profil: r.profil ?? 0,
         statut: r.statut,
         isRead: r.statut >= 1,
       });
@@ -174,12 +181,13 @@ export class MysqlMessageRepository implements IMessageRepository {
       fromId: number;
       fromUsername: string;
       fromAvatar: string | null;
+      fromProfil?: number | null;
       title: string;
       content: string;
       time: string;
       statut: number;
     }>(
-      `SELECT m.id, m.from_id AS fromId, m.from_username AS fromUsername, u.avatar AS fromAvatar,
+      `SELECT m.id, m.from_id AS fromId, m.from_username AS fromUsername, u.avatar AS fromAvatar, u.profil AS fromProfil,
               m.title, m.content, m.time, m.statut
        FROM messages m
        LEFT JOIN user u ON u.id = m.from_id
@@ -199,6 +207,7 @@ export class MysqlMessageRepository implements IMessageRepository {
       fromId: row.fromId,
       fromUsername: row.fromUsername,
       fromAvatar: row.fromAvatar,
+      fromProfil: row.fromProfil ?? 0,
       title: row.title,
       content: row.content,
       time: row.time,
@@ -215,8 +224,9 @@ export class MysqlMessageRepository implements IMessageRepository {
       username: string;
       statut: number;
       avatar: string | null;
+      profil?: number | null;
     }>(
-      `SELECT mt.to_id AS id, mt.to_username AS username, mt.statut, u.avatar
+      `SELECT mt.to_id AS id, mt.to_username AS username, mt.statut, u.avatar, u.profil
        FROM messages_to mt
        LEFT JOIN user u ON u.id = mt.to_id
        WHERE mt.id_message = ?`,
@@ -227,6 +237,7 @@ export class MysqlMessageRepository implements IMessageRepository {
       id: r.id,
       username: r.username,
       avatar: r.avatar,
+      profil: r.profil ?? 0,
       statut: r.statut,
       isRead: r.statut >= 1,
     }));

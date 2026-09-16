@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { ReorderTopicsUseCase } from './reorder-topics.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
 import {
   CampaignNotFoundError,
   ForbiddenError,
@@ -16,6 +17,7 @@ describe('ReorderTopicsUseCase', () => {
   let useCase: ReorderTopicsUseCase;
   let mockCampaignRepo: ICampaignRepository;
   let mockForumRepo: IForumRepository;
+  let mockUserRepo: IUserRepository;
 
   const mockCampaign: CampaignSummary = {
     id: 1,
@@ -92,6 +94,16 @@ describe('ReorderTopicsUseCase', () => {
             banniere: '',
           };
         }
+        if (id === 101 || id === 102) {
+          return {
+            id,
+            campagneId: null, // Forum général
+            title: `Section Générale ${id}`,
+            ordre: id,
+            defaultCollapse: false,
+            banniere: '',
+          };
+        }
         return null;
       },
       createSection: async () => 1,
@@ -128,6 +140,20 @@ describe('ReorderTopicsUseCase', () => {
             campagneId: 1,
             campaignTitle: 'Strahd',
             title: 'Topic 20',
+            stickable: 0,
+            isPrivate: 0,
+            isClosed: 0,
+            ordre: 1,
+          };
+        }
+        if (topicId === 201 || topicId === 202) {
+          return {
+            id: topicId,
+            sectionId: 101,
+            sectionTitle: 'Section Générale 101',
+            campagneId: null,
+            campaignTitle: '',
+            title: `Topic Général ${topicId}`,
             stickable: 0,
             isPrivate: 0,
             isClosed: 0,
@@ -173,7 +199,24 @@ describe('ReorderTopicsUseCase', () => {
       isUserTopicCanRead: async () => false,
     };
 
-    useCase = new ReorderTopicsUseCase(mockCampaignRepo, mockForumRepo);
+    mockUserRepo = {
+      findById: async (id: number) => ({
+        id,
+        username: `user${id}`,
+        mail: `user${id}@test.com`,
+        profil: id === 100 ? 2 : 0, // id 100 is admin
+        avatar: '',
+        description: '',
+        titre: '',
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async (d) => ({ id: 999, ...d, avatar: '', description: '', profil: 0, titre: '' }),
+    };
+
+    useCase = new ReorderTopicsUseCase(mockCampaignRepo, mockForumRepo, mockUserRepo);
   });
 
   it('réordonne et déplace les topics entre sections avec succès', async () => {
@@ -258,6 +301,45 @@ describe('ReorderTopicsUseCase', () => {
       },
       (err: any) => {
         assert(err instanceof ValidationError);
+        return true;
+      }
+    );
+  });
+  it('permet à un administrateur de réorganiser les topics du forum général', async () => {
+    const result = await useCase.execute({
+      campagneId: 0,
+      userId: 100, // Admin
+      userProfil: 2,
+      sections: [
+        {
+          sectionId: 101,
+          topicIds: [202, 201],
+        },
+      ],
+    });
+
+    assert.equal(result.success, true);
+    assert.equal(reorderedCampaignId, 0);
+  });
+
+  it('interdit à un joueur standard de réorganiser les topics du forum général', async () => {
+    await assert.rejects(
+      async () => {
+        await useCase.execute({
+          campagneId: 0,
+          userId: 10,
+          userProfil: 0,
+          sections: [
+            {
+              sectionId: 101,
+              topicIds: [201, 202],
+            },
+          ],
+        });
+      },
+      (err: any) => {
+        assert(err instanceof ForbiddenError);
+        assert.match(err.message, /administrateur/);
         return true;
       }
     );

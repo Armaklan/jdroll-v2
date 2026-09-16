@@ -1,4 +1,5 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import {
   PostNotFoundError,
   TopicNotFoundError,
@@ -9,6 +10,7 @@ import {
 export interface DeletePostDTO {
   postId: number;
   userId: number;
+  userProfil?: number;
 }
 
 export interface DeletePostResult {
@@ -19,7 +21,10 @@ export interface DeletePostResult {
 }
 
 export class DeletePostUseCase {
-  constructor(private readonly forumRepo: IForumRepository = forumRepository) {}
+  constructor(
+    private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly userRepo: IUserRepository = userRepository
+  ) {}
 
   async execute(dto: DeletePostDTO): Promise<DeletePostResult> {
     const post = await this.forumRepo.getPostById(dto.postId, dto.userId);
@@ -51,17 +56,27 @@ export class DeletePostUseCase {
       }
     } else {
       // Forum Général
-      if (post.user.id !== dto.userId) {
-        throw new ForbiddenError("Vous n'êtes pas autorisé à supprimer ce message");
+      let profil = dto.userProfil;
+      if (profil === undefined) {
+        const user = await this.userRepo.findById(dto.userId);
+        profil = user?.profil ?? 0;
       }
 
-      if (Boolean(topic.isClosed)) {
-        throw new TopicClosedError('Ce sujet est fermé');
-      }
+      const isAdmin = profil === 2;
 
-      const newerPostsCount = await this.forumRepo.countPostsAfterPostId(topic.id, post.id);
-      if (newerPostsCount > 0) {
-        throw new ForbiddenError("Vous ne pouvez supprimer votre message que s'il s'agit du dernier message du sujet");
+      if (!isAdmin) {
+        if (post.user.id !== dto.userId) {
+          throw new ForbiddenError("Vous n'êtes pas autorisé à supprimer ce message");
+        }
+
+        if (Boolean(topic.isClosed)) {
+          throw new TopicClosedError('Ce sujet est fermé');
+        }
+
+        const newerPostsCount = await this.forumRepo.countPostsAfterPostId(topic.id, post.id);
+        if (newerPostsCount > 0) {
+          throw new ForbiddenError("Vous ne pouvez supprimer votre message que s'il s'agit du dernier message du sujet");
+        }
       }
     }
 

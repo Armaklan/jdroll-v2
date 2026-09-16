@@ -5,6 +5,7 @@ import { notificationsApi } from '../api/notifications';
 import { messagesApi } from '../api/messages';
 import { NotificationItem } from '../types/notification';
 import { NotificationPopover } from './NotificationPopover';
+import { getUserColorClass } from '../utils/user';
 import {
   Dice6,
   LogIn,
@@ -333,7 +334,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               </div>
 
               <div className="flex items-center gap-2 bg-slate-100/80 border border-slate-200 px-3 py-1.5 rounded-xl">
-                <span className="text-sm font-semibold text-slate-800">{user.username}</span>
+                <span className={`text-sm ${getUserColorClass(user.profil, 'text-slate-800 font-semibold')}`}>
+                  {user.username}
+                </span>
               </div>
               <button
                 onClick={handleLogout}
@@ -496,7 +499,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               <div className="space-y-2">
                 <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
                   <UserIcon className="w-4 h-4 text-indigo-600" />
-                  <span className="text-sm font-semibold text-slate-800">{user.username}</span>
+                  <span className={`text-sm ${getUserColorClass(user.profil, 'text-slate-800 font-semibold')}`}>
+                    {user.username}
+                  </span>
                 </div>
                 <button
                   onClick={handleLogout}

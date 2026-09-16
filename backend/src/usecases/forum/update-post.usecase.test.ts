@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { UpdatePostUseCase } from './update-post.usecase.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
 import {
   PostNotFoundError,
   TopicNotFoundError,
@@ -18,6 +19,7 @@ import {
 describe('UpdatePostUseCase', () => {
   let useCase: UpdatePostUseCase;
   let mockForumRepo: IForumRepository;
+  let mockUserRepo: IUserRepository;
 
   const mockTopic: RawTopicDetail = {
     id: 10,
@@ -179,7 +181,24 @@ describe('UpdatePostUseCase', () => {
       isUserTopicCanRead: async () => true,
     };
 
-    useCase = new UpdatePostUseCase(mockForumRepo);
+    mockUserRepo = {
+      findById: async (id: number) => ({
+        id,
+        username: `user${id}`,
+        mail: `user${id}@test.com`,
+        profil: id === 10 ? 2 : 0, // id 10 is admin
+        avatar: '',
+        description: '',
+        titre: '',
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async (d) => ({ id: 999, ...d, avatar: '', description: '', profil: 0, titre: '' }),
+    };
+
+    useCase = new UpdatePostUseCase(mockForumRepo, mockUserRepo);
   });
 
   it('devrait permettre à un joueur de modifier son propre message', async () => {
@@ -317,5 +336,17 @@ describe('UpdatePostUseCase', () => {
     });
 
     assert.equal(updated.content, 'Message forum général modifié');
+  });
+
+  it('devrait permettre à un administrateur de modifier le message d’un autre utilisateur sur le forum général', async () => {
+    const updated = await useCase.execute({
+      postId: 104, // Créé par joueur 2
+      userId: 10, // Admin (profil 2)
+      userProfil: 2,
+      content: 'Message modéré par l’administrateur',
+    });
+
+    assert.equal(updated.content, 'Message modéré par l’administrateur');
+    assert.equal(postsStore.get(104)?.content, 'Message modéré par l’administrateur');
   });
 });

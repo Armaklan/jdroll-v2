@@ -2,6 +2,7 @@ export interface MessageRecipient {
   id: number;
   username: string;
   avatar?: string | null;
+  profil?: number;
   statut: number; // 0 = unread, 1 = read, 2 = deleted
   isRead: boolean;
 }
@@ -11,6 +12,7 @@ export interface InboxMessageSummary {
   fromId: number;
   fromUsername: string;
   fromAvatar?: string | null;
+  fromProfil?: number;
   title: string;
   time: string;
   statut: number;
@@ -22,6 +24,7 @@ export interface SentMessageSummary {
   id: number;
   fromId: number;
   fromUsername: string;
+  fromProfil?: number;
   title: string;
   time: string;
   statut: number;
@@ -34,6 +37,7 @@ export interface MessageDetail {
   fromId: number;
   fromUsername: string;
   fromAvatar?: string | null;
+  fromProfil?: number;
   title: string;
   content: string;
   time: string;
@@ -53,4 +57,5 @@ export interface UserSearchResult {
   id: number;
   username: string;
   avatar?: string | null;
+  profil?: number;
 }

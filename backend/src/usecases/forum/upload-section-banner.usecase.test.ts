@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { UploadSectionBannerUseCase } from './upload-section-banner.usecase.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
 import { IFileStorage } from '../../storage/file-storage.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
 import {
   SectionNotFoundError,
   ForbiddenError,
@@ -13,6 +14,7 @@ describe('UploadSectionBannerUseCase', () => {
   let useCase: UploadSectionBannerUseCase;
   let mockForumRepo: IForumRepository;
   let mockFileStorage: IFileStorage;
+  let mockUserRepo: IUserRepository;
   let savedFiles: Array<{ campaignId: number; filename: string; content: Buffer }>;
   let updatedSectionData: any;
 
@@ -28,6 +30,16 @@ describe('UploadSectionBannerUseCase', () => {
             id: 1,
             campagneId: 10,
             title: 'Section test',
+            ordre: 1,
+            defaultCollapse: false,
+            banniere: '',
+          };
+        }
+        if (id === 2) {
+          return {
+            id: 2,
+            campagneId: null, // Forum général
+            title: 'Section Générale',
             ordre: 1,
             defaultCollapse: false,
             banniere: '',
@@ -76,7 +88,24 @@ describe('UploadSectionBannerUseCase', () => {
       },
     };
 
-    useCase = new UploadSectionBannerUseCase(mockForumRepo, mockFileStorage);
+    mockUserRepo = {
+      findById: async (id: number) => ({
+        id,
+        username: `user${id}`,
+        mail: `user${id}@test.com`,
+        profil: id === 100 ? 2 : 0, // id 100 is admin
+        avatar: '',
+        description: '',
+        titre: '',
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async (d) => ({ id: 999, ...d, avatar: '', description: '', profil: 0, titre: '' }),
+    };
+
+    useCase = new UploadSectionBannerUseCase(mockForumRepo, mockFileStorage, mockUserRepo);
   });
 
   it('téléverse avec succès une bannière pour une section', async () => {
@@ -150,6 +179,42 @@ describe('UploadSectionBannerUseCase', () => {
       },
       (err: any) => {
         assert(err instanceof ValidationError);
+        return true;
+      }
+    );
+  });
+  it('permet à un administrateur de téléverser une bannière pour une section du forum général', async () => {
+    const fakeBuffer = Buffer.from('fake-image-bytes');
+    const result = await useCase.execute({
+      sectionId: 2,
+      userId: 100, // Admin
+      userProfil: 2,
+      filename: 'general-banner.png',
+      mimetype: 'image/png',
+      content: fakeBuffer,
+    });
+
+    assert.equal(result.sectionId, 2);
+    assert.match(result.url, /^\/files\/campaigns\/0\/[a-f0-9]+\.png$/);
+    assert.equal(savedFiles.length, 1);
+    assert.equal(savedFiles[0].campaignId, 0);
+  });
+
+  it('interdit à un joueur standard de téléverser une bannière pour une section du forum général', async () => {
+    await assert.rejects(
+      async () => {
+        await useCase.execute({
+          sectionId: 2,
+          userId: 10,
+          userProfil: 0,
+          filename: 'banner.png',
+          mimetype: 'image/png',
+          content: Buffer.from('bytes'),
+        });
+      },
+      (err: any) => {
+        assert(err instanceof ForbiddenError);
+        assert.match(err.message, /administrateur/);
         return true;
       }
     );

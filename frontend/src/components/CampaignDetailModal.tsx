@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignSummary } from '../types/campaign';
 import { getRythmeLabel, getRpLabel } from '../utils/campaign-helpers';
+import { getUserColorClass } from '../utils/user';
 import {
   X,
   Compass,
@@ -206,7 +207,9 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
             <div>
               <div className="flex items-center gap-2 text-amber-400 text-xs sm:text-sm font-semibold mb-1 drop-shadow-sm">
                 <Crown className="w-4 h-4" />
-                <span>Maître du Jeu : {campaign.mjUsername}</span>
+                <span>
+                  Maître du Jeu : <span className={getUserColorClass(campaign.mjProfil, 'text-amber-400')}>{campaign.mjUsername}</span>
+                </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight drop-shadow-md line-clamp-1">
                 {campaign.name}

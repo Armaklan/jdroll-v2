@@ -8,6 +8,7 @@ import {
   MessageDetail,
   UserSearchResult,
 } from '../types/message';
+import { getUserColorClass } from '../utils/user';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import {
   Inbox,
@@ -541,7 +542,7 @@ export const MessagesPage: React.FC = () => {
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm text-slate-700">
                           <span className="font-semibold text-slate-500 w-16">De :</span>
-                          <span className="font-bold text-slate-900">
+                          <span className={`font-bold ${getUserColorClass(currentMessage.fromProfil, 'text-slate-900')}`}>
                             {currentMessage.fromUsername}
                           </span>
                         </div>
@@ -559,7 +560,9 @@ export const MessagesPage: React.FC = () => {
                                     : 'bg-slate-200 text-slate-800'
                                 }`}
                               >
-                                {rec.username}
+                                <span className={getUserColorClass(rec.profil)}>
+                                  {rec.username}
+                                </span>
                                 {currentMessage.isSender && (
                                   <span className="text-[10px] ml-0.5">
                                     {rec.isRead ? '(Lu)' : '(Non lu)'}
@@ -685,7 +688,7 @@ export const MessagesPage: React.FC = () => {
                                   {u.username.charAt(0).toUpperCase()}
                                 </div>
                               )}
-                              <span className="font-medium text-slate-800">{u.username}</span>
+                              <span className={`font-medium ${getUserColorClass(u.profil, 'text-slate-800')}`}>{u.username}</span>
                             </div>
                             <span className="text-xs text-indigo-600 font-semibold">+ Ajouter</span>
                           </button>
@@ -834,7 +837,10 @@ export const MessagesPage: React.FC = () => {
                             <div className="flex items-center gap-2">
                               <span
                                 className={`text-sm truncate ${
-                                  !msg.isRead ? 'text-indigo-950 font-bold' : 'text-slate-900'
+                                  getUserColorClass(
+                                    msg.fromProfil,
+                                    !msg.isRead ? 'text-indigo-950 font-bold' : 'text-slate-900 font-semibold'
+                                  )
                                 }`}
                               >
                                 {msg.fromUsername}
@@ -898,10 +904,14 @@ export const MessagesPage: React.FC = () => {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-semibold text-slate-900 truncate">
-                                À : {msg.recipients.map((r) => r.username).join(', ')}
-                              </span>
+                            <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-900 truncate">
+                              <span>À :</span>
+                              {msg.recipients.map((r, i) => (
+                                <span key={r.id}>
+                                  <span className={getUserColorClass(r.profil)}>{r.username}</span>
+                                  {i < msg.recipients.length - 1 && ', '}
+                                </span>
+                              ))}
                             </div>
                             <p className="text-xs text-slate-500 truncate mt-0.5">
                               {msg.title}

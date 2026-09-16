@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { UpdateTopicUseCase } from './update-topic.usecase.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
 import { RawTopicDetail } from '../../types/index.js';
 import {
   TopicNotFoundError,
@@ -12,7 +13,9 @@ import {
 describe('UpdateTopicUseCase', () => {
   let useCase: UpdateTopicUseCase;
   let mockForumRepo: IForumRepository;
+  let mockUserRepo: IUserRepository;
   let mockTopic: RawTopicDetail;
+  let mockGeneralTopic: RawTopicDetail;
   let updatedTopicData: any;
 
   beforeEach(() => {
@@ -39,6 +42,29 @@ describe('UpdateTopicUseCase', () => {
       isClosed: 0,
       ordre: 1,
     };
+    mockGeneralTopic = {
+      id: 20,
+      sectionId: 2,
+      sectionTitle: 'Section Générale',
+      campagneId: null,
+      campaignTitle: '',
+      dialogueColor: null,
+      penseeColor: null,
+      rp1Color: null,
+      rp2Color: null,
+      quoteColor: null,
+      sidebarColor: null,
+      oddLineColor: null,
+      evenLineColor: null,
+      textColor: null,
+      linkColor: null,
+      linkSidebarColor: null,
+      title: 'Sujet Général',
+      stickable: 0,
+      isPrivate: 0,
+      isClosed: 0,
+      ordre: 1,
+    };
     updatedTopicData = null;
 
     mockForumRepo = {
@@ -60,6 +86,7 @@ describe('UpdateTopicUseCase', () => {
       reorderTopics: async () => {},
       findTopicById: async (topicId: number) => {
         if (topicId === mockTopic.id) return { ...mockTopic };
+        if (topicId === mockGeneralTopic.id) return { ...mockGeneralTopic };
         return null;
       },
       countPostsByTopicId: async () => 0,
@@ -85,7 +112,24 @@ describe('UpdateTopicUseCase', () => {
       isUserTopicCanRead: async () => false,
     };
 
-    useCase = new UpdateTopicUseCase(mockForumRepo);
+    mockUserRepo = {
+      findById: async (id: number) => ({
+        id,
+        username: `user${id}`,
+        mail: `user${id}@test.com`,
+        profil: id === 100 ? 2 : 0, // id 100 is admin
+        avatar: '',
+        description: '',
+        titre: '',
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async (d) => ({ id: 999, ...d, avatar: '', description: '', profil: 0, titre: '' }),
+    };
+
+    useCase = new UpdateTopicUseCase(mockForumRepo, mockUserRepo);
   });
 
   it('met à jour avec succès un topic par le MJ', async () => {
@@ -158,6 +202,38 @@ describe('UpdateTopicUseCase', () => {
       },
       (err: any) => {
         assert(err instanceof ValidationError);
+        return true;
+      }
+    );
+  });
+  it('permet à un administrateur de modifier un topic sur le forum général', async () => {
+    const result = await useCase.execute({
+      topicId: 20,
+      userId: 100, // Admin
+      userProfil: 2,
+      title: 'Titre Général Modifié',
+      stickable: true,
+      isClosed: true,
+    });
+
+    assert.equal(result.title, 'Titre Général Modifié');
+    assert.equal(result.stickable, true);
+    assert.equal(result.isClosed, true);
+  });
+
+  it('interdit à un joueur standard de modifier un topic sur le forum général', async () => {
+    await assert.rejects(
+      async () => {
+        await useCase.execute({
+          topicId: 20,
+          userId: 10,
+          userProfil: 0,
+          title: 'Titre Interdit',
+        });
+      },
+      (err: any) => {
+        assert(err instanceof ForbiddenError);
+        assert.match(err.message, /administrateur/);
         return true;
       }
     );

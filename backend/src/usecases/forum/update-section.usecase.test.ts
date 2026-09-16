@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { UpdateSectionUseCase } from './update-section.usecase.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
 import {
   SectionNotFoundError,
   ForbiddenError,
@@ -11,7 +12,16 @@ import {
 describe('UpdateSectionUseCase', () => {
   let useCase: UpdateSectionUseCase;
   let mockForumRepo: IForumRepository;
+  let mockUserRepo: IUserRepository;
   let mockSection: {
+    id: number;
+    campagneId: number | null;
+    title: string;
+    ordre: number;
+    defaultCollapse: boolean;
+    banniere: string;
+  };
+  let mockGeneralSection: {
     id: number;
     campagneId: number | null;
     title: string;
@@ -30,12 +40,21 @@ describe('UpdateSectionUseCase', () => {
       defaultCollapse: false,
       banniere: 'https://example.com/banner.jpg',
     };
+    mockGeneralSection = {
+      id: 2,
+      campagneId: null,
+      title: 'Section Générale',
+      ordre: 1,
+      defaultCollapse: false,
+      banniere: '',
+    };
     updatedSectionData = null;
 
     mockForumRepo = {
       findSectionsByCampaignId: async () => [],
       findSectionById: async (id: number) => {
         if (id === mockSection.id) return { ...mockSection };
+        if (id === mockGeneralSection.id) return { ...mockGeneralSection };
         return null;
       },
       createSection: async () => 1,
@@ -75,7 +94,24 @@ describe('UpdateSectionUseCase', () => {
       isUserTopicCanRead: async () => false,
     };
 
-    useCase = new UpdateSectionUseCase(mockForumRepo);
+    mockUserRepo = {
+      findById: async (id: number) => ({
+        id,
+        username: `user${id}`,
+        mail: `user${id}@test.com`,
+        profil: id === 100 ? 2 : 0, // id 100 is admin
+        avatar: '',
+        description: '',
+        titre: '',
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async (d) => ({ id: 999, ...d, avatar: '', description: '', profil: 0, titre: '' }),
+    };
+
+    useCase = new UpdateSectionUseCase(mockForumRepo, mockUserRepo);
   });
 
   it('met à jour avec succès une section par le MJ', async () => {
@@ -143,6 +179,34 @@ describe('UpdateSectionUseCase', () => {
       },
       (err: any) => {
         assert(err instanceof ValidationError);
+        return true;
+      }
+    );
+  });
+  it('permet à un administrateur de modifier une section sur le forum général', async () => {
+    const result = await useCase.execute({
+      sectionId: 2,
+      userId: 100, // Admin
+      userProfil: 2,
+      title: 'Titre Général Modifié',
+    });
+
+    assert.equal(result.title, 'Titre Général Modifié');
+  });
+
+  it('interdit à un joueur standard de modifier une section sur le forum général', async () => {
+    await assert.rejects(
+      async () => {
+        await useCase.execute({
+          sectionId: 2,
+          userId: 10,
+          userProfil: 0,
+          title: 'Titre Interdit',
+        });
+      },
+      (err: any) => {
+        assert(err instanceof ForbiddenError);
+        assert.match(err.message, /administrateur/);
         return true;
       }
     );

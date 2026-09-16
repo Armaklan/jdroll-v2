@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { CreateSectionUseCase } from './create-section.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
 import {
   CampaignNotFoundError,
   ForbiddenError,
@@ -14,6 +15,7 @@ describe('CreateSectionUseCase', () => {
   let useCase: CreateSectionUseCase;
   let mockCampaignRepo: ICampaignRepository;
   let mockForumRepo: IForumRepository;
+  let mockUserRepo: IUserRepository;
 
   const mockCampaign: CampaignSummary = {
     id: 1,
@@ -104,7 +106,24 @@ describe('CreateSectionUseCase', () => {
       isUserTopicCanRead: async () => false,
     };
 
-    useCase = new CreateSectionUseCase(mockCampaignRepo, mockForumRepo);
+    mockUserRepo = {
+      findById: async (id: number) => ({
+        id,
+        username: `user${id}`,
+        mail: `user${id}@test.com`,
+        profil: id === 100 ? 2 : 0, // id 100 is admin
+        avatar: '',
+        description: '',
+        titre: '',
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async (d) => ({ id: 999, ...d, avatar: '', description: '', profil: 0, titre: '' }),
+    };
+
+    useCase = new CreateSectionUseCase(mockCampaignRepo, mockForumRepo, mockUserRepo);
   });
 
   it('crée une section avec succès pour le MJ de la campagne', async () => {
@@ -180,6 +199,35 @@ describe('CreateSectionUseCase', () => {
       },
       (err: any) => {
         assert(err instanceof ValidationError);
+        return true;
+      }
+    );
+  });
+  it('permet à un administrateur de créer une section sur le forum général', async () => {
+    const result = await useCase.execute({
+      campagneId: null,
+      userId: 100, // Admin
+      userProfil: 2,
+      title: 'Taverne Générale',
+    });
+
+    assert.equal(result.title, 'Taverne Générale');
+    assert.equal(result.campagneId, null);
+  });
+
+  it('interdit à un joueur standard de créer une section sur le forum général', async () => {
+    await assert.rejects(
+      async () => {
+        await useCase.execute({
+          campagneId: null,
+          userId: 10, // Joueur standard
+          userProfil: 0,
+          title: 'Section Interdite',
+        });
+      },
+      (err: any) => {
+        assert(err instanceof ForbiddenError);
+        assert.match(err.message, /administrateur/);
         return true;
       }
     );

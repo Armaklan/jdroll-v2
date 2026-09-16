@@ -14,10 +14,12 @@ export interface IForumRepository {
   findSectionById(sectionId: number): Promise<{ id: number; campagneId: number | null; title: string; ordre: number; defaultCollapse: boolean; banniere: string } | null>;
   createSection(data: { campagneId: number | null; title: string; ordre?: number; defaultCollapse?: boolean; banniere?: string }): Promise<number>;
   updateSection(sectionId: number, data: { title?: string; defaultCollapse?: boolean; banniere?: string }): Promise<void>;
+  deleteSection(sectionId: number): Promise<void>;
   getMaxSectionOrdre(campagneId: number | null): Promise<number>;
   reorderSections(campaignId: number, sectionIds: number[]): Promise<void>;
   createTopic(data: { sectionId: number; title: string; stickable?: boolean; isPrivate?: number | boolean; isClosed?: boolean; ordre?: number; canReadUserIds?: number[] }): Promise<number>;
   updateTopic(topicId: number, data: { title?: string; stickable?: boolean; isPrivate?: number | boolean; isClosed?: boolean; canReadUserIds?: number[] }): Promise<void>;
+  deleteTopic(topicId: number): Promise<void>;
   getMaxTopicOrdre(sectionId: number): Promise<number>;
   reorderTopics(campaignId: number, sections: Array<{ sectionId: number; topicIds: number[] }>): Promise<void>;
   findTopicById(topicId: number): Promise<RawTopicDetail | null>;
@@ -94,6 +96,7 @@ export class MysqlForumRepository implements IForumRepository {
         p.user_id AS lastPostUserId,
         u.username AS lastPostUsername,
         u.avatar AS lastPostUserAvatar,
+        u.profil AS lastPostUserProfil,
         p.perso_id AS lastPostPersoId,
         rp.post_id AS userLastReadPostId,
         (SELECT COUNT(*) FROM posts count_p WHERE count_p.topic_id = t.id) AS postsCount
@@ -129,6 +132,7 @@ export class MysqlForumRepository implements IForumRepository {
       lastPostUserId: number | null;
       lastPostUsername: string | null;
       lastPostUserAvatar: string | null;
+      lastPostUserProfil?: number | null;
       lastPostPersoId: number | null;
       userLastReadPostId: number | null;
       postsCount: number;
@@ -166,6 +170,7 @@ export class MysqlForumRepository implements IForumRepository {
           userId: row.lastPostUserId,
           username: row.lastPostUsername,
           userAvatar: row.lastPostUserAvatar || '',
+          userProfil: row.lastPostUserProfil ?? 0,
           persoId: row.lastPostPersoId ?? null,
         };
       }
@@ -832,6 +837,14 @@ export class MysqlForumRepository implements IForumRepository {
     await execute(`UPDATE sections SET ${fields.join(', ')} WHERE id = ?`, values);
   }
 
+  async deleteSection(sectionId: number): Promise<void> {
+    const topicRows = await query<{ id: number }>(`SELECT id FROM topics WHERE section_id = ?`, [sectionId]);
+    for (const t of topicRows) {
+      await this.deleteTopic(t.id);
+    }
+    await execute(`DELETE FROM sections WHERE id = ?`, [sectionId]);
+  }
+
   async getMaxSectionOrdre(campagneId: number | null): Promise<number> {
     const isGeneral = campagneId === null || campagneId === undefined;
     const sql = `
@@ -849,13 +862,21 @@ export class MysqlForumRepository implements IForumRepository {
   }
 
   async reorderSections(campaignId: number, sectionIds: number[]): Promise<void> {
+    const isGeneral = campaignId === 0 || campaignId === null || campaignId === undefined;
     for (let i = 0; i < sectionIds.length; i++) {
       const sectionId = sectionIds[i];
       const ordre = i + 1;
-      await execute(
-        `UPDATE sections SET ordre = ? WHERE id = ? AND campagne_id = ?`,
-        [ordre, sectionId, campaignId]
-      );
+      if (isGeneral) {
+        await execute(
+          `UPDATE sections SET ordre = ? WHERE id = ? AND campagne_id IS NULL`,
+          [ordre, sectionId]
+        );
+      } else {
+        await execute(
+          `UPDATE sections SET ordre = ? WHERE id = ? AND campagne_id = ?`,
+          [ordre, sectionId, campaignId]
+        );
+      }
     }
   }
 
@@ -957,12 +978,23 @@ export class MysqlForumRepository implements IForumRepository {
     }
   }
 
+  async deleteTopic(topicId: number): Promise<void> {
+    // Supprimer la référence last_post_id pour éviter la contrainte de clé étrangère
+    await execute(`UPDATE topics SET last_post_id = NULL WHERE id = ?`, [topicId]);
+    await execute(`DELETE FROM read_post WHERE topic_id = ?`, [topicId]);
+    await execute(`DELETE FROM can_read WHERE topic_id = ?`, [topicId]);
+    await execute(`DELETE FROM draft WHERE topic_id = ?`, [topicId]);
+    await execute(`DELETE FROM posts WHERE topic_id = ?`, [topicId]);
+    await execute(`DELETE FROM topics WHERE id = ?`, [topicId]);
+  }
+
   async getTopicCanReadUsers(topicId: number): Promise<TopicUserSummary[]> {
     const sql = `
       SELECT 
         u.id,
         u.username,
-        u.avatar
+        u.avatar,
+        u.profil
       FROM can_read cr
       JOIN user u ON cr.user_id = u.id
       WHERE cr.topic_id = ?
@@ -973,6 +1005,7 @@ export class MysqlForumRepository implements IForumRepository {
       id: number;
       username: string;
       avatar: string | null;
+      profil?: number | null;
     }
 
     const rows = await query<RawCanReadUserRow>(sql, [topicId]);
@@ -980,6 +1013,7 @@ export class MysqlForumRepository implements IForumRepository {
       id: r.id,
       username: r.username,
       avatar: r.avatar || '',
+      profil: r.profil ?? 0,
     }));
   }
 
@@ -993,7 +1027,8 @@ export class MysqlForumRepository implements IForumRepository {
         cr.topic_id AS topicId,
         u.id,
         u.username,
-        u.avatar
+        u.avatar,
+        u.profil
       FROM can_read cr
       JOIN user u ON cr.user_id = u.id
       WHERE cr.topic_id IN (${placeholders})
@@ -1005,6 +1040,7 @@ export class MysqlForumRepository implements IForumRepository {
       id: number;
       username: string;
       avatar: string | null;
+      profil?: number | null;
     }
 
     const rows = await query<RawCanReadUsersRow>(sql, topicIds);
@@ -1016,6 +1052,7 @@ export class MysqlForumRepository implements IForumRepository {
         id: row.id,
         username: row.username,
         avatar: row.avatar || '',
+        profil: row.profil ?? 0,
       });
     }
     return result;
@@ -1063,17 +1100,28 @@ export class MysqlForumRepository implements IForumRepository {
   }
 
   async reorderTopics(campaignId: number, sections: Array<{ sectionId: number; topicIds: number[] }>): Promise<void> {
+    const isGeneral = campaignId === 0 || campaignId === null || campaignId === undefined;
     for (const sec of sections) {
       for (let i = 0; i < sec.topicIds.length; i++) {
         const topicId = sec.topicIds[i];
         const ordre = i + 1;
-        await execute(
-          `UPDATE topics t
-           JOIN sections s ON t.section_id = s.id
-           SET t.section_id = ?, t.ordre = ?
-           WHERE t.id = ? AND s.campagne_id = ?`,
-          [sec.sectionId, ordre, topicId, campaignId]
-        );
+        if (isGeneral) {
+          await execute(
+            `UPDATE topics t
+             JOIN sections s ON t.section_id = s.id
+             SET t.section_id = ?, t.ordre = ?
+             WHERE t.id = ? AND s.campagne_id IS NULL`,
+            [sec.sectionId, ordre, topicId]
+          );
+        } else {
+          await execute(
+            `UPDATE topics t
+             JOIN sections s ON t.section_id = s.id
+             SET t.section_id = ?, t.ordre = ?
+             WHERE t.id = ? AND s.campagne_id = ?`,
+            [sec.sectionId, ordre, topicId, campaignId]
+          );
+        }
       }
     }
   }

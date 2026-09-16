@@ -64,7 +64,7 @@ jdRoll2/
 ## 🚀 Démarrage rapide
 
 ### 1. Lancer la base de données MySQL
-Un fichier `docker-compose.yml` est fourni pour instancier la base MySQL avec le schéma initial (`data/create.sql`) et des utilisateurs de test pré-créés (`data/seed.sql`) :
+Un fichier `docker-compose.yml` est fourni pour instancier la base MySQL avec le schéma initial (`data/create.sql`), des utilisateurs de test pré-créés (`data/seed.sql`) et une interface phpMyAdmin :
 ```bash
 docker compose up -d
 ```
@@ -73,6 +73,8 @@ docker compose up -d
 > - `admin` (MDP: `password`, profil MJ/admin)
 > - `testuser` (MDP: `password`, profil joueur)
 > - `joueur2` (MDP: `password`, profil joueur)
+>
+> **phpMyAdmin** : accessible sur `http://localhost:8080` (serveur: `db`, identifiants: `root`/`root` ou `jdroll`/`jdroll`).
 
 ### 2. Installation des dépendances
 ```bash

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CampaignSummary, CampaignRole } from '../types/campaign';
 import { useAuth } from '../contexts/AuthContext';
 import { getRythmeLabel, getRpLabel } from '../utils/campaign-helpers';
+import { getUserColorClass } from '../utils/user';
 import {
   Crown,
   Users,
@@ -216,7 +217,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
             <div className="flex items-center gap-1.5 drop-shadow-sm">
               <Crown className="w-3.5 h-3.5 text-amber-400" />
               <span>
-                MJ : <span className="font-semibold">{campaign.mjUsername}</span>
+                MJ : <span className={`font-semibold ${getUserColorClass(campaign.mjProfil, 'text-white')}`}>{campaign.mjUsername}</span>
               </span>
             </div>
 

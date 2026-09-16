@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import { IFileStorage, diskFileStorage } from '../../storage/file-storage.js';
 import {
   SectionNotFoundError,
@@ -12,6 +13,7 @@ export interface UploadSectionBannerInput {
   sectionId: number;
   campagneId?: number;
   userId: number;
+  userProfil?: number;
   filename: string;
   mimetype: string;
   content: Buffer;
@@ -36,7 +38,8 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
 export class UploadSectionBannerUseCase {
   constructor(
     private readonly forumRepo: IForumRepository = forumRepository,
-    private readonly fileStorage: IFileStorage = diskFileStorage
+    private readonly fileStorage: IFileStorage = diskFileStorage,
+    private readonly userRepo: IUserRepository = userRepository
   ) {}
 
   async execute(input: UploadSectionBannerInput): Promise<UploadSectionBannerOutput> {
@@ -49,14 +52,22 @@ export class UploadSectionBannerUseCase {
       throw new SectionNotFoundError(`La section avec l'identifiant ${input.sectionId} n'existe pas`);
     }
 
-    const campagneId = section.campagneId ?? input.campagneId;
-    if (!campagneId) {
-      throw new ForbiddenError('Seules les sections de campagne peuvent recevoir une bannière téléversée');
-    }
+    const campagneId = section.campagneId ?? (input.campagneId && input.campagneId > 0 ? input.campagneId : null);
 
-    const isMj = await this.forumRepo.isUserCampaignMj(campagneId, input.userId);
-    if (!isMj) {
-      throw new ForbiddenError('Seul le Maître du Jeu peut modifier la bannière de la section');
+    if (campagneId) {
+      const isMj = await this.forumRepo.isUserCampaignMj(campagneId, input.userId);
+      if (!isMj) {
+        throw new ForbiddenError('Seul le Maître du Jeu peut modifier la bannière de la section');
+      }
+    } else {
+      let profil = input.userProfil;
+      if (profil === undefined) {
+        const user = await this.userRepo.findById(input.userId);
+        profil = user?.profil ?? 0;
+      }
+      if (profil !== 2) {
+        throw new ForbiddenError("Seul un administrateur peut modifier la bannière d'une section du forum général");
+      }
     }
 
     const normalizedMime = (input.mimetype || '').toLowerCase().trim();
@@ -81,7 +92,7 @@ export class UploadSectionBannerUseCase {
     }
 
     const randomName = `${crypto.randomBytes(16).toString('hex')}${extension}`;
-    const fileUrl = await this.fileStorage.saveCampaignFile(campagneId, randomName, input.content);
+    const fileUrl = await this.fileStorage.saveCampaignFile(campagneId ?? 0, randomName, input.content);
 
     await this.forumRepo.updateSection(input.sectionId, {
       banniere: fileUrl,

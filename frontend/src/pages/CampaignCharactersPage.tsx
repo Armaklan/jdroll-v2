@@ -7,6 +7,7 @@ import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignHeader } from '../components/CampaignHeader';
 import { CharacterSheetRenderer } from '../components/CharacterSheetRenderer';
 import { parsePersoFields, serializePersoFields } from '../utils/character-sheet';
+import { getUserColorClass } from '../utils/user';
 import {
   CampaignCharactersData,
   CampaignCharacter,
@@ -961,7 +962,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                               <div className="mt-3.5 pt-3 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400">
                                 {isPJ && character.userName ? (
                                   <span className="truncate max-w-[130px]">
-                                    Joueur : <strong className="text-slate-700">{character.userName}</strong>
+                                    Joueur : <strong className={getUserColorClass(character.userProfil, 'text-slate-700')}>{character.userName}</strong>
                                   </span>
                                 ) : (
                                   <span className="italic text-slate-400">PNJ</span>
@@ -1084,7 +1085,9 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                     <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium pt-1">
                       <User className="w-4 h-4 text-slate-400" />
                       <span>Joueur assigné :</span>
-                      <strong className="text-slate-800 font-semibold">{selectedCharacter.userName}</strong>
+                      <strong className={getUserColorClass(selectedCharacter.userProfil, 'text-slate-800 font-semibold')}>
+                        {selectedCharacter.userName}
+                      </strong>
                     </div>
                   )}
                 </div>

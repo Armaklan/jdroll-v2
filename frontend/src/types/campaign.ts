@@ -4,6 +4,7 @@ export interface CampaignSummary {
   mjId: number;
   mjUsername: string;
   mjAvatar?: string;
+  mjProfil?: number;
   nbJoueurs: number;
   nbJoueursActuel: number;
   banniere: string;
@@ -86,6 +87,7 @@ export interface ForumLastPost {
   userId: number;
   username: string;
   userAvatar?: string;
+  userProfil?: number;
   persoId?: number | null;
 }
 
@@ -169,6 +171,7 @@ export interface CampaignCharacter {
   userId: number | null;
   userName?: string | null;
   userAvatar?: string | null;
+  userProfil?: number | null;
   campagneId: number;
   name: string;
   concept: string;
@@ -203,6 +206,7 @@ export interface CampaignDiceRoll {
   description: string;
   username: string;
   userAvatar?: string | null;
+  userProfil?: number;
 }
 
 export interface CampaignCharactersData {
@@ -214,6 +218,7 @@ export interface CampaignParticipant {
   id: number;
   username: string;
   avatar: string | null;
+  profil?: number;
 }
 
 export interface CreateCharacterPayload {

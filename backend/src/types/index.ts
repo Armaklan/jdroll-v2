@@ -37,6 +37,7 @@ export interface CampaignSummary {
   mjId: number;
   mjUsername: string;
   mjAvatar?: string;
+  mjProfil?: number;
   nbJoueurs: number;
   nbJoueursActuel: number;
   banniere: string;
@@ -89,6 +90,7 @@ export interface ForumLastPost {
   userId: number;
   username: string;
   userAvatar?: string;
+  userProfil?: number;
   persoId?: number | null;
 }
 
@@ -96,6 +98,7 @@ export interface TopicUserSummary {
   id: number;
   username: string;
   avatar?: string;
+  profil?: number;
 }
 
 export interface ForumTopicSummary {
@@ -198,6 +201,7 @@ export interface CampaignCharacter {
   userId: number | null;
   userName?: string | null;
   userAvatar?: string | null;
+  userProfil?: number | null;
   campagneId: number;
   name: string;
   concept: string;
@@ -224,6 +228,7 @@ export interface CampaignParticipant {
   id: number;
   username: string;
   avatar: string | null;
+  profil?: number;
 }
 
 export interface CampaignCharactersData {
@@ -322,6 +327,7 @@ export interface MessageRecipient {
   id: number;
   username: string;
   avatar?: string | null;
+  profil?: number;
   statut: number; // 0 = unread, 1 = read, 2 = deleted from inbox
   isRead: boolean;
 }
@@ -331,6 +337,7 @@ export interface InboxMessageSummary {
   fromId: number;
   fromUsername: string;
   fromAvatar?: string | null;
+  fromProfil?: number;
   title: string;
   time: string;
   statut: number;
@@ -342,6 +349,7 @@ export interface SentMessageSummary {
   id: number;
   fromId: number;
   fromUsername: string;
+  fromProfil?: number;
   title: string;
   time: string;
   statut: number;
@@ -354,6 +362,7 @@ export interface MessageDetail {
   fromId: number;
   fromUsername: string;
   fromAvatar?: string | null;
+  fromProfil?: number;
   title: string;
   content: string;
   time: string;

@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { DeletePostUseCase } from './delete-post.usecase.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
 import {
   PostNotFoundError,
   TopicNotFoundError,
@@ -17,6 +18,7 @@ import {
 describe('DeletePostUseCase', () => {
   let useCase: DeletePostUseCase;
   let mockForumRepo: IForumRepository;
+  let mockUserRepo: IUserRepository;
 
   const mockTopic: RawTopicDetail = {
     id: 10,
@@ -162,7 +164,24 @@ describe('DeletePostUseCase', () => {
       isUserTopicCanRead: async () => true,
     };
 
-    useCase = new DeletePostUseCase(mockForumRepo);
+    mockUserRepo = {
+      findById: async (id: number) => ({
+        id,
+        username: `user${id}`,
+        mail: `user${id}@test.com`,
+        profil: id === 10 ? 2 : 0, // id 10 is admin
+        avatar: '',
+        description: '',
+        titre: '',
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async (d) => ({ id: 999, ...d, avatar: '', description: '', profil: 0, titre: '' }),
+    };
+
+    useCase = new DeletePostUseCase(mockForumRepo, mockUserRepo);
   });
 
   it('devrait permettre à un joueur de supprimer son message s’il s’agit du dernier message du fil', async () => {
@@ -272,6 +291,17 @@ describe('DeletePostUseCase', () => {
 
     assert.equal(result.success, true);
     assert.equal(postsStore.has(992), false);
+  });
+
+  it('devrait permettre à un administrateur de supprimer n’importe quel message sur le forum général', async () => {
+    const result = await useCase.execute({
+      postId: 201, // Pas le dernier, créé par joueur 2
+      userId: 10, // Admin (profil 2)
+      userProfil: 2,
+    });
+
+    assert.equal(result.success, true);
+    assert.equal(postsStore.has(201), false);
   });
 
   it('devrait renvoyer PostNotFoundError si le message n’existe pas', async () => {

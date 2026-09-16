@@ -12,9 +12,11 @@ import { updateCampaignUseCase, UpdateCampaignUseCase } from '../usecases/campai
 import { joinCampaignUseCase, JoinCampaignUseCase } from '../usecases/campaign/join-campaign.usecase.js';
 import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/create-section.usecase.js';
 import { updateSectionUseCase, UpdateSectionUseCase } from '../usecases/forum/update-section.usecase.js';
+import { deleteSectionUseCase, DeleteSectionUseCase } from '../usecases/forum/delete-section.usecase.js';
 import { uploadSectionBannerUseCase, UploadSectionBannerUseCase } from '../usecases/forum/upload-section-banner.usecase.js';
 import { createTopicUseCase, CreateTopicUseCase } from '../usecases/forum/create-topic.usecase.js';
 import { updateTopicUseCase, UpdateTopicUseCase } from '../usecases/forum/update-topic.usecase.js';
+import { deleteTopicUseCase, DeleteTopicUseCase } from '../usecases/forum/delete-topic.usecase.js';
 import { reorderSectionsUseCase, ReorderSectionsUseCase } from '../usecases/forum/reorder-sections.usecase.js';
 import { reorderTopicsUseCase, ReorderTopicsUseCase } from '../usecases/forum/reorder-topics.usecase.js';
 import { createCharacterUseCase, CreateCharacterUseCase } from '../usecases/character/create-character.usecase.js';
@@ -149,7 +151,7 @@ const rollDiceBodySchema = z.object({
 });
 
 const createSectionParamsSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().min(0).optional(),
 });
 
 const createSectionBodySchema = z.object({
@@ -187,7 +189,7 @@ const updateTopicBodySchema = z.object({
 });
 
 const reorderSectionsParamsSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().min(0).optional(),
 });
 
 const reorderSectionsBodySchema = z.object({
@@ -195,7 +197,7 @@ const reorderSectionsBodySchema = z.object({
 });
 
 const reorderTopicsParamsSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().min(0).optional(),
 });
 
 const reorderTopicsBodySchema = z.object({
@@ -296,9 +298,11 @@ export class CampaignController {
     private readonly updateCampaignUseCaseService: UpdateCampaignUseCase = updateCampaignUseCase,
     private readonly createSectionUseCaseService: CreateSectionUseCase = createSectionUseCase,
     private readonly updateSectionUseCaseService: UpdateSectionUseCase = updateSectionUseCase,
+    private readonly deleteSectionUseCaseService: DeleteSectionUseCase = deleteSectionUseCase,
     private readonly uploadSectionBannerUseCaseService: UploadSectionBannerUseCase = uploadSectionBannerUseCase,
     private readonly createTopicUseCaseService: CreateTopicUseCase = createTopicUseCase,
     private readonly updateTopicUseCaseService: UpdateTopicUseCase = updateTopicUseCase,
+    private readonly deleteTopicUseCaseService: DeleteTopicUseCase = deleteTopicUseCase,
     private readonly reorderSectionsUseCaseService: ReorderSectionsUseCase = reorderSectionsUseCase,
     private readonly reorderTopicsUseCaseService: ReorderTopicsUseCase = reorderTopicsUseCase,
     private readonly createCharacterUseCaseService: CreateCharacterUseCase = createCharacterUseCase,
@@ -696,6 +700,7 @@ export class CampaignController {
       const post = await this.updatePostUseCaseService.execute({
         postId,
         userId: user.id,
+        userProfil: user.profil,
         content,
         persoId,
       });
@@ -739,6 +744,7 @@ export class CampaignController {
       const result = await this.deletePostUseCaseService.execute({
         postId,
         userId: user.id,
+        userProfil: user.profil,
       });
 
       return reply.status(200).send(result);
@@ -913,13 +919,14 @@ export class CampaignController {
     }
 
     const user = request.user as JWTPayload;
-    const { id: campagneId } = parseParams.data;
+    const campagneId = parseParams.data.id !== undefined && parseParams.data.id !== null ? parseParams.data.id : 0;
     const { title, defaultCollapse, banniere } = parseBody.data;
 
     try {
       const section = await this.createSectionUseCaseService.execute({
         campagneId,
         userId: user.id,
+        userProfil: user.profil,
         title,
         defaultCollapse,
         banniere,
@@ -970,6 +977,7 @@ export class CampaignController {
       const topic = await this.createTopicUseCaseService.execute({
         sectionId,
         userId: user.id,
+        userProfil: user.profil,
         title,
         stickable,
         isPrivate,
@@ -1017,13 +1025,14 @@ export class CampaignController {
     }
 
     const user = request.user as JWTPayload;
-    const { id: campagneId } = parseParams.data;
+    const campagneId = parseParams.data.id !== undefined && parseParams.data.id !== null ? parseParams.data.id : 0;
     const { sectionIds } = parseBody.data;
 
     try {
       const result = await this.reorderSectionsUseCaseService.execute({
         campagneId,
         userId: user.id,
+        userProfil: user.profil,
         sectionIds,
       });
 
@@ -1065,13 +1074,14 @@ export class CampaignController {
     }
 
     const user = request.user as JWTPayload;
-    const { id: campagneId } = parseParams.data;
+    const campagneId = parseParams.data.id !== undefined && parseParams.data.id !== null ? parseParams.data.id : 0;
     const { sections } = parseBody.data;
 
     try {
       const result = await this.reorderTopicsUseCaseService.execute({
         campagneId,
         userId: user.id,
+        userProfil: user.profil,
         sections,
       });
 
@@ -1119,6 +1129,7 @@ export class CampaignController {
       const section = await this.updateSectionUseCaseService.execute({
         sectionId,
         userId: user.id,
+        userProfil: user.profil,
         title,
         defaultCollapse,
         banniere,
@@ -1137,6 +1148,41 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la mise à jour de la section' });
+    }
+  }
+
+  /**
+   * DELETE /api/sections/:id
+   * DELETE /api/campaigns/:id/sections/:sectionId
+   * Supprime une section
+   */
+  async deleteSection(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as Record<string, any>;
+    const sectionId = Number(params.sectionId || params.id);
+
+    if (!sectionId || isNaN(sectionId) || sectionId <= 0) {
+      return reply.status(400).send({ error: 'Identifiant de section invalide' });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.deleteSectionUseCaseService.execute({
+        sectionId,
+        userId: user.id,
+        userProfil: user.profil,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof SectionNotFoundError || error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la suppression de la section' });
     }
   }
 
@@ -1166,6 +1212,7 @@ export class CampaignController {
         sectionId,
         campagneId: campaignId,
         userId: user.id,
+        userProfil: user.profil,
         filename: file.filename,
         mimetype: file.mimetype,
         content: buffer,
@@ -1218,6 +1265,7 @@ export class CampaignController {
       const topic = await this.updateTopicUseCaseService.execute({
         topicId,
         userId: user.id,
+        userProfil: user.profil,
         title,
         stickable,
         isPrivate,
@@ -1238,6 +1286,41 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la mise à jour du sujet' });
+    }
+  }
+
+  /**
+   * DELETE /api/topics/:id
+   * DELETE /api/campaigns/:id/topics/:topicId
+   * Supprime un sujet
+   */
+  async deleteTopic(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as Record<string, any>;
+    const topicId = Number(params.topicId || params.id);
+
+    if (!topicId || isNaN(topicId) || topicId <= 0) {
+      return reply.status(400).send({ error: 'Identifiant de sujet invalide' });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.deleteTopicUseCaseService.execute({
+        topicId,
+        userId: user.id,
+        userProfil: user.profil,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof TopicNotFoundError || error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la suppression du sujet' });
     }
   }
 
@@ -2066,9 +2149,19 @@ export class CampaignController {
       (req, rep) => this.rollDiceTower(req, rep)
     );
 
-    // Routes authentifiées d'administration du forum de campagne (pour le MJ)
+    // Routes authentifiées d'administration du forum de campagne (pour le MJ) et du forum général (pour l'admin)
     app.post(
       '/api/campaigns/:id/sections',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.createSection(req, rep)
+    );
+    app.post(
+      '/api/sections',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.createSection(req, rep)
+    );
+    app.post(
+      '/api/forum/sections',
       { preHandler: [app.authenticate] },
       (req, rep) => this.createSection(req, rep)
     );
@@ -2100,8 +2193,18 @@ export class CampaignController {
       { preHandler: [app.authenticate] },
       (req, rep) => this.updateSection(req, rep)
     );
+    app.delete(
+      '/api/sections/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deleteSection(req, rep)
+    );
+    app.delete(
+      '/api/campaigns/:id/sections/:sectionId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deleteSection(req, rep)
+    );
 
-    // Routes authentifiées pour téléverser la bannière d'une section (MJ)
+    // Routes authentifiées pour téléverser la bannière d'une section (MJ ou Admin)
     app.post(
       '/api/sections/:id/banner',
       { preHandler: [app.authenticate] },
@@ -2144,6 +2247,16 @@ export class CampaignController {
       { preHandler: [app.authenticate] },
       (req, rep) => this.updateTopic(req, rep)
     );
+    app.delete(
+      '/api/topics/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deleteTopic(req, rep)
+    );
+    app.delete(
+      '/api/campaigns/:id/topics/:topicId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deleteTopic(req, rep)
+    );
 
     app.put(
       '/api/campaigns/:id/sections/reorder',
@@ -2152,6 +2265,16 @@ export class CampaignController {
     );
     app.patch(
       '/api/campaigns/:id/sections/reorder',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.reorderSections(req, rep)
+    );
+    app.put(
+      '/api/sections/reorder',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.reorderSections(req, rep)
+    );
+    app.patch(
+      '/api/sections/reorder',
       { preHandler: [app.authenticate] },
       (req, rep) => this.reorderSections(req, rep)
     );
@@ -2163,6 +2286,16 @@ export class CampaignController {
     );
     app.patch(
       '/api/campaigns/:id/topics/reorder',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.reorderTopics(req, rep)
+    );
+    app.put(
+      '/api/topics/reorder',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.reorderTopics(req, rep)
+    );
+    app.patch(
+      '/api/topics/reorder',
       { preHandler: [app.authenticate] },
       (req, rep) => this.reorderTopics(req, rep)
     );

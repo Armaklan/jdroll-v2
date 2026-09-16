@@ -146,6 +146,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.mj_id AS mjId,
         u.username AS mjUsername,
         u.avatar AS mjAvatar,
+        u.profil AS mjProfil,
         c.nb_joueurs AS nbJoueurs,
         c.nb_joueurs_actuel AS nbJoueursActuel,
         c.name,
@@ -202,6 +203,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: number;
       mjUsername: string;
       mjAvatar: string | null;
+      mjProfil?: number | null;
       nbJoueurs: number;
       nbJoueursActuel: number;
       name: string;
@@ -237,6 +239,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: row.mjId,
       mjUsername: row.mjUsername,
       mjAvatar: row.mjAvatar || '',
+      mjProfil: row.mjProfil ?? 0,
       nbJoueurs: row.nbJoueurs,
       nbJoueursActuel: row.nbJoueursActuel,
       banniere: row.banniere || '',
@@ -274,6 +277,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.mj_id AS mjId,
         u.username AS mjUsername,
         u.avatar AS mjAvatar,
+        u.profil AS mjProfil,
         c.nb_joueurs AS nbJoueurs,
         c.nb_joueurs_actuel AS nbJoueursActuel,
         c.name,
@@ -334,6 +338,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: number;
       mjUsername: string;
       mjAvatar: string | null;
+      mjProfil?: number | null;
       nbJoueurs: number;
       nbJoueursActuel: number;
       name: string;
@@ -371,6 +376,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: row.mjId,
       mjUsername: row.mjUsername,
       mjAvatar: row.mjAvatar || '',
+      mjProfil: row.mjProfil ?? 0,
       nbJoueurs: row.nbJoueurs,
       nbJoueursActuel: row.nbJoueursActuel,
       banniere: row.banniere || '',
@@ -410,6 +416,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.mj_id AS mjId,
         u.username AS mjUsername,
         u.avatar AS mjAvatar,
+        u.profil AS mjProfil,
         c.nb_joueurs AS nbJoueurs,
         c.nb_joueurs_actuel AS nbJoueursActuel,
         c.name,
@@ -467,6 +474,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: number;
       mjUsername: string;
       mjAvatar: string | null;
+      mjProfil?: number | null;
       nbJoueurs: number;
       nbJoueursActuel: number;
       name: string;
@@ -502,6 +510,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: row.mjId,
       mjUsername: row.mjUsername,
       mjAvatar: row.mjAvatar || '',
+      mjProfil: row.mjProfil ?? 0,
       nbJoueurs: row.nbJoueurs,
       nbJoueursActuel: row.nbJoueursActuel,
       banniere: row.banniere || '',
@@ -558,6 +567,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.mj_id AS mjId,
         u.username AS mjUsername,
         u.avatar AS mjAvatar,
+        u.profil AS mjProfil,
         c.nb_joueurs AS nbJoueurs,
         c.nb_joueurs_actuel AS nbJoueursActuel,
         c.name,
@@ -593,6 +603,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: number;
       mjUsername: string;
       mjAvatar: string | null;
+      mjProfil?: number | null;
       nbJoueurs: number;
       nbJoueursActuel: number;
       name: string;
@@ -626,6 +637,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: row.mjId,
       mjUsername: row.mjUsername,
       mjAvatar: row.mjAvatar || '',
+      mjProfil: row.mjProfil ?? 0,
       nbJoueurs: row.nbJoueurs,
       nbJoueursActuel: row.nbJoueursActuel,
       banniere: row.banniere || '',
@@ -659,6 +671,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         c.mj_id AS mjId,
         u.username AS mjUsername,
         u.avatar AS mjAvatar,
+        u.profil AS mjProfil,
         c.nb_joueurs AS nbJoueurs,
         c.nb_joueurs_actuel AS nbJoueursActuel,
         c.name,
@@ -702,6 +715,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: number;
       mjUsername: string;
       mjAvatar: string | null;
+      mjProfil?: number | null;
       nbJoueurs: number;
       nbJoueursActuel: number;
       name: string;
@@ -747,6 +761,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       mjId: row.mjId,
       mjUsername: row.mjUsername,
       mjAvatar: row.mjAvatar || '',
+      mjProfil: row.mjProfil ?? 0,
       nbJoueurs: row.nbJoueurs,
       nbJoueursActuel: row.nbJoueursActuel,
       banniere: row.banniere || '',
@@ -1032,6 +1047,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         p.user_id AS userId,
         u.username AS userName,
         u.avatar AS userAvatar,
+        u.profil AS userProfil,
         p.campagne_id AS campagneId,
         p.name,
         p.concept,
@@ -1144,6 +1160,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         p.user_id AS userId,
         u.username AS userName,
         u.avatar AS userAvatar,
+        u.profil AS userProfil,
         p.campagne_id AS campagneId,
         p.name,
         p.concept,
@@ -1305,7 +1322,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       SELECT 
         u.id,
         u.username,
-        u.avatar
+        u.avatar,
+        u.profil
       FROM campagne_participant cp
       JOIN user u ON cp.user_id = u.id
       WHERE cp.campagne_id = ?

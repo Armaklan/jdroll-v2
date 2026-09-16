@@ -12,6 +12,7 @@ import {
 import { campaignsApi } from '../api/campaigns';
 import { CampaignDiceRoll } from '../types/campaign';
 import { parseDiceInText } from '../utils/dice-parser';
+import { getUserColorClass } from '../utils/user';
 
 interface DiceTowerModalProps {
   isOpen: boolean;
@@ -333,7 +334,9 @@ export const DiceTowerModal: React.FC<DiceTowerModalProps> = ({
                             {roll.username.charAt(0).toUpperCase()}
                           </div>
                         )}
-                        <span className="font-bold text-slate-800">{roll.username}</span>
+                        <span className={`font-bold ${getUserColorClass(roll.userProfil, 'text-slate-800')}`}>
+                          {roll.username}
+                        </span>
                         {roll.description && (
                           <>
                             <span className="text-slate-300">&bull;</span>

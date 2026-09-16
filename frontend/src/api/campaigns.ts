@@ -297,7 +297,8 @@ export const campaignsApi = {
   },
 
   async createSection(campaignId: number, data: { title: string; defaultCollapse?: boolean; banniere?: string }) {
-    return request<{ section: any }>(`/api/campaigns/${campaignId}/sections`, {
+    const endpoint = campaignId && campaignId > 0 ? `/api/campaigns/${campaignId}/sections` : `/api/sections`;
+    return request<{ section: any }>(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -308,6 +309,13 @@ export const campaignsApi = {
     return request<{ section: any }>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  },
+
+  async deleteSection(sectionId: number, campaignId?: number) {
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/sections/${sectionId}` : `/api/sections/${sectionId}`;
+    return request<{ success: boolean; sectionId: number }>(endpoint, {
+      method: 'DELETE',
     });
   },
 
@@ -363,6 +371,13 @@ export const campaignsApi = {
     return request<{ topic: any }>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  },
+
+  async deleteTopic(topicId: number, campaignId?: number) {
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/topics/${topicId}` : `/api/topics/${topicId}`;
+    return request<{ success: boolean; topicId: number }>(endpoint, {
+      method: 'DELETE',
     });
   },
 

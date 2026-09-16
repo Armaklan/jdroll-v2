@@ -1,4 +1,5 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import { ForumPost } from '../../types/index.js';
 import {
   PostNotFoundError,
@@ -11,12 +12,16 @@ import {
 export interface UpdatePostDTO {
   postId: number;
   userId: number;
+  userProfil?: number;
   content: string;
   persoId?: number | null;
 }
 
 export class UpdatePostUseCase {
-  constructor(private readonly forumRepo: IForumRepository = forumRepository) {}
+  constructor(
+    private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly userRepo: IUserRepository = userRepository
+  ) {}
 
   async execute(dto: UpdatePostDTO): Promise<ForumPost> {
     const rawContent = (dto.content || '').trim();
@@ -79,12 +84,22 @@ export class UpdatePostUseCase {
       }
     } else {
       // Forum Général
-      if (post.user.id !== dto.userId) {
-        throw new ForbiddenError("Vous n'êtes pas autorisé à modifier ce message");
+      let profil = dto.userProfil;
+      if (profil === undefined) {
+        const user = await this.userRepo.findById(dto.userId);
+        profil = user?.profil ?? 0;
       }
 
-      if (Boolean(topic.isClosed)) {
-        throw new TopicClosedError('Ce sujet est fermé');
+      const isAdmin = profil === 2;
+
+      if (!isAdmin) {
+        if (post.user.id !== dto.userId) {
+          throw new ForbiddenError("Vous n'êtes pas autorisé à modifier ce message");
+        }
+
+        if (Boolean(topic.isClosed)) {
+          throw new TopicClosedError('Ce sujet est fermé');
+        }
       }
 
       finalPersoId = null;

@@ -1,4 +1,5 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import {
   TopicNotFoundError,
   ForbiddenError,
@@ -8,6 +9,7 @@ import {
 export interface UpdateTopicInput {
   topicId: number;
   userId: number;
+  userProfil?: number;
   title?: string;
   stickable?: boolean;
   isPrivate?: number | boolean;
@@ -26,7 +28,10 @@ export interface UpdateTopicOutput {
 }
 
 export class UpdateTopicUseCase {
-  constructor(private readonly forumRepo: IForumRepository = forumRepository) {}
+  constructor(
+    private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly userRepo: IUserRepository = userRepository
+  ) {}
 
   async execute(input: UpdateTopicInput): Promise<UpdateTopicOutput> {
     const topic = await this.forumRepo.findTopicById(input.topicId);
@@ -38,6 +43,15 @@ export class UpdateTopicUseCase {
       const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, input.userId);
       if (!isMj) {
         throw new ForbiddenError('Seul le Maître du Jeu peut modifier ce sujet');
+      }
+    } else {
+      let profil = input.userProfil;
+      if (profil === undefined) {
+        const user = await this.userRepo.findById(input.userId);
+        profil = user?.profil ?? 0;
+      }
+      if (profil !== 2) {
+        throw new ForbiddenError('Seul un administrateur peut modifier ce sujet sur le forum général');
       }
     }
 
