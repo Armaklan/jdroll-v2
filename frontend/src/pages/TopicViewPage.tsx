@@ -9,6 +9,7 @@ import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignHeader } from '../components/CampaignHeader';
 import { CharacterWidgetsRenderer } from '../components/CharacterWidgetsRenderer';
+import { CharacterDetailModal } from '../components/CharacterDetailModal';
 import {
   serializeWidgets,
   changeWidgetValue,
@@ -105,6 +106,9 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   // État de suppression d'un message
   const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
   const [isDeletingPost, setIsDeletingPost] = useState<boolean>(false);
+
+  // État de visualisation de la fiche d'un personnage
+  const [viewingCharacterId, setViewingCharacterId] = useState<number | null>(null);
 
   const previewRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -804,10 +808,20 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                         <img
                           src={avatarUrl}
                           alt={authorName}
-                          className="w-12 h-12 md:w-16 md:h-16 rounded-2xl object-cover border-2 border-slate-200 shadow-xs"
+                          onClick={() => post.perso && setViewingCharacterId(post.perso.id)}
+                          className={`w-12 h-12 md:w-16 md:h-16 rounded-2xl object-cover border-2 border-slate-200 shadow-xs ${
+                            post.perso ? 'cursor-pointer hover:opacity-90 hover:ring-2 hover:ring-indigo-400 transition' : ''
+                          }`}
+                          title={post.perso ? `Voir la fiche de ${authorName}` : undefined}
                         />
                       ) : (
-                        <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-indigo-100 text-indigo-700 border-2 border-indigo-200 flex items-center justify-center font-bold text-base md:text-xl shadow-xs">
+                        <div
+                          onClick={() => post.perso && setViewingCharacterId(post.perso.id)}
+                          className={`w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-indigo-100 text-indigo-700 border-2 border-indigo-200 flex items-center justify-center font-bold text-base md:text-xl shadow-xs ${
+                            post.perso ? 'cursor-pointer hover:bg-indigo-200 transition' : ''
+                          }`}
+                          title={post.perso ? `Voir la fiche de ${authorName}` : undefined}
+                        >
                           {authorName.charAt(0).toUpperCase()}
                         </div>
                       )}
@@ -824,14 +838,23 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
                     {/* Détails Auteur */}
                     <div className="space-y-0.5 min-w-0">
-                      <h4
-                        className={`font-bold text-sm sm:text-base leading-tight ${
-                          !post.perso ? getUserColorClass(post.user?.profil) : ''
-                        }`}
-                        style={{ color: postLinkColor || postTextColor || undefined }}
-                      >
-                        {authorName}
-                      </h4>
+                      {post.perso ? (
+                        <h4
+                          onClick={() => setViewingCharacterId(post.perso!.id)}
+                          className="font-bold text-sm sm:text-base leading-tight cursor-pointer hover:underline transition"
+                          style={{ color: postLinkColor || postTextColor || undefined }}
+                          title={`Voir la fiche de ${authorName}`}
+                        >
+                          {authorName}
+                        </h4>
+                      ) : (
+                        <h4
+                          className={`font-bold text-sm sm:text-base leading-tight ${getUserColorClass(post.user?.profil)}`}
+                          style={{ color: postLinkColor || postTextColor || undefined }}
+                        >
+                          {authorName}
+                        </h4>
+                      )}
 
                       {isSystem && (
                         <span className="inline-block text-[11px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
@@ -1013,18 +1036,38 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                     <img
                       src={previewAvatar}
                       alt={previewAuthorName}
-                      className="w-12 h-12 md:w-16 md:h-16 rounded-2xl object-cover border-2 border-amber-300 shadow-xs"
+                      onClick={() => selectedCharacter && setViewingCharacterId(selectedCharacter.id)}
+                      className={`w-12 h-12 md:w-16 md:h-16 rounded-2xl object-cover border-2 border-amber-300 shadow-xs ${
+                        selectedCharacter ? 'cursor-pointer hover:opacity-90 transition' : ''
+                      }`}
+                      title={selectedCharacter ? `Voir la fiche de ${previewAuthorName}` : undefined}
                     />
                   ) : (
-                    <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-amber-200 text-amber-900 border-2 border-amber-300 flex items-center justify-center font-bold text-base md:text-xl shadow-xs">
+                    <div
+                      onClick={() => selectedCharacter && setViewingCharacterId(selectedCharacter.id)}
+                      className={`w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-amber-200 text-amber-900 border-2 border-amber-300 flex items-center justify-center font-bold text-base md:text-xl shadow-xs ${
+                        selectedCharacter ? 'cursor-pointer hover:bg-amber-300 transition' : ''
+                      }`}
+                      title={selectedCharacter ? `Voir la fiche de ${previewAuthorName}` : undefined}
+                    >
                       {previewAuthorName.charAt(0).toUpperCase()}
                     </div>
                   )}
 
                   <div className="space-y-0.5 min-w-0">
-                    <h4 className="font-bold text-sm sm:text-base text-slate-900 leading-tight">
-                      {previewAuthorName}
-                    </h4>
+                    {selectedCharacter ? (
+                      <h4
+                        onClick={() => setViewingCharacterId(selectedCharacter.id)}
+                        className="font-bold text-sm sm:text-base text-slate-900 leading-tight cursor-pointer hover:underline transition"
+                        title={`Voir la fiche de ${previewAuthorName}`}
+                      >
+                        {previewAuthorName}
+                      </h4>
+                    ) : (
+                      <h4 className="font-bold text-sm sm:text-base text-slate-900 leading-tight">
+                        {previewAuthorName}
+                      </h4>
+                    )}
 
                     {previewConcept && (
                       <p className="text-xs text-indigo-600 font-medium italic">
@@ -1436,6 +1479,18 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             isMj={topicDetail.userRole === 'mj'}
           />
         )}
+        <CharacterDetailModal
+          isOpen={viewingCharacterId !== null}
+          onClose={() => setViewingCharacterId(null)}
+          characterId={viewingCharacterId}
+          campaignId={topicDetail?.campagneId || undefined}
+          initialCampaign={topicDetail?.campaign || undefined}
+          onUpdateCharacterWidget={async (widgetId, delta) => {
+            if (viewingCharacterId) {
+              await handleUpdatePostCharacterWidget(viewingCharacterId, widgetId, delta);
+            }
+          }}
+        />
       </div>
     </div>
   );

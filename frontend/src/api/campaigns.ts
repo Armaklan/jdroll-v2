@@ -150,6 +150,11 @@ export const campaignsApi = {
     return request<CampaignCharactersData>(`/api/campaigns/${campaignId}/characters`);
   },
 
+  async getCharacter(characterId: number, campaignId?: number): Promise<{ campaign: CampaignSummary; character: CampaignCharacter }> {
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/characters/${characterId}` : `/api/characters/${characterId}`;
+    return request<{ campaign: CampaignSummary; character: CampaignCharacter }>(endpoint);
+  },
+
   async getCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]> {
     const result = await request<{ participants: CampaignParticipant[] }>(`/api/campaigns/${campaignId}/participants`);
     return result.participants;

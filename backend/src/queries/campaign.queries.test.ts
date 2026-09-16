@@ -5,7 +5,7 @@ import { ICampaignRepository } from '../repositories/campaign.repository.js';
 import { IDicerRepository, DicerRollWithUser } from '../repositories/dicer.repository.js';
 import { IForumRepository } from '../repositories/forum.repository.js';
 import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow } from '../types/index.js';
-import { CampaignNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
+import { CampaignNotFoundError, CharacterNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
 class MockDicerRepository implements IDicerRepository {
   constructor(private rolls: DicerRollWithUser[] = []) {}
@@ -630,6 +630,88 @@ describe('CampaignQueries', () => {
 
       const catNoblesse = data.categories.find((c) => c.name === 'Noblesse de Barovie')!;
       assert.equal(catNoblesse.characters[0].privateDescription, undefined);
+    });
+  });
+
+  describe('getCharacter', () => {
+    const campaign1: CampaignSummary = {
+      id: 1,
+      name: 'La Malédiction de Strahd',
+      mjId: 1, // GM is user 1
+      mjUsername: 'mj_user',
+      nbJoueurs: 4,
+      nbJoueursActuel: 2,
+      banniere: '',
+      systeme: 'D&D 5',
+      univers: 'Gothique',
+      description: 'Une aventure en Barovie',
+      statut: 0,
+      isArchived: false,
+      isRecrutementOpen: true,
+      userRole: 'mj',
+      templateImg: 'template.png',
+      templateFields: '[]',
+      widgets: JSON.stringify([{ id: 'w1', name: 'HP', type: 'jauge', low: 0, up: 20, value: 20 }]),
+    };
+
+    const characterPj: RawCampaignCharacterRow = {
+      id: 101,
+      userId: 2,
+      userName: 'joueur1',
+      userAvatar: null,
+      userProfil: 1,
+      campagneId: 1,
+      name: 'Kaelen',
+      concept: 'Mage évocateur',
+      avatar: 'kaelen.png',
+      publicDescription: 'Un magicien studieux',
+      privateDescription: 'Secret de mage',
+      technical: 'INT: 18, FOR: 8',
+      statut: 0,
+      catId: null,
+      categoryName: null,
+      persoFields: '{"HP": 15}',
+      widgets: JSON.stringify([{ id: 'w1', value: 15 }]),
+    };
+
+    it('lève CharacterNotFoundError si le personnage n’existe pas', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], []);
+      const queries = new CampaignQueries(repo);
+      await assert.rejects(() => queries.getCharacter(999, 1), CharacterNotFoundError);
+    });
+
+    it('retourne le personnage avec descriptions privées et widgets pour le MJ', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], [characterPj]);
+      const queries = new CampaignQueries(repo);
+      const res = await queries.getCharacter(101, 1); // User 1 is MJ
+
+      assert.equal(res.character.id, 101);
+      assert.equal(res.character.name, 'Kaelen');
+      assert.equal(res.character.privateDescription, 'Secret de mage');
+      assert.equal(res.character.technical, 'INT: 18, FOR: 8');
+      assert.ok(res.character.widgets);
+      assert.equal(res.campaign.name, 'La Malédiction de Strahd');
+      assert.equal(res.campaign.templateImg, 'template.png');
+    });
+
+    it('retourne le personnage avec descriptions privées pour son propriétaire joueur', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], [characterPj]);
+      const queries = new CampaignQueries(repo);
+      const res = await queries.getCharacter(101, 2); // User 2 is character owner
+
+      assert.equal(res.character.privateDescription, 'Secret de mage');
+      assert.equal(res.character.technical, 'INT: 18, FOR: 8');
+      assert.ok(res.character.widgets);
+    });
+
+    it('masque les descriptions privées et widgets pour un autre utilisateur', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], [characterPj]);
+      const queries = new CampaignQueries(repo);
+      const res = await queries.getCharacter(101, 3); // User 3 is unrelated
+
+      assert.equal(res.character.privateDescription, undefined);
+      assert.equal(res.character.technical, undefined);
+      assert.equal(res.character.widgets, undefined);
     });
   });
 

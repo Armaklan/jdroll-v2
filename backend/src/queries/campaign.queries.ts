@@ -8,7 +8,7 @@ import {
   CampaignCharacterCategory,
   CampaignCharacter,
 } from '../types/index.js';
-import { CampaignNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
+import { CampaignNotFoundError, CharacterNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
 export class CampaignQueries {
   constructor(
@@ -215,6 +215,80 @@ export class CampaignQueries {
         hasAlert: hasAlert || Boolean(campaign.hasAlert),
       },
       categories,
+    };
+  }
+
+  /**
+   * Récupère un personnage spécifique et sa campagne associée avec application des droits d'accès
+   */
+  async getCharacter(characterId: number, currentUserId?: number): Promise<{ campaign: CampaignSummary; character: CampaignCharacter }> {
+    const raw = await this.campaignRepo.findCharacterById(characterId);
+    if (!raw) {
+      throw new CharacterNotFoundError(`Le personnage avec l'identifiant ${characterId} n'existe pas`);
+    }
+
+    const campaign = await this.campaignRepo.findById(raw.campagneId);
+    if (!campaign) {
+      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${raw.campagneId} n'existe pas`);
+    }
+
+    let userRole: 'mj' | 'player' | 'observer' | null = null;
+    let isObserving = false;
+    let hasAlert = false;
+
+    if (currentUserId) {
+      if (campaign.mjId === currentUserId) {
+        userRole = 'mj';
+      } else {
+        const isParticipant = await this.campaignRepo.isUserCampaignParticipant(raw.campagneId, currentUserId);
+        if (isParticipant) {
+          userRole = 'player';
+        } else {
+          isObserving = this.campaignRepo.isUserCampaignObserver ? await this.campaignRepo.isUserCampaignObserver(raw.campagneId, currentUserId) : false;
+          if (isObserving) {
+            userRole = 'observer';
+          }
+        }
+      }
+    }
+
+    const isMj = userRole === 'mj';
+    const isPlayer = raw.userId !== null && raw.userId !== undefined;
+    const isOwner = Boolean(currentUserId && raw.userId === currentUserId);
+    const canSeePrivate = isMj || isOwner;
+
+    const character: CampaignCharacter = {
+      id: raw.id,
+      userId: raw.userId,
+      userName: raw.userName || null,
+      userAvatar: raw.userAvatar || null,
+      userProfil: raw.userProfil || null,
+      campagneId: raw.campagneId,
+      name: raw.name,
+      concept: raw.concept || '',
+      avatar: raw.avatar || '',
+      publicDescription: raw.publicDescription || '',
+      privateDescription: canSeePrivate ? (raw.privateDescription || '') : undefined,
+      technical: canSeePrivate ? (raw.technical || '') : undefined,
+      statut: raw.statut,
+      catId: raw.catId,
+      categoryName: raw.categoryName || (isPlayer ? 'Personnage joueur' : 'Non classées'),
+      isPlayer,
+      persoFields: raw.persoFields,
+      templateHtml: campaign.templateHtml,
+      templateImg: campaign.templateImg,
+      templateFields: campaign.templateFields,
+      widgets: canSeePrivate ? (raw.widgets || '') : undefined,
+    };
+
+    return {
+      campaign: {
+        ...campaign,
+        userRole: userRole ?? campaign.userRole,
+        isObserving: isObserving || campaign.isObserving,
+        hasAlert: hasAlert || Boolean(campaign.hasAlert),
+      },
+      character,
     };
   }
 

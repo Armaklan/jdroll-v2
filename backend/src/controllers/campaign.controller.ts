@@ -618,6 +618,37 @@ export class CampaignController {
   }
 
   /**
+   * GET /api/characters/:id ou GET /api/campaigns/:campaignId/characters/:id
+   * Récupère la fiche détaillée d'un personnage avec les configurations de campagne associées
+   */
+  async getCharacter(request: FastifyRequest, reply: FastifyReply) {
+    const params = request.params as { id?: string; characterId?: string };
+    const characterId = Number(params.id || params.characterId);
+    if (isNaN(characterId) || characterId <= 0) {
+      return reply.status(400).send({ error: 'Identifiant de personnage invalide' });
+    }
+
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      // Utilisateur non connecté / invité
+    }
+
+    try {
+      const data = await this.campaignQueryService.getCharacter(characterId, userId);
+      return reply.status(200).send(data);
+    } catch (error) {
+      if (error instanceof CharacterNotFoundError || error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération du personnage' });
+    }
+  }
+
+  /**
    * GET /api/topics/:id
    * Récupère les messages d'un topic avec pagination et détection automatique de la page du dernier message lu
    */
@@ -2206,6 +2237,10 @@ export class CampaignController {
     // Route pour voir la galerie des personnages d'une campagne
     app.get('/api/campaigns/:id/characters', (req, rep) => this.getCampaignCharacters(req, rep));
     app.get('/api/campaigns/:id/gallery', (req, rep) => this.getCampaignCharacters(req, rep));
+
+    // Route pour voir la fiche d'un personnage spécifique
+    app.get('/api/characters/:id', (req, rep) => this.getCharacter(req, rep));
+    app.get('/api/campaigns/:id/characters/:characterId', (req, rep) => this.getCharacter(req, rep));
 
     // Route pour voir les participants d'une campagne
     app.get('/api/campaigns/:id/participants', (req, rep) => this.getCampaignParticipants(req, rep));
