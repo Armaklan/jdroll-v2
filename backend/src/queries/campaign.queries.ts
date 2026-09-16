@@ -156,7 +156,7 @@ export class CampaignQueries {
         categoryName: '',
         isPlayer,
         persoFields: raw.persoFields,
-        widgets: raw.widgets,
+        widgets: canSeePrivate ? (raw.widgets || '') : undefined,
       };
 
       if (raw.catId && categoryMap.has(raw.catId)) {

@@ -1,0 +1,1 @@
+[{"id":"c6590843-588a-044a-3dd4-28d98486cec3","type":"token","up":0,"low":0,"value":0,"name":"Héroïsme"},{"id":"14765972-240d-399e-ec96-5fce6405bbf1","type":"jauge","up":0,"low":0,"value":0,"name":"Jauge"},{"id":"b4743a99-90bc-af93-3efc-1a081351c835","type":"text","value":"","name":"Texte"}]

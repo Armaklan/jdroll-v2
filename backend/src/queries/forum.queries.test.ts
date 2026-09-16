@@ -218,9 +218,10 @@ class MockForumRepository implements IForumRepository {
     private sections: ForumSectionSummary[] = mockSections,
     private topic: RawTopicDetail | null = mockTopic,
     postsCount = 0,
-    lastReadPostId: number | null = null
+    lastReadPostId: number | null = null,
+    customPosts?: ForumPost[]
   ) {
-    this.allPosts = generateMockPosts(postsCount);
+    this.allPosts = customPosts || generateMockPosts(postsCount);
     this.lastReadPostId = lastReadPostId;
   }
 
@@ -739,5 +740,64 @@ describe('ForumQueries', () => {
     const playerResult = await queries.getTopicPosts(301, 1, 2);
     assert.equal(playerResult.isPrivate, 1);
     assert.equal(playerResult.canPost, true);
+  });
+
+  it('gère la visibilité des widgets des personnages dans les messages du forum', async () => {
+    const postWithPerso1: ForumPost = {
+      id: 501,
+      topicId: 101,
+      content: 'Bonjour',
+      createDate: '2026-09-16T12:00:00.000Z',
+      editor: 0,
+      user: { id: 2, username: 'player1', avatar: '', profil: 0 },
+      perso: {
+        id: 10,
+        userId: 2,
+        name: 'Guerrier',
+        concept: 'Combattant',
+        avatar: '',
+        publicDescription: '',
+        widgets: '[{"id":"w1","name":"PV","type":"jauge","value":15,"low":0,"up":20}]',
+      },
+      isRead: true,
+    };
+
+    const postWithPerso2: ForumPost = {
+      id: 502,
+      topicId: 101,
+      content: 'Salut',
+      createDate: '2026-09-16T12:05:00.000Z',
+      editor: 0,
+      user: { id: 3, username: 'player2', avatar: '', profil: 0 },
+      perso: {
+        id: 20,
+        userId: 3,
+        name: 'Mage',
+        concept: 'Arcaniste',
+        avatar: '',
+        publicDescription: '',
+        widgets: '[{"id":"w2","name":"Mana","type":"jauge","value":8,"low":0,"up":10}]',
+      },
+      isRead: true,
+    };
+
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 2, null, [postWithPerso1, postWithPerso2]);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    // 1. En tant que MJ (User 1) : voit les widgets de tous les personnages
+    const mjResult = await queries.getTopicPosts(101, 1, 1);
+    assert.ok(mjResult.posts[0].perso?.widgets);
+    assert.ok(mjResult.posts[1].perso?.widgets);
+
+    // 2. En tant que Joueur 1 (User 2) : voit ses propres widgets mais pas ceux de Joueur 2
+    const p1Result = await queries.getTopicPosts(101, 1, 2);
+    assert.ok(p1Result.posts[0].perso?.widgets);
+    assert.equal(p1Result.posts[1].perso?.widgets, null);
+
+    // 3. En tant qu'utilisateur externe (User 99) : ne voit aucun widget
+    const anonResult = await queries.getTopicPosts(101, 1, 99);
+    assert.equal(anonResult.posts[0].perso?.widgets, null);
+    assert.equal(anonResult.posts[1].perso?.widgets, null);
   });
 });

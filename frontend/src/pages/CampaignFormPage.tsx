@@ -23,8 +23,12 @@ import {
   Sliders,
   LayoutTemplate,
   FileText,
+  Activity,
 } from 'lucide-react';
 import { CharacterSheetRenderer } from '../components/CharacterSheetRenderer';
+import { CampaignWidgetsConfig } from '../components/CampaignWidgetsConfig';
+import { CampaignWidget } from '../types/campaign';
+import { parseWidgets, serializeWidgets } from '../utils/widgets';
 import {
   TemplateField,
   parseTemplateFields,
@@ -143,8 +147,11 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const [sheetFields, setSheetFields] = useState<TemplateField[]>([]);
   const [sheetMaxCount, setSheetMaxCount] = useState<number>(0);
 
+  // Campaign Widgets Configuration
+  const [widgetsList, setWidgetsList] = useState<CampaignWidget[]>([]);
+
   // Active tab in form
-  const [activeTab, setActiveTab] = useState<'general' | 'gameplay' | 'appearance' | 'sheet'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'gameplay' | 'appearance' | 'sheet' | 'widgets'>('general');
 
   // Load existing campaign data for edit mode
   useEffect(() => {
@@ -210,6 +217,11 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         const parsedFields = parseTemplateFields(campaign.templateFields);
         setSheetFields(parsedFields.fields);
         setSheetMaxCount(parsedFields.maxCount);
+
+        // Widgets
+        if (campaign.widgets) {
+          setWidgetsList(parseWidgets(campaign.widgets));
+        }
       } catch (err: any) {
         setLoadError(err.message || 'Impossible de charger les données de la campagne.');
       } finally {
@@ -479,6 +491,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           templateImg: finalSheetImgValue,
           templateHtml: finalTemplateHtml,
           templateFields: serializedSheetFields,
+          widgets: serializeWidgets(widgetsList),
         };
 
         const updated = await campaignsApi.updateCampaign(campaignId, payload);
@@ -522,6 +535,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           templateImg: sheetBgType === 'image' ? initialSheetImg : '',
           templateHtml: initialTemplateHtml,
           templateFields: serializedSheetFields,
+          widgets: serializeWidgets(widgetsList),
         };
 
         const created = await campaignsApi.createCampaign(payload);
@@ -753,6 +767,24 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         >
           <LayoutTemplate className="w-4 h-4" />
           <span>Feuille de Personnage</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('widgets')}
+          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold rounded-t-2xl border-b-2 transition whitespace-nowrap cursor-pointer ${
+            activeTab === 'widgets'
+              ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>Widgets des Personnages</span>
+          {widgetsList.length > 0 && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+              {widgetsList.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -1975,6 +2007,14 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
               </div>
             </div>
           </div>
+        )}
+
+        {/* TAB 5: Widgets Configuration */}
+        {activeTab === 'widgets' && (
+          <CampaignWidgetsConfig
+            widgets={widgetsList}
+            onChange={setWidgetsList}
+          />
         )}
 
         {/* Action Bottom Bar */}

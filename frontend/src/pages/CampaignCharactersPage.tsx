@@ -6,6 +6,14 @@ import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignHeader } from '../components/CampaignHeader';
 import { CharacterSheetRenderer } from '../components/CharacterSheetRenderer';
+import { CharacterWidgetsRenderer } from '../components/CharacterWidgetsRenderer';
+import { CharacterWidgetsEditor } from '../components/CharacterWidgetsEditor';
+import { CampaignWidget } from '../types/campaign';
+import {
+  serializeWidgets,
+  mergeCharacterWidgets,
+  changeWidgetValue,
+} from '../utils/widgets';
 import { parsePersoFields, serializePersoFields } from '../utils/character-sheet';
 import { getUserColorClass } from '../utils/user';
 import {
@@ -43,6 +51,7 @@ import {
   Trash2,
   SlidersHorizontal,
   Shield,
+  Activity,
 } from 'lucide-react';
 
 interface CampaignCharactersPageProps {
@@ -60,6 +69,7 @@ interface CharacterFormData {
   privateDescription: string;
   technical: string;
   persoFields: Record<string, string>;
+  widgets: CampaignWidget[];
 }
 
 const emptyFormData: CharacterFormData = {
@@ -72,6 +82,7 @@ const emptyFormData: CharacterFormData = {
   privateDescription: '',
   technical: '',
   persoFields: {},
+  widgets: [],
 };
 
 export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
@@ -262,6 +273,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       privateDescription: '',
       technical: data?.campaign?.template || '',
       persoFields: {},
+      widgets: mergeCharacterWidgets(data?.campaign?.widgets, null),
     });
     setAvatarMode('url');
     setUploadError(null);
@@ -284,11 +296,44 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       privateDescription: char.privateDescription || '',
       technical: char.technical || '',
       persoFields: parsePersoFields(char.persoFields),
+      widgets: mergeCharacterWidgets(data?.campaign?.widgets, char.widgets),
     });
     setAvatarMode(char.avatar && char.avatar.startsWith('/files/') ? 'upload' : 'url');
     setUploadError(null);
     setFormError(null);
     setIsFormOpen(true);
+  };
+
+  const handleUpdateSelectedCharacterWidget = async (widgetId: string, delta: number) => {
+    if (!selectedCharacter) return;
+    const currentWidgets = mergeCharacterWidgets(data?.campaign?.widgets, selectedCharacter.widgets);
+    const updatedWidgets = changeWidgetValue(currentWidgets, widgetId, delta);
+    const serialized = serializeWidgets(updatedWidgets);
+
+    const updatedChar: CampaignCharacter = {
+      ...selectedCharacter,
+      widgets: serialized,
+    };
+    setSelectedCharacter(updatedChar);
+
+    if (data) {
+      setData({
+        ...data,
+        categories: data.categories.map((cat) => ({
+          ...cat,
+          characters: cat.characters.map((c) =>
+            c.id === selectedCharacter.id ? { ...c, widgets: serialized } : c
+          ),
+        })),
+      });
+    }
+
+    try {
+      await campaignsApi.updateCharacter(selectedCharacter.id, { widgets: serialized }, effectiveCampaignId);
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour des widgets:', err);
+      await fetchCharacters();
+    }
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
@@ -304,6 +349,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
 
     try {
       const serializedPersoFields = serializePersoFields(formData.persoFields);
+      const serializedWidgets = serializeWidgets(formData.widgets);
 
       if (editingCharacter) {
         // Edit mode
@@ -315,6 +361,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           privateDescription: formData.privateDescription,
           technical: formData.technical,
           persoFields: serializedPersoFields,
+          widgets: serializedWidgets,
         };
 
         if (isMj) {
@@ -345,6 +392,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
             privateDescription: updated.privateDescription,
             technical: updated.technical,
             persoFields: updated.persoFields ?? serializedPersoFields,
+            widgets: updated.widgets ?? serializedWidgets,
             catId: updated.catId,
             userId: updated.userId,
           });
@@ -361,6 +409,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           privateDescription: formData.privateDescription,
           technical: formData.technical,
           persoFields: serializedPersoFields,
+          widgets: serializedWidgets,
         };
 
         const created = await campaignsApi.createCharacter(effectiveCampaignId, payload);
@@ -958,6 +1007,25 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                                 </div>
                               </div>
 
+                              {/* Character Card Widgets Preview */}
+                              {(() => {
+                                const isOwner = Boolean(user && character.userId === user.id);
+                                const canSeeWidgets = isMj || isOwner;
+                                if (!canSeeWidgets) return null;
+                                const charWidgets = mergeCharacterWidgets(data?.campaign?.widgets, character.widgets);
+                                if (charWidgets.length === 0) return null;
+
+                                return (
+                                  <div className="mt-2.5 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                                    <CharacterWidgetsRenderer
+                                      widgets={charWidgets}
+                                      isEditable={false}
+                                      variant="card"
+                                    />
+                                  </div>
+                                );
+                              })()}
+
                               {/* Footer Meta: Player Username if PJ */}
                               <div className="mt-3.5 pt-3 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-400">
                                 {isPJ && character.userName ? (
@@ -1144,6 +1212,30 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                   />
                 </div>
               )}
+
+              {/* Widgets Section (Visible MJ & propriétaire) */}
+              {(() => {
+                const isOwner = Boolean(user && selectedCharacter.userId === user.id);
+                const canSeeWidgets = isMj || isOwner;
+                if (!canSeeWidgets) return null;
+                const charWidgets = mergeCharacterWidgets(data?.campaign?.widgets, selectedCharacter.widgets);
+                if (charWidgets.length === 0) return null;
+
+                return (
+                  <div className="space-y-3 pt-3 border-t border-slate-100">
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Activity className="w-4 h-4 text-indigo-600" />
+                      <span>Widgets & Compteurs</span>
+                    </h3>
+                    <CharacterWidgetsRenderer
+                      widgets={charWidgets}
+                      isEditable={isMj || isOwner}
+                      onUpdateWidget={handleUpdateSelectedCharacterWidget}
+                      variant="full"
+                    />
+                  </div>
+                );
+              })()}
 
               {/* Character Sheet (Graphique / Interactif) */}
               {Boolean(
@@ -1610,6 +1702,16 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                       onValuesChange={(newValues) =>
                         setFormData((prev) => ({ ...prev, persoFields: newValues }))
                       }
+                    />
+                  </div>
+                )}
+
+                {/* Widgets du personnage */}
+                {formData.widgets && formData.widgets.length > 0 && (
+                  <div className="space-y-2 pt-4 border-t border-slate-100">
+                    <CharacterWidgetsEditor
+                      widgets={formData.widgets}
+                      onChange={(widgets) => setFormData((prev) => ({ ...prev, widgets }))}
                     />
                   </div>
                 )}

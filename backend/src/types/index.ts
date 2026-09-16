@@ -73,6 +73,7 @@ export interface CampaignSummary {
   templateHtml?: string | null;
   templateImg?: string | null;
   templateFields?: string | null;
+  widgets?: string | null;
   hasUnread?: boolean;
   hasAlert?: boolean;
 }
@@ -144,10 +145,12 @@ export interface ForumPostUser {
 
 export interface ForumPostPerso {
   id: number;
+  userId?: number | null;
   name: string;
   concept?: string;
   avatar?: string;
   publicDescription?: string;
+  widgets?: string | null;
 }
 
 export interface ForumPost {

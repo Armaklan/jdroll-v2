@@ -172,11 +172,6 @@ export class ForumQueries {
       }
     }
 
-    const mappedPosts = posts.map((p) => ({
-      ...p,
-      isRead: userId ? (currentLastReadPostId !== null && p.id <= currentLastReadPostId) : true,
-    }));
-
     let canPost = false;
     let userRole: 'mj' | 'player' | 'user' | null = null;
     let availableCharacters: CharacterSummary[] = [];
@@ -221,6 +216,23 @@ export class ForumQueries {
         }
       }
     }
+
+    const isCampaignMj = userRole === 'mj';
+    const mappedPosts = posts.map((p) => {
+      let perso = p.perso;
+      if (perso) {
+        const canSeeWidgets = isCampaignMj || Boolean(userId && perso.userId && perso.userId === userId);
+        perso = {
+          ...perso,
+          widgets: canSeeWidgets ? (perso.widgets || null) : null,
+        };
+      }
+      return {
+        ...p,
+        perso,
+        isRead: userId ? (currentLastReadPostId !== null && p.id <= currentLastReadPostId) : true,
+      };
+    });
 
     let campaign: CampaignSummary | null = null;
     if (topic.campagneId && topic.campagneId > 0) {

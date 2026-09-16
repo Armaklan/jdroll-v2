@@ -33,6 +33,7 @@ export interface CreateCampaignData {
   templateHtml?: string | null;
   templateImg?: string | null;
   templateFields?: string | null;
+  widgets?: string | null;
 }
 
 export interface UpdateCampaignData {
@@ -66,6 +67,7 @@ export interface UpdateCampaignData {
   templateHtml?: string | null;
   templateImg?: string | null;
   templateFields?: string | null;
+  widgets?: string | null;
 }
 
 export interface ICampaignRepository {
@@ -704,6 +706,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.template_html AS templateHtml,
         cc.template_img AS templateImg,
         cc.template_fields AS templateFields,
+        cc.widgets AS widgets,
         cc.banniere AS banniereForum
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
@@ -749,6 +752,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       templateHtml: string | null;
       templateImg: string | null;
       templateFields: string | null;
+      widgets: string | null;
     }
 
     const rows = await query<RawCampaignRow>(sql, [id]);
@@ -795,6 +799,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       templateHtml: row.templateHtml || null,
       templateImg: row.templateImg || null,
       templateFields: row.templateFields || null,
+      widgets: row.widgets || null,
     };
   }
 
@@ -831,7 +836,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
         quote_color, width, widgets, default_dice,
         template_html, template_img, template_fields
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     await execute(configSql, [
@@ -851,6 +856,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       data.rp2Color || '#5eff6c',
       data.quoteColor || null,
       data.width || '800px',
+      data.widgets || '',
       data.defaultDice || '1d20',
       data.templateHtml || null,
       data.templateImg || null,
@@ -993,6 +999,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       configFields.push('template_fields = ?');
       configParams.push(data.templateFields);
     }
+    if (data.widgets !== undefined) {
+      configFields.push('widgets = ?');
+      configParams.push(data.widgets ?? '');
+    }
 
     if (configFields.length > 0) {
       const existingConfig = await queryOne<{ campagne_id: number }>(
@@ -1014,7 +1024,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
             text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
             quote_color, width, widgets, default_dice,
             template_html, template_img, template_fields
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         await execute(insertSql, [
           id,
@@ -1033,6 +1043,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
           data.rp2Color ?? '#5eff6c',
           data.quoteColor ?? null,
           data.width ?? '800px',
+          data.widgets ?? '',
           data.defaultDice ?? '1d20',
           data.templateHtml ?? null,
           data.templateImg ?? null,

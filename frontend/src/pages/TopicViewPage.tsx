@@ -8,6 +8,12 @@ import { getUserColorClass, isUserAdmin } from '../utils/user';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignHeader } from '../components/CampaignHeader';
+import { CharacterWidgetsRenderer } from '../components/CharacterWidgetsRenderer';
+import {
+  serializeWidgets,
+  changeWidgetValue,
+  mergeCharacterWidgets,
+} from '../utils/widgets';
 import { parseDiceInHtml } from '../utils/dice-parser';
 import {
   ArrowLeft,
@@ -102,6 +108,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
   const previewRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const lastScrolledRef = useRef<string | null>(null);
 
   const handleNavigate = (view: AppView) => {
     if (onNavigate) {
@@ -153,6 +160,12 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
           `/forum/${campId}/${effectiveTopicId}/page/${topicDetail.page}${window.location.hash}`
         );
       }
+
+      const scrollKey = `${effectiveTopicId}_p${topicDetail.page}_${window.location.hash}`;
+      if (lastScrolledRef.current === scrollKey) {
+        return;
+      }
+      lastScrolledRef.current = scrollKey;
 
       const hash = window.location.hash;
       if (hash) {
@@ -236,6 +249,43 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     setEditPostContent('');
     setEditPersoId(null);
     setEditError(null);
+  };
+
+  const handleUpdatePostCharacterWidget = async (persoId: number, widgetId: string, delta: number) => {
+    if (!topicDetail) return;
+    const targetPost = topicDetail.posts.find((p) => p.perso && p.perso.id === persoId);
+    if (!targetPost || !targetPost.perso) return;
+
+    const campaignWidgetsRaw = topicDetail.campaign?.widgets;
+    const currentWidgets = mergeCharacterWidgets(campaignWidgetsRaw, targetPost.perso.widgets);
+    const updatedWidgets = changeWidgetValue(currentWidgets, widgetId, delta);
+    const serialized = serializeWidgets(updatedWidgets);
+
+    // Optimistically update all posts with this character
+    setTopicDetail((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        posts: prev.posts.map((p) => {
+          if (p.perso && p.perso.id === persoId) {
+            return {
+              ...p,
+              perso: {
+                ...p.perso,
+                widgets: serialized,
+              },
+            };
+          }
+          return p;
+        }),
+      };
+    });
+
+    try {
+      await campaignsApi.updateCharacter(persoId, { widgets: serialized }, topicDetail.campagneId || undefined);
+    } catch (err) {
+      console.error('Erreur lors de la mise à jour des widgets:', err);
+    }
   };
 
   const handleSaveEdit = async (postId: number) => {
@@ -809,6 +859,31 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                           {post.user.titre}
                         </p>
                       )}
+
+                      {/* Widgets du personnage dans le forum */}
+                      {(() => {
+                        if (!post.perso) return null;
+                        const isCharacterOwner = Boolean(user && post.perso.userId === user.id);
+                        const canSeeWidgets = isMj || isCharacterOwner;
+                        if (!canSeeWidgets) return null;
+
+                        const charWidgets = mergeCharacterWidgets(topicDetail.campaign?.widgets, post.perso.widgets);
+                        if (charWidgets.length === 0) return null;
+
+                        return (
+                          <div className="w-full pt-1.5">
+                            <CharacterWidgetsRenderer
+                              widgets={charWidgets}
+                              isEditable={isMj || isCharacterOwner}
+                              onUpdateWidget={(widgetId, delta) =>
+                                handleUpdatePostCharacterWidget(post.perso!.id, widgetId, delta)
+                              }
+                              variant="sidebar"
+                              textColor={postTextColor}
+                            />
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
 

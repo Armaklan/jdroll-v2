@@ -279,10 +279,12 @@ export class MysqlForumRepository implements IForumRepository {
         u.profil AS userProfil,
         u.titre AS userTitre,
         perso.id AS persoId,
+        perso.user_id AS persoUserId,
         perso.name AS persoName,
         perso.concept AS persoConcept,
         perso.avatar AS persoAvatar,
         perso.publicDescription AS persoPublicDescription,
+        perso.widgets AS persoWidgets,
         rp.post_id AS userLastReadPostId
       FROM posts p
       LEFT JOIN user u ON p.user_id = u.id
@@ -310,10 +312,12 @@ export class MysqlForumRepository implements IForumRepository {
       userProfil: number | null;
       userTitre: string | null;
       persoId: number | null;
+      persoUserId: number | null;
       persoName: string | null;
       persoConcept: string | null;
       persoAvatar: string | null;
       persoPublicDescription: string | null;
+      persoWidgets: string | null;
       userLastReadPostId: number | null;
     }
 
@@ -345,10 +349,12 @@ export class MysqlForumRepository implements IForumRepository {
         perso: row.persoId
           ? {
               id: row.persoId,
+              userId: row.persoUserId ?? null,
               name: row.persoName ?? '',
               concept: row.persoConcept ?? '',
               avatar: row.persoAvatar ?? '',
               publicDescription: row.persoPublicDescription ?? '',
+              widgets: row.persoWidgets ?? null,
             }
           : null,
         isRead,
@@ -432,10 +438,12 @@ export class MysqlForumRepository implements IForumRepository {
         u.profil AS userProfil,
         u.titre AS userTitre,
         perso.id AS persoId,
+        perso.user_id AS persoUserId,
         perso.name AS persoName,
         perso.concept AS persoConcept,
         perso.avatar AS persoAvatar,
         perso.publicDescription AS persoPublicDescription,
+        perso.widgets AS persoWidgets,
         rp.post_id AS userLastReadPostId
       FROM posts p
       LEFT JOIN user u ON p.user_id = u.id
@@ -461,10 +469,12 @@ export class MysqlForumRepository implements IForumRepository {
       userProfil: number | null;
       userTitre: string | null;
       persoId: number | null;
+      persoUserId: number | null;
       persoName: string | null;
       persoConcept: string | null;
       persoAvatar: string | null;
       persoPublicDescription: string | null;
+      persoWidgets: string | null;
       userLastReadPostId: number | null;
     }
 
@@ -492,10 +502,12 @@ export class MysqlForumRepository implements IForumRepository {
       perso: row.persoId
         ? {
             id: row.persoId,
+            userId: row.persoUserId ?? null,
             name: row.persoName ?? '',
             concept: row.persoConcept ?? '',
             avatar: row.persoAvatar ?? '',
             publicDescription: row.persoPublicDescription ?? '',
+            widgets: row.persoWidgets ?? null,
           }
         : null,
       isRead: true,

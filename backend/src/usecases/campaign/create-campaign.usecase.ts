@@ -34,6 +34,7 @@ export interface CreateCampaignDTO {
   templateHtml?: string | null;
   templateImg?: string | null;
   templateFields?: string | null;
+  widgets?: string | null;
 }
 
 export class CreateCampaignUseCase {
@@ -103,6 +104,7 @@ export class CreateCampaignUseCase {
       templateHtml,
       templateImg,
       templateFields: dto.templateFields || null,
+      widgets: dto.widgets || null,
     });
 
     const createdCampaign = await this.campaignRepo.findById(campaignId);

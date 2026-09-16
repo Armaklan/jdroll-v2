@@ -116,6 +116,7 @@ const createCampaignBodySchema = z.object({
   templateHtml: z.string().nullable().optional(),
   templateImg: z.string().nullable().optional(),
   templateFields: z.string().nullable().optional(),
+  widgets: z.string().nullable().optional(),
 });
 
 const updateCampaignBodySchema = createCampaignBodySchema.partial();

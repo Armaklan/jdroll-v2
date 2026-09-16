@@ -40,6 +40,7 @@ export interface CampaignSummary {
   templateHtml?: string | null;
   templateImg?: string | null;
   templateFields?: string | null;
+  widgets?: string | null;
   hasUnread?: boolean;
   hasAlert?: boolean;
 }
@@ -75,9 +76,21 @@ export interface CreateCampaignPayload {
   templateHtml?: string | null;
   templateImg?: string | null;
   templateFields?: string | null;
+  widgets?: string | null;
 }
 
 export type UpdateCampaignPayload = Partial<CreateCampaignPayload>;
+
+export type CampaignWidgetType = 'token' | 'jauge' | 'text';
+
+export interface CampaignWidget {
+  id: string;
+  name: string;
+  type: CampaignWidgetType;
+  low?: number | string;
+  up?: number | string;
+  value?: number | string;
+}
 
 export type CampaignRole = 'all' | 'master' | 'player' | 'observer';
 
@@ -140,10 +153,12 @@ export interface ForumPostUser {
 
 export interface ForumPostPerso {
   id: number;
+  userId?: number | null;
   name: string;
   concept?: string;
   avatar?: string;
   publicDescription?: string;
+  widgets?: string | null;
 }
 
 export interface ForumPost {
@@ -232,6 +247,7 @@ export interface CreateCharacterPayload {
   assignedUserId?: number | null;
   statut?: number;
   persoFields?: string | null;
+  widgets?: string;
 }
 
 export interface UpdateCharacterPayload {
@@ -245,6 +261,7 @@ export interface UpdateCharacterPayload {
   assignedUserId?: number | null;
   statut?: number;
   persoFields?: string | null;
+  widgets?: string;
 }
 
 export interface TopicDetail {
