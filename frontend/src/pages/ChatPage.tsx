@@ -8,6 +8,8 @@ import {
   ChatActiveChannel,
 } from '../types/chat';
 import { getUserColorClass } from '../utils/user';
+import { SmileyPicker } from '../components/SmileyPicker';
+import { replaceEmoticons, convertEmoticonsOnType } from '../utils/emoticons';
 import {
   MessagesSquare,
   MessageSquare,
@@ -19,6 +21,7 @@ import {
   Globe,
   Lock,
   MessageCircle,
+  Smile,
 } from 'lucide-react';
 
 export function ChatPage() {
@@ -27,6 +30,7 @@ export function ChatPage() {
   const [onlineUsers, setOnlineUsers] = useState<ChatConnectedUser[]>([]);
   const [activeChannel, setActiveChannel] = useState<ChatActiveChannel>({ type: 'general' });
   const [messageInput, setMessageInput] = useState('');
+  const [isSmileyPickerOpen, setIsSmileyPickerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
@@ -47,6 +51,7 @@ export function ChatPage() {
   const [mobileTab, setMobileTab] = useState<'chat' | 'channels' | 'users'>('chat');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<any>(null);
 
@@ -248,11 +253,53 @@ export function ChatPage() {
     });
   }, [messages, activeChannel, currentUsername, currentUserId]);
 
+  // Smiley selection handler (inserts at cursor)
+  const handleSelectSmiley = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setMessageInput((prev) => prev + emoji);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const before = messageInput.substring(0, start);
+    const after = messageInput.substring(end);
+    const newText = before + emoji + after;
+    setMessageInput(newText);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newPos = start + emoji.length;
+      textarea.setSelectionRange(newPos, newPos);
+    }, 10);
+  };
+
+  // Auto-convert text emoticons on type
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const rawValue = e.target.value;
+    const { text, hasChanged } = convertEmoticonsOnType(rawValue);
+    if (hasChanged) {
+      const cursor = e.target.selectionStart;
+      setMessageInput(text);
+      const diff = text.length - rawValue.length;
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const newCursor = Math.max(0, cursor + diff);
+          textareaRef.current.setSelectionRange(newCursor, newCursor);
+        }
+      }, 0);
+    } else {
+      setMessageInput(rawValue);
+    }
+  };
+
   // Send message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    const text = messageInput.trim();
+    const text = replaceEmoticons(messageInput.trim());
     if (!text || isSending) return;
+
+    setIsSmileyPickerOpen(false);
 
     try {
       setIsSending(true);
@@ -807,7 +854,7 @@ export function ChatPage() {
                               : 'bg-white text-slate-800 border border-slate-200/80 rounded-tl-xs'
                           }`}
                         >
-                          {msg.message}
+                          {replaceEmoticons(msg.message)}
                         </div>
                       </div>
                     </div>
@@ -819,12 +866,21 @@ export function ChatPage() {
           </div>
 
           {/* Input Box */}
-          <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shadow-sm">
+          <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shadow-sm relative">
+            {isSmileyPickerOpen && (
+              <div className="absolute bottom-full right-4 mb-2 z-50">
+                <SmileyPicker
+                  onSelect={handleSelectSmiley}
+                  onClose={() => setIsSmileyPickerOpen(false)}
+                />
+              </div>
+            )}
             <form onSubmit={handleSendMessage} className="flex items-end gap-2 sm:gap-3">
-              <div className="flex-1 relative bg-slate-50 border border-slate-300 rounded-2xl focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition overflow-hidden">
+              <div className="flex-1 relative bg-slate-50 border border-slate-300 rounded-2xl focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 transition flex items-end">
                 <textarea
+                  ref={textareaRef}
                   value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -839,6 +895,16 @@ export function ChatPage() {
                   }
                   className="w-full px-3.5 py-2.5 bg-transparent border-0 focus:outline-none focus:ring-0 text-sm text-slate-800 resize-none max-h-32 placeholder:text-slate-400"
                 />
+                <button
+                  type="button"
+                  onClick={() => setIsSmileyPickerOpen((prev) => !prev)}
+                  className={`p-2.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-200/50 rounded-xl transition mr-1 mb-0.5 flex-shrink-0 ${
+                    isSmileyPickerOpen ? 'text-indigo-600 bg-indigo-50' : ''
+                  }`}
+                  title="Ajouter un smiley ou emoji"
+                >
+                  <Smile className="w-5 h-5" />
+                </button>
               </div>
 
               <button
