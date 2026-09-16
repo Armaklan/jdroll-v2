@@ -12,9 +12,9 @@ import { CampaignCharactersPage } from './pages/CampaignCharactersPage';
 import { CampaignFormPage } from './pages/CampaignFormPage';
 import { GeneralForumPage } from './pages/GeneralForumPage';
 import { TopicViewPage } from './pages/TopicViewPage';
+import { MessagesPage } from './pages/MessagesPage';
 import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
 import {
-  Mail,
   MessagesSquare,
   HelpCircle,
 } from 'lucide-react';
@@ -55,12 +55,7 @@ export function AppContent() {
             path="/messages"
             element={
               <ProtectedRoute>
-                <SectionPlaceholderPage
-                  title="Messagerie Privée"
-                  category="Messagerie"
-                  description="Consultez vos messages privés, vos notifications de jeu et échangez avec d'autres joueurs ou maîtres du jeu."
-                  icon={Mail}
-                />
+                <MessagesPage />
               </ProtectedRoute>
             }
           />

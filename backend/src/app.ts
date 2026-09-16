@@ -9,6 +9,7 @@ import { registerAuthPlugin } from './plugins/auth.plugin.js';
 import { authRoutes } from './controllers/auth.controller.js';
 import { campaignRoutes } from './controllers/campaign.controller.js';
 import { notificationRoutes } from './controllers/notification.controller.js';
+import { messageRoutes } from './controllers/message.controller.js';
 import { notificationListener } from './listeners/notification.listener.js';
 
 export async function buildApp() {
@@ -70,6 +71,7 @@ export async function buildApp() {
   await app.register(authRoutes);
   await app.register(campaignRoutes);
   await app.register(notificationRoutes);
+  await app.register(messageRoutes);
 
   return app;
 }

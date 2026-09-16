@@ -1,9 +1,11 @@
-import { queryOne, execute } from '../db/mysql.js';
+import { query, queryOne, execute } from '../db/mysql.js';
 import { User, UserWithPassword, CreateUserData } from '../types/index.js';
 
 export interface IUserRepository {
   findById(id: number): Promise<User | null>;
   findByUsernameOrEmail(identifier: string): Promise<UserWithPassword | null>;
+  findByUsernames(usernames: string[]): Promise<User[]>;
+  searchByUsername(query: string, excludeId?: number): Promise<{ id: number; username: string; avatar: string }[]>;
   existsByUsernameOrEmail(username: string, mail: string): Promise<boolean>;
   create(data: CreateUserData): Promise<User>;
 }
@@ -29,6 +31,29 @@ export class MysqlUserRepository implements IUserRepository {
       [identifier, identifier]
     );
     return user || null;
+  }
+
+  async findByUsernames(usernames: string[]): Promise<User[]> {
+    if (usernames.length === 0) return [];
+    const placeholders = usernames.map(() => '?').join(',');
+    return query<User>(
+      `SELECT id, username, mail, avatar, description, profil, titre, subscribe_date, birthDate
+       FROM user
+       WHERE username IN (${placeholders})`,
+      usernames
+    );
+  }
+
+  async searchByUsername(searchQuery: string, excludeId?: number): Promise<{ id: number; username: string; avatar: string }[]> {
+    const q = `%${searchQuery.trim()}%`;
+    const params: any[] = [q];
+    let sql = `SELECT id, username, avatar FROM user WHERE username LIKE ?`;
+    if (excludeId) {
+      sql += ` AND id != ?`;
+      params.push(excludeId);
+    }
+    sql += ` ORDER BY username ASC LIMIT 20`;
+    return query<{ id: number; username: string; avatar: string }>(sql, params);
   }
 
   async existsByUsernameOrEmail(username: string, mail: string): Promise<boolean> {

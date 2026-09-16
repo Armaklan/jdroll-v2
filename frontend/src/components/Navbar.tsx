@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationsApi } from '../api/notifications';
+import { messagesApi } from '../api/messages';
 import { NotificationItem } from '../types/notification';
 import { NotificationPopover } from './NotificationPopover';
 import {
@@ -76,6 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isNotifLoading, setIsNotifLoading] = useState(false);
 
@@ -98,13 +100,28 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
     }
   }, [isAuthenticated]);
 
+  const fetchUnreadMessages = useCallback(async () => {
+    if (!isAuthenticated) {
+      setUnreadMessagesCount(0);
+      return;
+    }
+    try {
+      const res = await messagesApi.getUnreadCount();
+      setUnreadMessagesCount(res.unreadCount || 0);
+    } catch {
+      // ignore
+    }
+  }, [isAuthenticated]);
+
   useEffect(() => {
     fetchNotifications();
+    fetchUnreadMessages();
     const interval = setInterval(() => {
       fetchNotifications();
+      fetchUnreadMessages();
     }, 30000);
     return () => clearInterval(interval);
-  }, [fetchNotifications, location.pathname]);
+  }, [fetchNotifications, fetchUnreadMessages, location.pathname]);
 
   const handleDeleteNotification = async (id: number) => {
     try {
@@ -260,7 +277,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             {/* Messagerie */}
             <button
                 onClick={() => handleNavigate('messages')}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
                     activeView === 'messages'
                         ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
@@ -268,6 +285,11 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               <Mail className="w-4 h-4" />
               <span>Messagerie</span>
+              {unreadMessagesCount > 0 && (
+                <span className="ml-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </span>
+              )}
             </button>
           </nav>
         </div>
@@ -450,14 +472,21 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             {/* Messagerie */}
             <button
                 onClick={() => handleNavigate('messages')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium ${
                     activeView === 'messages'
                         ? 'bg-indigo-50 text-indigo-700 font-semibold'
                         : 'text-slate-700 hover:bg-slate-50'
                 }`}
             >
-              <Mail className="w-4 h-4 text-indigo-600" />
-              <span>Messagerie</span>
+              <div className="flex items-center gap-2.5">
+                <Mail className="w-4 h-4 text-indigo-600" />
+                <span>Messagerie</span>
+              </div>
+              {unreadMessagesCount > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm">
+                  {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                </span>
+              )}
             </button>
 
           </div>
