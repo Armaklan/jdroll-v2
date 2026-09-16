@@ -265,6 +265,7 @@ describe('UpdateCampaignUseCase', () => {
     assert.equal(result.linkSidebarColor, '');
     assert.equal(result.template, '');
     assert.equal(result.templateImg, '/files/1/4ec9f08b7524df922cf76b5553f4a882.jpg');
+    assert.equal(result.templateHtml, '<img id="zoneImg" src="/files/1/4ec9f08b7524df922cf76b5553f4a882.jpg" style="width: 800px">');
     assert.equal(result.templateFields, '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="0"></div>');
   });
 });

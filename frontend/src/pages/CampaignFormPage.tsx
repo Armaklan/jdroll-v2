@@ -391,13 +391,6 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           ? forumBannerUrl || null
           : null;
 
-      const initialSheetImg =
-        sheetImgMode === 'url'
-          ? sheetImgUrl.trim()
-          : isEditMode && !sheetImgFile
-          ? sheetImgUrl
-          : '';
-
       const serializedSheetFields = serializeTemplateFields(sheetMaxCount, sheetFields);
 
       if (isEditMode) {
@@ -449,6 +442,12 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           }
         }
 
+        const finalSheetImgValue = sheetBgType === 'image' ? finalSheetImg : '';
+        const finalTemplateHtml =
+          sheetBgType === 'image'
+            ? (finalSheetImgValue ? `<img id="zoneImg" src="${finalSheetImgValue}" style="width: 800px">` : '')
+            : sheetHtml;
+
         // Update payload
         const payload: UpdateCampaignPayload = {
           name: trimmedName,
@@ -477,14 +476,22 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           linkSidebarColor: linkSidebarColor || null,
           width: width || '800px',
           template: template || '',
-          templateImg: sheetBgType === 'image' ? finalSheetImg : '',
-          templateHtml: sheetBgType === 'html' ? sheetHtml : '',
+          templateImg: finalSheetImgValue,
+          templateHtml: finalTemplateHtml,
           templateFields: serializedSheetFields,
         };
 
         const updated = await campaignsApi.updateCampaign(campaignId, payload);
         navigate(`/forum/${updated.id}`);
       } else {
+        let initialSheetImg =
+          sheetBgType === 'image' && sheetImgMode === 'url' ? sheetImgUrl.trim() : '';
+
+        const initialTemplateHtml =
+          sheetBgType === 'image'
+            ? (initialSheetImg ? `<img id="zoneImg" src="${initialSheetImg}" style="width: 800px">` : '')
+            : sheetHtml;
+
         // Create payload
         const payload: CreateCampaignPayload = {
           name: trimmedName,
@@ -513,7 +520,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           linkSidebarColor: linkSidebarColor || null,
           template: template || '',
           templateImg: sheetBgType === 'image' ? initialSheetImg : '',
-          templateHtml: sheetBgType === 'html' ? sheetHtml : '',
+          templateHtml: initialTemplateHtml,
           templateFields: serializedSheetFields,
         };
 
@@ -542,7 +549,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         if (sheetImgFile && sheetBgType === 'image') {
           try {
             const sheetRes = await campaignsApi.uploadCampaignImage(created.id, sheetImgFile);
-            await campaignsApi.updateCampaign(created.id, { templateImg: sheetRes.url });
+            await campaignsApi.updateCampaign(created.id, {
+              templateImg: sheetRes.url,
+              templateHtml: `<img id="zoneImg" src="${sheetRes.url}" style="width: 800px">`,
+            });
           } catch (uploadErr) {
             console.error("Erreur lors du téléversement de l'image de fond de la feuille:", uploadErr);
           }

@@ -86,6 +86,12 @@ export class UpdateCampaignUseCase {
       }
     }
 
+    const templateImg = dto.templateImg !== undefined ? (dto.templateImg ? dto.templateImg.trim() : '') : undefined;
+    let templateHtml = dto.templateHtml !== undefined ? (dto.templateHtml ? dto.templateHtml.trim() : '') : undefined;
+    if (templateImg && (templateHtml === undefined || templateHtml === '')) {
+      templateHtml = `<img id="zoneImg" src="${templateImg}" style="width: 800px">`;
+    }
+
     await this.campaignRepo.updateCampaign(dto.campaignId, {
       name: dto.name !== undefined ? dto.name.trim() : undefined,
       systeme: dto.systeme !== undefined ? dto.systeme.trim() : undefined,
@@ -114,8 +120,8 @@ export class UpdateCampaignUseCase {
       width: dto.width,
       defaultDice: dto.defaultDice,
       template: dto.template !== undefined ? (dto.template ? dto.template.trim() : '') : undefined,
-      templateHtml: dto.templateHtml,
-      templateImg: dto.templateImg,
+      templateHtml,
+      templateImg,
       templateFields: dto.templateFields,
     });
 

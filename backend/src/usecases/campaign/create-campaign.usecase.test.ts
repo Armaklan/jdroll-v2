@@ -166,7 +166,7 @@ describe('CreateCampaignUseCase', () => {
     assert.equal(createdList[0].rp, 3);
   });
 
-  it('crée avec succès une campagne avec configuration de fiche de personnage (template_img, template_fields)', async () => {
+  it('crée avec succès une campagne avec configuration de fiche de personnage (template_img, template_fields) et peuple template_html', async () => {
     const { repo, createdList } = createMockCampaignRepo();
     const useCase = new CreateCampaignUseCase(repo);
 
@@ -180,8 +180,10 @@ describe('CreateCampaignUseCase', () => {
 
     assert.equal(result.name, 'Campagne avec Fiche');
     assert.equal(result.templateImg, 'https://images.com/sheet-bg.png');
+    assert.equal(result.templateHtml, '<img id="zoneImg" src="https://images.com/sheet-bg.png" style="width: 800px">');
     assert.equal(result.templateFields, '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="1"></div>');
     assert.equal(result.template, '<p>Description technique</p>');
     assert.equal(createdList.length, 1);
+    assert.equal(createdList[0].templateHtml, '<img id="zoneImg" src="https://images.com/sheet-bg.png" style="width: 800px">');
   });
 });

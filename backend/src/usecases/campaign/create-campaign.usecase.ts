@@ -65,6 +65,12 @@ export class CreateCampaignUseCase {
       throw new ValidationError('Le nombre de joueurs doit être compris entre 1 et 50');
     }
 
+    const templateImg = dto.templateImg ? dto.templateImg.trim() : null;
+    let templateHtml = dto.templateHtml !== undefined ? (dto.templateHtml ? dto.templateHtml.trim() : null) : null;
+    if (templateImg && (!templateHtml || templateHtml === '')) {
+      templateHtml = `<img id="zoneImg" src="${templateImg}" style="width: 800px">`;
+    }
+
     const campaignId = await this.campaignRepo.createCampaign({
       mjId: dto.mjId,
       name,
@@ -94,8 +100,8 @@ export class CreateCampaignUseCase {
       width: dto.width || null,
       defaultDice: dto.defaultDice || null,
       template: dto.template || null,
-      templateHtml: dto.templateHtml || null,
-      templateImg: dto.templateImg || null,
+      templateHtml,
+      templateImg,
       templateFields: dto.templateFields || null,
     });
 
