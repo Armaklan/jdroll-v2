@@ -363,6 +363,18 @@ class MockForumRepository implements IForumRepository {
     return map;
   }
 
+  async deleteSection(sectionId: number): Promise<void> {}
+
+  async deleteTopic(topicId: number): Promise<void> {}
+
+  async updatePost(postId: number, data: any): Promise<void> {}
+
+  async deletePost(postId: number): Promise<void> {}
+
+  async findLastPost(topicId: number): Promise<any> {
+    return null;
+  }
+
   async setTopicCanReadUsers(): Promise<void> {}
 
   async isUserTopicCanRead(topicId: number, userId: number): Promise<boolean> {

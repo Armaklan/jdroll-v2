@@ -26,6 +26,14 @@ class MockUserRepository implements IUserRepository {
     return this.users.some((u) => u.username === username || u.mail === mail);
   }
 
+  async findByUsernames(usernames: string[]): Promise<User[]> {
+    return this.users.filter((u) => usernames.includes(u.username));
+  }
+
+  async searchByUsername(query: string, limit?: number): Promise<any[]> {
+    return this.users.filter((u) => u.username.toLowerCase().includes(query.toLowerCase()));
+  }
+
   async create(data: CreateUserData): Promise<User> {
     const newUser: User = {
       id: 1,

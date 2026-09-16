@@ -109,6 +109,20 @@ class MockCampaignRepository implements ICampaignRepository {
 
   async updateCharacter(id: number, character: any): Promise<void> {}
 
+  async deleteCharacter(id: number): Promise<void> {}
+
+  async findPnjCategoryById(id: number): Promise<RawPnjCategoryRow | null> {
+    return this.categories.find((cat) => cat.id === id) || null;
+  }
+
+  async createPnjCategory(category: any): Promise<number> {
+    return 1;
+  }
+
+  async updatePnjCategory(id: number, category: any): Promise<void> {}
+
+  async deletePnjCategory(id: number): Promise<void> {}
+
   async createCampaign(data: any): Promise<number> {
     return 1;
   }
