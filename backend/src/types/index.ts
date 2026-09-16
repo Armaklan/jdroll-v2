@@ -178,6 +178,7 @@ export interface RawCampaignCharacterRow {
   userId: number | null;
   userName: string | null;
   userAvatar: string | null;
+  userProfil: number | null;
   campagneId: number;
   name: string;
   concept: string | null;
@@ -218,6 +219,9 @@ export interface CampaignCharacter {
   isPlayer: boolean;
   persoFields?: string | null;
   widgets?: string | null;
+  templateHtml?: string | null;
+  templateImg?: string | null;
+  templateFields?: string | null;
 }
 
 export interface CampaignCharacterCategory {
