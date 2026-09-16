@@ -299,3 +299,69 @@ export interface CampaignNotesData {
 }
 
 export type CampaignNoteData = CampaignNotesData;
+
+export interface CarteMarkerPopup {
+  name?: string;
+  text?: string;
+  image?: string;
+  [key: string]: any;
+}
+
+export interface CarteMarker {
+  type: 'perso' | 'custom' | string;
+  id: string | number;
+  position: [number, number];
+  popup?: CarteMarkerPopup | any[];
+}
+
+export interface CarteConfig {
+  markers?: CarteMarker[];
+  tabReduce?: boolean;
+  [key: string]: any;
+}
+
+export interface CarteSummary {
+  id: number;
+  campagneId: number;
+  name: string;
+  description: string;
+  image: string;
+  published: boolean;
+}
+
+export interface CarteCharacter {
+  id: number;
+  name: string;
+  avatar?: string | null;
+  userId: number | null;
+  is_current_user: boolean;
+}
+
+export interface CarteDetail {
+  id: number;
+  campagneId: number;
+  name: string;
+  description: string;
+  image: string;
+  published: boolean;
+  config: CarteConfig;
+  personnages: CarteCharacter[];
+  isMj: boolean;
+  mjId?: number;
+}
+
+export interface CreateCartePayload {
+  name: string;
+  description?: string;
+  image: string;
+  published?: boolean;
+  config?: CarteConfig;
+}
+
+export interface UpdateCartePayload {
+  name?: string;
+  description?: string;
+  image?: string;
+  published?: boolean;
+  config?: CarteConfig;
+}

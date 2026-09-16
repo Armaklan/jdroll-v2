@@ -394,3 +394,62 @@ export interface CampaignNotesData {
 }
 
 export type CampaignNoteData = CampaignNotesData;
+
+export interface CarteMarkerPopup {
+  name?: string;
+  text?: string;
+  image?: string;
+  [key: string]: any;
+}
+
+export interface CarteMarker {
+  type: 'perso' | 'custom' | string;
+  id: string | number;
+  position: [number, number];
+  popup?: CarteMarkerPopup | any[];
+}
+
+export interface CarteConfig {
+  markers?: CarteMarker[];
+  tabReduce?: boolean;
+  [key: string]: any;
+}
+
+export interface CarteSummary {
+  id: number;
+  campagneId: number;
+  name: string;
+  description: string;
+  image: string;
+  published: boolean;
+}
+
+export interface CarteDetail {
+  id: number;
+  campagneId: number;
+  name: string;
+  description: string;
+  image: string;
+  published: boolean;
+  config: CarteConfig;
+  personnages: Array<{
+    id: number;
+    name: string;
+    avatar?: string | null;
+    userId: number | null;
+    is_current_user: boolean;
+  }>;
+  isMj: boolean;
+  mjId?: number;
+}
+
+export interface RawCarteRow {
+  id: number;
+  campagne_id: number;
+  name: string | null;
+  description: string | null;
+  image: string | null;
+  published: number | null;
+  config: string | null;
+  mj_id?: number | null;
+}

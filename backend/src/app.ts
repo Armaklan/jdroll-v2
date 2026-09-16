@@ -10,6 +10,7 @@ import { authRoutes } from './controllers/auth.controller.js';
 import { campaignRoutes } from './controllers/campaign.controller.js';
 import { notificationRoutes } from './controllers/notification.controller.js';
 import { messageRoutes } from './controllers/message.controller.js';
+import { carteRoutes } from './controllers/carte.controller.js';
 import { notificationListener } from './listeners/notification.listener.js';
 
 export async function buildApp() {
@@ -70,6 +71,7 @@ export async function buildApp() {
   // Routes
   await app.register(authRoutes);
   await app.register(campaignRoutes);
+  await app.register(carteRoutes);
   await app.register(notificationRoutes);
   await app.register(messageRoutes);
 

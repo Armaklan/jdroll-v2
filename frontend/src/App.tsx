@@ -10,6 +10,8 @@ import { JoinCampaignPage } from './pages/JoinCampaignPage';
 import { CampaignForumPage } from './pages/CampaignForumPage';
 import { CampaignCharactersPage } from './pages/CampaignCharactersPage';
 import { CampaignNotesPage } from './pages/CampaignNotesPage';
+import { CampaignCartesPage } from './pages/CampaignCartesPage';
+import { CampaignCarteViewerPage } from './pages/CampaignCarteViewerPage';
 import { CampaignFormPage } from './pages/CampaignFormPage';
 import { GeneralForumPage } from './pages/GeneralForumPage';
 import { TopicViewPage } from './pages/TopicViewPage';
@@ -41,6 +43,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export function AppContent() {
+  const location = useLocation();
+  const isCarteViewer = Boolean(
+    location.pathname.match(/\/cartes\/\d+/) ||
+    location.pathname.match(/\/carte\/\d+/)
+  );
+
+  if (isCarteViewer) {
+    return (
+      <Routes>
+        <Route path="/campaigns/:campaignId/cartes/:carteId" element={<CampaignCarteViewerPage />} />
+        <Route path="/campaigns/:campaignId/carte/:carteId" element={<CampaignCarteViewerPage />} />
+        <Route path="/cartes/:carteId" element={<CampaignCarteViewerPage />} />
+      </Routes>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
       <Navbar />
@@ -125,6 +143,8 @@ export function AppContent() {
               </ProtectedRoute>
             }
           />
+          <Route path="/campaigns/:campaignId/cartes" element={<CampaignCartesPage />} />
+          <Route path="/campaigns/:campaignId/carte" element={<Navigate to={`/campaigns/${location.pathname.split('/')[2] || ''}/cartes`} replace />} />
 
           {/* Forum & Topics */}
           <Route path="/forum/0" element={<GeneralForumPage />} />

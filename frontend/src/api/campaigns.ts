@@ -14,6 +14,10 @@ import {
   CampaignDiceRoll,
   CampaignNotesData,
   Note,
+  CarteSummary,
+  CarteDetail,
+  CreateCartePayload,
+  UpdateCartePayload,
 } from '../types/campaign';
 import { getToken } from './auth';
 
@@ -420,5 +424,58 @@ export const campaignsApi = {
     return request<{ success: boolean }>(`/api/campaigns/${campaignId}/notes/${noteId}`, {
       method: 'DELETE',
     });
+  },
+
+  async getCampaignCartes(campaignId: number): Promise<CarteSummary[]> {
+    return request<CarteSummary[]>(`/api/campaigns/${campaignId}/cartes`);
+  },
+
+  async getCarte(campaignId: number, carteId: number): Promise<CarteDetail> {
+    return request<CarteDetail>(`/api/campaigns/${campaignId}/cartes/${carteId}`);
+  },
+
+  async createCarte(campaignId: number, data: CreateCartePayload): Promise<{ id: number }> {
+    return request<{ id: number }>(`/api/campaigns/${campaignId}/cartes`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateCarte(campaignId: number, carteId: number, data: UpdateCartePayload): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/api/campaigns/${campaignId}/cartes/${carteId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteCarte(campaignId: number, carteId: number): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/api/campaigns/${campaignId}/cartes/${carteId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async uploadCarteImage(campaignId: number, file: File): Promise<{ url: string }> {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`/api/campaigns/${campaignId}/cartes/upload-image`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Erreur lors du téléversement (${response.status})`);
+    }
+
+    return data as { url: string };
   },
 };
