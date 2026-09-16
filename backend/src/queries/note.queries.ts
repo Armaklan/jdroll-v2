@@ -35,7 +35,7 @@ export class NoteQueries {
       if (isParticipant) {
         userRole = 'player';
       } else {
-        isObserving = await this.campaignRepo.isUserObservingCampaign(campaignId, userId);
+        isObserving = await this.campaignRepo.isUserCampaignObserver(campaignId, userId);
         if (isObserving) {
           userRole = 'observer';
         }

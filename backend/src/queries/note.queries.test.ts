@@ -42,7 +42,7 @@ describe('NoteQueries', () => {
     mockCampaignRepo = {
       findById: async (id: number) => (id === 42 ? mockCampaign : null),
       isUserCampaignAlert: async () => false,
-      isUserObservingCampaign: async (_cId: number, userId: number) => userId === 3,
+      isUserCampaignObserver: async (_cId: number, userId: number) => userId === 3,
     };
     mockForumRepo = {
       isUserCampaignParticipant: async (campaignId: number, userId: number) => {
