@@ -163,6 +163,35 @@ export const campaignsApi = {
     });
   },
 
+  async deleteCharacter(characterId: number, campaignId?: number): Promise<{ success: boolean; characterId: number }> {
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/characters/${characterId}` : `/api/characters/${characterId}`;
+    return request<{ success: boolean; characterId: number }>(endpoint, {
+      method: 'DELETE',
+    });
+  },
+
+  async createCategory(campaignId: number, data: { name: string; defaultCollapse?: boolean }): Promise<{ category: { id: number; campagneId: number; name: string; defaultCollapse: boolean } }> {
+    return request<{ category: { id: number; campagneId: number; name: string; defaultCollapse: boolean } }>(`/api/campaigns/${campaignId}/categories`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateCategory(categoryId: number, data: { name?: string; defaultCollapse?: boolean }, campaignId?: number): Promise<{ category: { id: number; campagneId: number; name: string; defaultCollapse: boolean } }> {
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/categories/${categoryId}` : `/api/categories/${categoryId}`;
+    return request<{ category: { id: number; campagneId: number; name: string; defaultCollapse: boolean } }>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteCategory(categoryId: number, campaignId?: number): Promise<{ success: boolean; categoryId: number }> {
+    const endpoint = campaignId ? `/api/campaigns/${campaignId}/categories/${categoryId}` : `/api/categories/${categoryId}`;
+    return request<{ success: boolean; categoryId: number }>(endpoint, {
+      method: 'DELETE',
+    });
+  },
+
   async uploadCampaignImage(campaignId: number, file: File): Promise<{ url: string; filename: string }> {
     const token = getToken();
     const formData = new FormData();

@@ -19,6 +19,10 @@ import { reorderSectionsUseCase, ReorderSectionsUseCase } from '../usecases/foru
 import { reorderTopicsUseCase, ReorderTopicsUseCase } from '../usecases/forum/reorder-topics.usecase.js';
 import { createCharacterUseCase, CreateCharacterUseCase } from '../usecases/character/create-character.usecase.js';
 import { updateCharacterUseCase, UpdateCharacterUseCase } from '../usecases/character/update-character.usecase.js';
+import { deleteCharacterUseCase, DeleteCharacterUseCase } from '../usecases/character/delete-character.usecase.js';
+import { createPnjCategoryUseCase, CreatePnjCategoryUseCase } from '../usecases/character/create-pnj-category.usecase.js';
+import { updatePnjCategoryUseCase, UpdatePnjCategoryUseCase } from '../usecases/character/update-pnj-category.usecase.js';
+import { deletePnjCategoryUseCase, DeletePnjCategoryUseCase } from '../usecases/character/delete-pnj-category.usecase.js';
 import { uploadCharacterAvatarUseCase, UploadCharacterAvatarUseCase } from '../usecases/character/upload-character-avatar.usecase.js';
 import { uploadCampaignBannerUseCase, UploadCampaignBannerUseCase } from '../usecases/campaign/upload-campaign-banner.usecase.js';
 import { observeCampaignUseCase, ObserveCampaignUseCase } from '../usecases/campaign/observe-campaign.usecase.js';
@@ -29,6 +33,7 @@ import { JWTPayload } from '../types/index.js';
 import {
   CampaignNotFoundError,
   CharacterNotFoundError,
+  CategoryNotFoundError,
   TopicNotFoundError,
   PostNotFoundError,
   SectionNotFoundError,
@@ -226,6 +231,43 @@ const updateCharacterParamsSchema = z.object({
   campaignId: z.coerce.number().int().positive().optional(),
 });
 
+const deleteCharacterParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  campaignId: z.coerce.number().int().positive().optional(),
+});
+
+const createPnjCategoryParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+const createPnjCategoryBodySchema = z.object({
+  name: z.string().min(1, 'Le nom de la catégorie est requis').max(200, 'Le nom ne peut pas dépasser 200 caractères'),
+  defaultCollapse: z.boolean().optional().default(false),
+});
+
+const updatePnjCategoryParamsSchema = z
+  .object({
+    id: z.coerce.number().int().positive().optional(),
+    categoryId: z.coerce.number().int().positive().optional(),
+  })
+  .refine((data) => data.id !== undefined || data.categoryId !== undefined, {
+    message: 'Identifiant de catégorie manquant',
+  });
+
+const updatePnjCategoryBodySchema = z.object({
+  name: z.string().min(1, 'Le nom de la catégorie est requis').max(200, 'Le nom ne peut pas dépasser 200 caractères').optional(),
+  defaultCollapse: z.boolean().optional(),
+});
+
+const deletePnjCategoryParamsSchema = z
+  .object({
+    id: z.coerce.number().int().positive().optional(),
+    categoryId: z.coerce.number().int().positive().optional(),
+  })
+  .refine((data) => data.id !== undefined || data.categoryId !== undefined, {
+    message: 'Identifiant de catégorie manquant',
+  });
+
 const updateCharacterBodySchema = z.object({
   name: z.string().min(1, 'Le nom du personnage est requis').max(100, 'Le nom ne peut pas dépasser 100 caractères').optional(),
   concept: z.string().max(200, 'Le concept ne peut pas dépasser 200 caractères').optional(),
@@ -261,6 +303,10 @@ export class CampaignController {
     private readonly reorderTopicsUseCaseService: ReorderTopicsUseCase = reorderTopicsUseCase,
     private readonly createCharacterUseCaseService: CreateCharacterUseCase = createCharacterUseCase,
     private readonly updateCharacterUseCaseService: UpdateCharacterUseCase = updateCharacterUseCase,
+    private readonly deleteCharacterUseCaseService: DeleteCharacterUseCase = deleteCharacterUseCase,
+    private readonly createPnjCategoryUseCaseService: CreatePnjCategoryUseCase = createPnjCategoryUseCase,
+    private readonly updatePnjCategoryUseCaseService: UpdatePnjCategoryUseCase = updatePnjCategoryUseCase,
+    private readonly deletePnjCategoryUseCaseService: DeletePnjCategoryUseCase = deletePnjCategoryUseCase,
     private readonly uploadCharacterAvatarUseCaseService: UploadCharacterAvatarUseCase = uploadCharacterAvatarUseCase,
     private readonly uploadCampaignBannerUseCaseService: UploadCampaignBannerUseCase = uploadCampaignBannerUseCase,
     private readonly joinCampaignUseCaseService: JoinCampaignUseCase = joinCampaignUseCase,
@@ -1312,6 +1358,174 @@ export class CampaignController {
   }
 
   /**
+   * DELETE /api/characters/:id ou DELETE /api/campaigns/:campaignId/characters/:id
+   * Supprime un personnage (par le MJ)
+   */
+  async deleteCharacter(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = deleteCharacterParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de personnage invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: characterId } = parseParams.data;
+
+    try {
+      const result = await this.deleteCharacterUseCaseService.execute({
+        characterId,
+        userId: user.id,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CharacterNotFoundError || error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la suppression du personnage' });
+    }
+  }
+
+  /**
+   * POST /api/campaigns/:id/categories
+   * Crée une catégorie de PNJ (par le MJ)
+   */
+  async createPnjCategory(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = createPnjCategoryParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = createPnjCategoryBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de catégorie invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: campagneId } = parseParams.data;
+    const body = parseBody.data;
+
+    try {
+      const category = await this.createPnjCategoryUseCaseService.execute({
+        campagneId,
+        userId: user.id,
+        name: body.name,
+        defaultCollapse: body.defaultCollapse,
+      });
+
+      return reply.status(201).send({ category });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la création de la catégorie' });
+    }
+  }
+
+  /**
+   * PUT /api/categories/:id ou PUT /api/campaigns/:id/categories/:categoryId
+   * Modifie une catégorie de PNJ (par le MJ)
+   */
+  async updatePnjCategory(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = updatePnjCategoryParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de catégorie invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = updatePnjCategoryBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de modification de catégorie invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const categoryId = parseParams.data.categoryId ?? parseParams.data.id!;
+    const body = parseBody.data;
+
+    try {
+      const category = await this.updatePnjCategoryUseCaseService.execute({
+        categoryId,
+        userId: user.id,
+        name: body.name,
+        defaultCollapse: body.defaultCollapse,
+      });
+
+      return reply.status(200).send({ category });
+    } catch (error) {
+      if (error instanceof CategoryNotFoundError || error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la modification de la catégorie' });
+    }
+  }
+
+  /**
+   * DELETE /api/categories/:id ou DELETE /api/campaigns/:id/categories/:categoryId
+   * Supprime une catégorie de PNJ (par le MJ)
+   */
+  async deletePnjCategory(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = deletePnjCategoryParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de catégorie invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const categoryId = parseParams.data.categoryId ?? parseParams.data.id!;
+
+    try {
+      const result = await this.deletePnjCategoryUseCaseService.execute({
+        categoryId,
+        userId: user.id,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CategoryNotFoundError || error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la suppression de la catégorie' });
+    }
+  }
+
+  /**
    * GET /api/campaigns/:id/participants
    * Récupère la liste des participants d'une campagne
    */
@@ -1742,6 +1956,55 @@ export class CampaignController {
       '/api/campaigns/:campaignId/characters/:id',
       { preHandler: [app.authenticate] },
       (req, rep) => this.updateCharacter(req, rep)
+    );
+
+    // Routes authentifiées pour supprimer un personnage (MJ)
+    app.delete(
+      '/api/characters/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deleteCharacter(req, rep)
+    );
+    app.delete(
+      '/api/campaigns/:campaignId/characters/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deleteCharacter(req, rep)
+    );
+
+    // Routes authentifiées de gestion des catégories de PNJ (MJ)
+    app.post(
+      '/api/campaigns/:id/categories',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.createPnjCategory(req, rep)
+    );
+    app.put(
+      '/api/categories/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updatePnjCategory(req, rep)
+    );
+    app.patch(
+      '/api/categories/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updatePnjCategory(req, rep)
+    );
+    app.put(
+      '/api/campaigns/:id/categories/:categoryId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updatePnjCategory(req, rep)
+    );
+    app.patch(
+      '/api/campaigns/:id/categories/:categoryId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.updatePnjCategory(req, rep)
+    );
+    app.delete(
+      '/api/categories/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deletePnjCategory(req, rep)
+    );
+    app.delete(
+      '/api/campaigns/:id/categories/:categoryId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deletePnjCategory(req, rep)
     );
 
     // Route pour voir les messages d'un sujet (accessible public avec statut de lecture si connecté)

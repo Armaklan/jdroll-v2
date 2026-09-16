@@ -78,6 +78,20 @@ export interface ICampaignRepository {
   updateCampaign(id: number, data: UpdateCampaignData): Promise<void>;
   findCampaignCharacters(campaignId: number): Promise<RawCampaignCharacterRow[]>;
   findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]>;
+  findPnjCategoryById(id: number): Promise<RawPnjCategoryRow | null>;
+  createPnjCategory(category: {
+    campagneId: number;
+    name: string;
+    defaultCollapse: number;
+  }): Promise<number>;
+  updatePnjCategory(
+    id: number,
+    data: Partial<{
+      name: string;
+      defaultCollapse: number;
+    }>
+  ): Promise<void>;
+  deletePnjCategory(id: number): Promise<void>;
   findCharacterById(id: number): Promise<RawCampaignCharacterRow | null>;
   createCharacter(character: {
     campagneId: number;
@@ -109,6 +123,7 @@ export interface ICampaignRepository {
       widgets: string;
     }>
   ): Promise<void>;
+  deleteCharacter(id: number): Promise<void>;
   updateCampaignBanner(campagneId: number, bannerUrl: string): Promise<void>;
   findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]>;
   isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean>;
@@ -1054,6 +1069,74 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     return query<RawPnjCategoryRow>(sql, [campaignId]);
   }
 
+  async findPnjCategoryById(id: number): Promise<RawPnjCategoryRow | null> {
+    const sql = `
+      SELECT 
+        id,
+        campagne_id AS campagneId,
+        name,
+        default_collapse AS defaultCollapse
+      FROM pnj_category
+      WHERE id = ?
+      LIMIT 1
+    `;
+
+    return queryOne<RawPnjCategoryRow>(sql, [id]);
+  }
+
+  async createPnjCategory(category: {
+    campagneId: number;
+    name: string;
+    defaultCollapse: number;
+  }): Promise<number> {
+    const sql = `
+      INSERT INTO pnj_category (
+        campagne_id,
+        name,
+        default_collapse
+      ) VALUES (?, ?, ?)
+    `;
+
+    const result = await execute(sql, [
+      category.campagneId,
+      category.name,
+      category.defaultCollapse,
+    ]);
+
+    return result.insertId;
+  }
+
+  async updatePnjCategory(
+    id: number,
+    data: Partial<{
+      name: string;
+      defaultCollapse: number;
+    }>
+  ): Promise<void> {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (data.name !== undefined) {
+      fields.push('name = ?');
+      values.push(data.name);
+    }
+    if (data.defaultCollapse !== undefined) {
+      fields.push('default_collapse = ?');
+      values.push(data.defaultCollapse);
+    }
+
+    if (fields.length === 0) return;
+
+    values.push(id);
+    const sql = `UPDATE pnj_category SET ${fields.join(', ')} WHERE id = ?`;
+    await execute(sql, values);
+  }
+
+  async deletePnjCategory(id: number): Promise<void> {
+    await execute('UPDATE personnages SET cat_id = NULL WHERE cat_id = ?', [id]);
+    await execute('DELETE FROM pnj_category WHERE id = ?', [id]);
+  }
+
   async findCharacterById(id: number): Promise<RawCampaignCharacterRow | null> {
     const sql = `
       SELECT 
@@ -1201,6 +1284,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     values.push(id);
     const sql = `UPDATE personnages SET ${fields.join(', ')} WHERE id = ?`;
     await execute(sql, values);
+  }
+
+  async deleteCharacter(id: number): Promise<void> {
+    await execute('DELETE FROM personnages WHERE id = ?', [id]);
   }
 
   async updateCampaignBanner(campagneId: number, bannerUrl: string): Promise<void> {

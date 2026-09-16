@@ -39,6 +39,9 @@ import {
   Link as LinkIcon,
   Loader2,
   LayoutTemplate,
+  Trash2,
+  SlidersHorizontal,
+  Shield,
 } from 'lucide-react';
 
 interface CampaignCharactersPageProps {
@@ -87,14 +90,30 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
   const [selectedCharacter, setSelectedCharacter] = useState<CampaignCharacter | null>(null);
   const [isDiceTowerOpen, setIsDiceTowerOpen] = useState<boolean>(false);
+  const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
 
-  // Modal form state
+  // Modal form state for character
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [editingCharacter, setEditingCharacter] = useState<CampaignCharacter | null>(null);
   const [formData, setFormData] = useState<CharacterFormData>(emptyFormData);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Modal state for categories
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState<boolean>(false);
+  const [editingCategory, setEditingCategory] = useState<{ id: number; name: string; defaultCollapse: boolean } | null>(null);
+  const [categoryFormData, setCategoryFormData] = useState<{ name: string; defaultCollapse: boolean }>({ name: '', defaultCollapse: false });
+  const [categoryFormError, setCategoryFormError] = useState<string | null>(null);
+  const [isSubmittingCategory, setIsSubmittingCategory] = useState<boolean>(false);
+
+  // Delete confirmation modal state
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    type: 'character' | 'category';
+    id: number;
+    name: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
   // Avatar upload / url state
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -198,7 +217,11 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (isFormOpen) {
+        if (deleteConfirm) {
+          setDeleteConfirm(null);
+        } else if (isCategoryModalOpen) {
+          setIsCategoryModalOpen(false);
+        } else if (isFormOpen) {
           setIsFormOpen(false);
         } else if (selectedCharacter) {
           setSelectedCharacter(null);
@@ -207,7 +230,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFormOpen, selectedCharacter]);
+  }, [deleteConfirm, isCategoryModalOpen, isFormOpen, selectedCharacter]);
 
   // Auto-dismiss toast after 4s
   useEffect(() => {
@@ -356,6 +379,128 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
     }
   };
 
+  // Category management handlers
+  const handleOpenCreateCategory = () => {
+    setEditingCategory(null);
+    setCategoryFormData({ name: '', defaultCollapse: false });
+    setCategoryFormError(null);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (
+    cat: { id: number; name: string; defaultCollapse: boolean },
+    e?: React.MouseEvent
+  ) => {
+    if (e) e.stopPropagation();
+    setEditingCategory(cat);
+    setCategoryFormData({ name: cat.name, defaultCollapse: cat.defaultCollapse });
+    setCategoryFormError(null);
+    setIsCategoryModalOpen(true);
+  };
+
+  const handleCategoryFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = categoryFormData.name.trim();
+    if (!trimmed) {
+      setCategoryFormError('Le nom de la catégorie est obligatoire.');
+      return;
+    }
+
+    setIsSubmittingCategory(true);
+    setCategoryFormError(null);
+
+    try {
+      if (editingCategory) {
+        await campaignsApi.updateCategory(
+          editingCategory.id,
+          { name: trimmed, defaultCollapse: categoryFormData.defaultCollapse },
+          effectiveCampaignId
+        );
+        setToastMessage({
+          text: `La catégorie « ${trimmed} » a été modifiée avec succès.`,
+          type: 'success',
+        });
+      } else {
+        await campaignsApi.createCategory(effectiveCampaignId, {
+          name: trimmed,
+          defaultCollapse: categoryFormData.defaultCollapse,
+        });
+        setToastMessage({
+          text: `La catégorie « ${trimmed} » a été créée avec succès.`,
+          type: 'success',
+        });
+      }
+
+      setIsCategoryModalOpen(false);
+      await fetchCharacters();
+    } catch (err: any) {
+      setCategoryFormError(
+        err.message || "Une erreur est survenue lors de l'enregistrement de la catégorie."
+      );
+    } finally {
+      setIsSubmittingCategory(false);
+    }
+  };
+
+  // Delete handlers
+  const handleOpenDeleteCharacter = (
+    char: { id: number; name: string },
+    e?: React.MouseEvent
+  ) => {
+    if (e) e.stopPropagation();
+    setDeleteConfirm({
+      type: 'character',
+      id: char.id,
+      name: char.name,
+    });
+  };
+
+  const handleOpenDeleteCategory = (
+    cat: { id: number; name: string },
+    e?: React.MouseEvent
+  ) => {
+    if (e) e.stopPropagation();
+    setDeleteConfirm({
+      type: 'category',
+      id: cat.id,
+      name: cat.name,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+    setIsDeleting(true);
+
+    try {
+      if (deleteConfirm.type === 'character') {
+        await campaignsApi.deleteCharacter(deleteConfirm.id, effectiveCampaignId);
+        setToastMessage({
+          text: `Le personnage « ${deleteConfirm.name} » a été supprimé.`,
+          type: 'success',
+        });
+        if (selectedCharacter && selectedCharacter.id === deleteConfirm.id) {
+          setSelectedCharacter(null);
+        }
+      } else {
+        await campaignsApi.deleteCategory(deleteConfirm.id, effectiveCampaignId);
+        setToastMessage({
+          text: `La catégorie « ${deleteConfirm.name} » a été supprimée. Les personnages associés sont désormais Non classés.`,
+          type: 'success',
+        });
+      }
+
+      setDeleteConfirm(null);
+      await fetchCharacters();
+    } catch (err: any) {
+      setToastMessage({
+        text: err.message || 'Une erreur est survenue lors de la suppression.',
+        type: 'error',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
@@ -469,14 +614,38 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
 
         <div className="flex flex-wrap items-center gap-2.5">
           {isMj && (
-            <button
-              onClick={handleOpenCreate}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs hover:shadow-md cursor-pointer"
-              title="Créer un nouveau personnage dans la campagne"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nouveau personnage</span>
-            </button>
+            <>
+              <button
+                onClick={() => navigate(`/campaigns/${effectiveCampaignId}/edit`)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+                title="Modifier la configuration générale de la campagne"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+                <span>Configurer</span>
+              </button>
+
+              <button
+                onClick={() => setIsAdminMode(!isAdminMode)}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer ${
+                  isAdminMode
+                    ? 'bg-amber-600 text-white hover:bg-amber-700 ring-2 ring-amber-300'
+                    : 'bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200'
+                }`}
+                title="Activer ou désactiver le mode administration de la galerie"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>{isAdminMode ? 'Ne plus administrer' : 'Administrer'}</span>
+              </button>
+
+              <button
+                onClick={handleOpenCreate}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-bold transition shadow-xs hover:shadow-md cursor-pointer"
+                title="Créer un nouveau personnage dans la campagne"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nouveau personnage</span>
+              </button>
+            </>
           )}
 
           <button
@@ -490,6 +659,46 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Admin Mode Bar banner */}
+      {isAdminMode && isMj && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-300/80 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-500 text-white rounded-xl shadow-xs">
+              <Shield className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-amber-950 flex items-center gap-2">
+                <span>Administration de la Galerie</span>
+              </h3>
+              <p className="text-xs text-amber-800">
+                Créez, modifiez ou supprimez des catégories de PNJ et gérez les fiches de personnages de la campagne.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+
+            <button
+              onClick={handleOpenCreateCategory}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+              title="Créer une nouvelle catégorie de PNJ"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Créer une catégorie</span>
+            </button>
+
+            <button
+              onClick={handleOpenCreate}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+              title="Créer un nouveau personnage"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Nouveau personnage</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Campaign Header */}
       <CampaignHeader
@@ -594,13 +803,55 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    className="p-1 rounded hover:bg-black/10 transition"
-                    style={{ color: campaign.linkSidebarColor || undefined }}
-                  >
-                    {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Admin Category Actions for defined categories */}
+                    {isMj && isAdminMode && category.id !== null && (
+                      <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) =>
+                            handleOpenEditCategory(
+                              {
+                                id: category.id!,
+                                name: category.name,
+                                defaultCollapse: category.defaultCollapse,
+                              },
+                              e
+                            )
+                          }
+                          className="p-1.5 rounded-lg bg-white/80 hover:bg-white text-slate-700 hover:text-indigo-600 shadow-2xs transition cursor-pointer"
+                          title="Modifier cette catégorie"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) =>
+                            handleOpenDeleteCategory(
+                              {
+                                id: category.id!,
+                                name: category.name,
+                              },
+                              e
+                            )
+                          }
+                          className="p-1.5 rounded-lg bg-white/80 hover:bg-white text-slate-700 hover:text-rose-600 shadow-2xs transition cursor-pointer"
+                          title="Supprimer cette catégorie"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className="p-1 rounded hover:bg-black/10 transition"
+                      style={{ color: campaign.linkSidebarColor || undefined }}
+                    >
+                      {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Category Characters Grid */}
@@ -664,17 +915,35 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                                     )}
                                   </div>
 
-                                  {/* Edit button overlay on avatar */}
-                                  {canEdit && (
-                                    <button
-                                      type="button"
-                                      onClick={(e) => handleOpenEdit(character, e)}
-                                      className="absolute bottom-2.5 right-2.5 p-1.5 rounded-lg bg-white/90 hover:bg-white text-slate-700 hover:text-indigo-600 shadow-md backdrop-blur-xs transition transform hover:scale-110"
-                                      title="Éditer ce personnage"
-                                    >
-                                      <Edit2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  )}
+                                  {/* Actions overlay on avatar (Delete / Edit) */}
+                                  <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5">
+                                    {isMj && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) =>
+                                          handleOpenDeleteCharacter(
+                                            { id: character.id, name: character.name },
+                                            e
+                                          )
+                                        }
+                                        className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-slate-700 hover:text-rose-600 shadow-md backdrop-blur-xs transition transform hover:scale-110 cursor-pointer"
+                                        title="Supprimer ce personnage"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+
+                                    {canEdit && (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => handleOpenEdit(character, e)}
+                                        className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-slate-700 hover:text-indigo-600 shadow-md backdrop-blur-xs transition transform hover:scale-110 cursor-pointer"
+                                        title="Éditer ce personnage"
+                                      >
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {/* Character Name & Concept */}
@@ -733,6 +1002,22 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {isMj && (
+                  <button
+                    onClick={() =>
+                      handleOpenDeleteCharacter({
+                        id: selectedCharacter.id,
+                        name: selectedCharacter.name,
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition border border-rose-200 cursor-pointer"
+                    title="Supprimer la fiche du personnage"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Supprimer</span>
+                  </button>
+                )}
+
                 {canEditCharacter(selectedCharacter) && (
                   <button
                     onClick={() => handleOpenEdit(selectedCharacter)}
@@ -1360,6 +1645,163 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           </div>
         </div>
       )}
+      {/* Modal: Création / Modification de catégorie de PNJ */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden my-auto">
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FolderOpen className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-slate-900 text-base">
+                  {editingCategory ? 'Modifier la catégorie' : 'Nouvelle catégorie de PNJ'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCategoryFormSubmit} className="p-6 space-y-4">
+              {categoryFormError && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{categoryFormError}</span>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Nom de la catégorie <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={categoryFormData.name}
+                  onChange={(e) =>
+                    setCategoryFormData((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="Ex : Alliés, Ennemis, Garde royale, Marchands..."
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white transition"
+                  autoFocus
+                />
+              </div>
+
+              <div className="pt-1">
+                <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={categoryFormData.defaultCollapse}
+                    onChange={(e) =>
+                      setCategoryFormData((prev) => ({
+                        ...prev,
+                        defaultCollapse: e.target.checked,
+                      }))
+                    }
+                    className="w-4 h-4 text-indigo-600 rounded-md border-slate-300 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm text-slate-700 font-medium">
+                    Repliée par défaut à l'ouverture de la galerie
+                  </span>
+                </label>
+              </div>
+
+              <div className="pt-4 flex justify-end gap-2.5 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryModalOpen(false)}
+                  disabled={isSubmittingCategory}
+                  className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-sm font-semibold transition cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingCategory}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold transition shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmittingCategory ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Enregistrement...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>{editingCategory ? 'Enregistrer' : 'Créer'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmation de suppression */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden my-auto p-6 space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <div className="p-3 bg-rose-100 rounded-2xl">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">
+                  {deleteConfirm.type === 'character'
+                    ? 'Supprimer le personnage'
+                    : 'Supprimer la catégorie'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Cette confirmation est demandée par mesure de sécurité.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-slate-700 leading-relaxed">
+              Êtes-vous sûr de vouloir supprimer{' '}
+              {deleteConfirm.type === 'character' ? 'le personnage' : 'la catégorie'} «{' '}
+              <strong className="text-slate-900">{deleteConfirm.name}</strong> » ?
+              {deleteConfirm.type === 'category'
+                ? ' Les personnages qui s’y trouvent ne seront pas supprimés et deviendront « Non classés ».'
+                : ' Cette action est irréversible.'}
+            </p>
+
+            <div className="pt-2 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-sm font-semibold transition cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm font-bold transition shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Suppression...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    <span>Supprimer</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Tour à dés */}
       {isCampaignMember && (
         <DiceTowerModal

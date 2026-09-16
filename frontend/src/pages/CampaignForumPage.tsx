@@ -832,18 +832,29 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
 
         <div className="flex items-center gap-2.5">
           {isMj && (
-            <button
-              onClick={() => setIsAdminMode(!isAdminMode)}
-              className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs ${
-                isAdminMode
-                  ? 'bg-amber-600 text-white hover:bg-amber-700 ring-2 ring-amber-300'
-                  : 'bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200'
-              }`}
-              title="Activer ou désactiver le mode administration du forum"
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>{isAdminMode ? 'Ne plus administrer' : 'Administrer'}</span>
-            </button>
+            <>
+              <button
+                onClick={() => navigate(`/campaigns/${effectiveCampaignId}/edit`)}
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+                title="Modifier la configuration générale de la campagne"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+                <span>Configurer</span>
+              </button>
+
+              <button
+                onClick={() => setIsAdminMode(!isAdminMode)}
+                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer ${
+                  isAdminMode
+                    ? 'bg-amber-600 text-white hover:bg-amber-700 ring-2 ring-amber-300'
+                    : 'bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200'
+                }`}
+                title="Activer ou désactiver le mode administration du forum"
+              >
+                <SlidersHorizontal className="w-4 h-4" />
+                <span>{isAdminMode ? 'Ne plus administrer' : 'Administrer'}</span>
+              </button>
+            </>
           )}
 
           <button
@@ -893,15 +904,6 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => navigate(`/campaigns/${effectiveCampaignId}/edit`)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
-              title="Modifier la configuration générale de la campagne"
-            >
-              <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
-              <span>Configurer</span>
-            </button>
-
             <button
               onClick={handleOpenCreateSection}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"

@@ -47,6 +47,12 @@ export class SectionNotFoundError extends DomainError {
   }
 }
 
+export class CategoryNotFoundError extends DomainError {
+  constructor(message = 'Catégorie introuvable') {
+    super(message);
+  }
+}
+
 export class MessageNotFoundError extends DomainError {
   constructor(message = 'Message introuvable') {
     super(message);
