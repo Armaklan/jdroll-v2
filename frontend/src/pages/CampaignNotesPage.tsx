@@ -6,6 +6,7 @@ import { CampaignHeader } from '../components/CampaignHeader';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignNotesData, Note } from '../types/campaign';
+import { formatDate } from '../utils/date';
 import {
   StickyNote,
   Save,
@@ -260,22 +261,6 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
       setBannerUploadError(err.message || 'Erreur lors du téléversement de la bannière');
     } finally {
       setIsUploadingBanner(false);
-    }
-  };
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateStr;
     }
   };
 

@@ -11,6 +11,7 @@ import {
 import { getUserColorClass } from '../utils/user';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { parseMessageContent } from '../utils/bbcode-parser';
+import { formatMessageDate as formatDate } from '../utils/date';
 import {
   Inbox,
   Send,
@@ -333,23 +334,6 @@ export const MessagesPage: React.FC = () => {
       `<strong>${message.fromUsername} a écrit :</strong><br>${message.content}</blockquote>`
     );
     handleTabChange('compose');
-  };
-
-  // Format date helper
-  const formatDate = (dateStr: string) => {
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      return new Intl.DateTimeFormat('fr-FR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      }).format(date);
-    } catch {
-      return dateStr;
-    }
   };
 
   // Filtered lists

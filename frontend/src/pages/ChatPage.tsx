@@ -10,6 +10,7 @@ import {
 import { getUserColorClass } from '../utils/user';
 import { SmileyPicker } from '../components/SmileyPicker';
 import { replaceEmoticons, convertEmoticonsOnType } from '../utils/emoticons';
+import { formatTime, formatDateLabel } from '../utils/date';
 import {
   MessagesSquare,
   MessageSquare,
@@ -439,35 +440,6 @@ export function ChatPage() {
   // Check if a user is online
   const isUserOnline = (username: string) => {
     return onlineUsers.some((u) => u.username.toLowerCase() === username.toLowerCase());
-  };
-
-  // Format date / time helper
-  const formatTime = (timeStr: string) => {
-    if (!timeStr) return '';
-    try {
-      const d = new Date(timeStr.replace(' ', 'T'));
-      if (isNaN(d.getTime())) return timeStr;
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return timeStr;
-    }
-  };
-
-  const formatDateLabel = (timeStr: string) => {
-    try {
-      const d = new Date(timeStr.replace(' ', 'T'));
-      if (isNaN(d.getTime())) return '';
-      const today = new Date();
-      const isToday =
-        d.getDate() === today.getDate() &&
-        d.getMonth() === today.getMonth() &&
-        d.getFullYear() === today.getFullYear();
-
-      if (isToday) return "Aujourd'hui";
-      return d.toLocaleDateString([], { day: '2-digit', month: 'short' });
-    } catch {
-      return '';
-    }
   };
 
   const renderAvatar = (avatarUrl?: string | null, username?: string, size = 'w-9 h-9 text-sm') => {

@@ -6,6 +6,7 @@ import { AppView, viewToPath } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserColorClass, isUserAdmin } from '../utils/user';
 import { WysiwygEditor } from '../components/WysiwygEditor';
+import { formatDate } from '../utils/date';
 import {
   MessageSquare,
   Pin,
@@ -160,23 +161,6 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
       ...prev,
       [sectionId]: !prev[sectionId],
     }));
-  };
-
-  const formatDate = (dateStr?: string | null): string => {
-    if (!dateStr) return 'Date inconnue';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return dateStr;
-    }
   };
 
   // Gestion des Bannières de Section

@@ -1,6 +1,7 @@
 import React from 'react';
 import { NotificationItem } from '../types/notification';
 import { Bell, Trash2, X, ExternalLink, MessageSquare, Dices, UserCheck, MessagesSquare } from 'lucide-react';
+import { formatNotificationDate } from '../utils/date';
 
 interface NotificationPopoverProps {
   isOpen: boolean;
@@ -22,31 +23,6 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
   onNavigateUrl,
 }) => {
   if (!isOpen) return null;
-
-  const formatNotificationDate = (isoString: string): string => {
-    try {
-      const d = new Date(isoString);
-      if (isNaN(d.getTime())) return '';
-      const now = new Date();
-      const diffMs = Math.max(0, now.getTime() - d.getTime());
-      const diffMins = Math.floor(diffMs / (1000 * 60));
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffMins < 1) return "À l'instant";
-      if (diffMins < 60) return `Il y a ${diffMins} min`;
-      if (diffHours < 24) return `Il y a ${diffHours} h`;
-      if (diffDays < 7) return `Il y a ${diffDays} j`;
-      return d.toLocaleDateString('fr-FR', {
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return '';
-    }
-  };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {

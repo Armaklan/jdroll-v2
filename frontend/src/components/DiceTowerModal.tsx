@@ -13,6 +13,7 @@ import { campaignsApi } from '../api/campaigns';
 import { CampaignDiceRoll } from '../types/campaign';
 import { parseDiceInText } from '../utils/dice-parser';
 import { getUserColorClass } from '../utils/user';
+import { formatFullDateTime as formatDate } from '../utils/date';
 
 interface DiceTowerModalProps {
   isOpen: boolean;
@@ -103,24 +104,6 @@ export const DiceTowerModal: React.FC<DiceTowerModalProps> = ({
 
   const setFormulaShortcut = (val: string) => {
     setFormula(val);
-  };
-
-  const formatDate = (dateStr?: string | null): string => {
-    if (!dateStr) return 'Date inconnue';
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      return new Intl.DateTimeFormat('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      }).format(date);
-    } catch {
-      return dateStr;
-    }
   };
 
   return (
