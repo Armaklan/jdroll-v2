@@ -642,7 +642,7 @@ export class CampaignController {
    */
   async getCharacter(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as { id?: string; characterId?: string };
-    const characterId = Number(params.id || params.characterId);
+    const characterId = Number(params.characterId || params.id);
     if (isNaN(characterId) || characterId <= 0) {
       return reply.status(400).send({ error: 'Identifiant de personnage invalide' });
     }
