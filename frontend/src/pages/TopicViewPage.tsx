@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
 import { TopicDetail, CharacterSummary } from '../types/campaign';
@@ -15,7 +15,7 @@ import {
   changeWidgetValue,
   mergeCharacterWidgets,
 } from '../utils/widgets';
-import { parseDiceInHtml } from '../utils/dice-parser';
+import { parseMessageContent } from '../utils/bbcode-parser';
 import {
   ArrowLeft,
   Pin,
@@ -113,6 +113,72 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   const previewRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const lastScrolledRef = useRef<string | null>(null);
+
+  const isUserCampaignMj =
+    topicDetail?.userRole === 'mj' ||
+    Boolean(topicDetail?.campaign && topicDetail.campaign.mjId === user?.id);
+
+  const userCharacterNames = useMemo(() => {
+    if (!user || !topicDetail?.availableCharacters) return [];
+    return topicDetail.availableCharacters
+      .filter((c) => c.userId === user.id || isUserCampaignMj)
+      .map((c) => c.name);
+  }, [user, topicDetail?.availableCharacters, isUserCampaignMj]);
+
+  const availableUsers = useMemo(() => {
+    const usersMap = new Map<string, { id?: number; username: string; avatar?: string }>();
+
+    if (topicDetail?.campaign?.mjUsername) {
+      usersMap.set(topicDetail.campaign.mjUsername.toLowerCase(), {
+        id: topicDetail.campaign.mjId,
+        username: topicDetail.campaign.mjUsername,
+        avatar: topicDetail.campaign.mjAvatar,
+      });
+    }
+
+    if (topicDetail?.canReadUsers) {
+      for (const u of topicDetail.canReadUsers) {
+        if (u.username && !usersMap.has(u.username.toLowerCase())) {
+          usersMap.set(u.username.toLowerCase(), {
+            id: u.id,
+            username: u.username,
+            avatar: u.avatar,
+          });
+        }
+      }
+    }
+
+    if (topicDetail?.posts) {
+      for (const p of topicDetail.posts) {
+        if (p.user?.username && !usersMap.has(p.user.username.toLowerCase())) {
+          usersMap.set(p.user.username.toLowerCase(), {
+            id: p.user.id,
+            username: p.user.username,
+            avatar: p.user.avatar,
+          });
+        }
+      }
+    }
+
+    return Array.from(usersMap.values());
+  }, [topicDetail?.campaign, topicDetail?.canReadUsers, topicDetail?.posts]);
+
+  const [availableCartes, setAvailableCartes] = useState<Array<{ id: number; name: string }>>([]);
+
+  useEffect(() => {
+    if (!topicDetail?.campagneId) {
+      setAvailableCartes([]);
+      return;
+    }
+    campaignsApi
+      .getCampaignCartes(topicDetail.campagneId)
+      .then((cartes) => {
+        setAvailableCartes(cartes.map((c) => ({ id: c.id, name: c.name })));
+      })
+      .catch((err) => {
+        console.error('Erreur chargement cartes pour wysiwyg:', err);
+      });
+  }, [topicDetail?.campagneId]);
 
   const handleNavigate = (view: AppView) => {
     if (onNavigate) {
@@ -480,6 +546,41 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   const previewAuthorName = selectedCharacter ? selectedCharacter.name : user?.username || 'Vous';
   const previewAvatar = selectedCharacter?.avatar || user?.avatar || '';
   const previewConcept = selectedCharacter?.concept || '';
+
+  const handlePostContentClick = async (e: React.MouseEvent<HTMLDivElement>) => {
+    const pnjElement = (e.target as HTMLElement).closest('[data-pnj]');
+    if (pnjElement) {
+      e.preventDefault();
+      const pnjIdentifier = pnjElement.getAttribute('data-pnj');
+      if (!pnjIdentifier) return;
+
+      const numId = parseInt(pnjIdentifier, 10);
+      const foundInAvailable = topicDetail?.availableCharacters.find(
+        (c) => (!isNaN(numId) && c.id === numId) || c.name.toLowerCase() === pnjIdentifier.toLowerCase()
+      );
+
+      if (foundInAvailable) {
+        setViewingCharacterId(foundInAvailable.id);
+        return;
+      }
+
+      if (topicDetail?.campagneId) {
+        try {
+          const campaignCharsData = await campaignsApi.getCampaignCharacters(topicDetail.campagneId);
+          const allChars = campaignCharsData.categories.flatMap((cat) => cat.characters);
+          const found = allChars.find(
+            (c) => (!isNaN(numId) && c.id === numId) || c.name.toLowerCase() === pnjIdentifier.toLowerCase()
+          );
+          if (found) {
+            setViewingCharacterId(found.id);
+            return;
+          }
+        } catch (err) {
+          console.error('Erreur chargement personnage', err);
+        }
+      }
+    }
+  };
 
   const campaignStyles = {
     '--pensee-color': topicDetail.penseeColor || '#8844CC',
@@ -951,6 +1052,18 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                           onChange={setEditPostContent}
                           placeholder="Modifier votre message..."
                           minHeight="160px"
+                          campaignId={topicDetail?.campagneId ?? undefined}
+                          availableCharacters={topicDetail?.availableCharacters}
+                          availableUsers={availableUsers}
+                          availableCartes={availableCartes}
+                          onUploadImage={
+                            topicDetail?.campagneId
+                              ? async (file: File) => {
+                                  const res = await campaignsApi.uploadCampaignImage(topicDetail.campagneId!, file);
+                                  return res.url;
+                                }
+                              : undefined
+                          }
                         />
 
                         <div className="flex items-center justify-end gap-2 pt-2">
@@ -994,7 +1107,17 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                           '--tw-prose-bold': postTextColor || 'inherit',
                           '--tw-prose-quotes': postTextColor || 'inherit',
                         } as React.CSSProperties}
-                        dangerouslySetInnerHTML={{ __html: parseDiceInHtml(post.content) }}
+                        onClick={handlePostContentClick}
+                        dangerouslySetInnerHTML={{
+                          __html: parseMessageContent(post.content, {
+                            currentUser: user,
+                            isMj: isUserCampaignMj,
+                            authorUserId: post.user?.id,
+                            authorPersoId: post.perso?.id,
+                            userCharacterNames,
+                            campaignId: topicDetail.campagneId ?? undefined,
+                          }),
+                        }}
                       />
                     )}
                   </div>
@@ -1092,7 +1215,17 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                 <div className="md:col-span-9 min-w-0">
                   <div
                     className="wysiwyg-content post-content-container text-slate-900 text-sm sm:text-base leading-relaxed space-y-3 prose prose-slate max-w-none break-words"
-                    dangerouslySetInnerHTML={{ __html: parseDiceInHtml(postContent) }}
+                    onClick={handlePostContentClick}
+                    dangerouslySetInnerHTML={{
+                      __html: parseMessageContent(postContent, {
+                        currentUser: user,
+                        isMj: isUserCampaignMj,
+                        authorUserId: user?.id,
+                        authorPersoId: selectedPersoId ?? undefined,
+                        userCharacterNames,
+                        campaignId: topicDetail?.campagneId ?? undefined,
+                      }),
+                    }}
                   />
                 </div>
               </div>
@@ -1423,6 +1556,10 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
               placeholder="Écrivez votre message RP ou vos remarques de jeu..."
               disabled={isSubmitting}
               minHeight="160px"
+              campaignId={topicDetail?.campagneId ?? undefined}
+              availableCharacters={topicDetail?.availableCharacters}
+              availableUsers={availableUsers}
+              availableCartes={availableCartes}
               onUploadImage={
                 topicDetail && topicDetail.campagneId
                   ? async (file: File) => {

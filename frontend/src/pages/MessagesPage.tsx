@@ -10,6 +10,7 @@ import {
 } from '../types/message';
 import { getUserColorClass } from '../utils/user';
 import { WysiwygEditor } from '../components/WysiwygEditor';
+import { parseMessageContent } from '../utils/bbcode-parser';
 import {
   Inbox,
   Send,
@@ -598,8 +599,13 @@ export const MessagesPage: React.FC = () => {
 
                   {/* Body Content */}
                   <div
-                    className="prose prose-slate max-w-none p-6 rounded-xl border border-slate-200/80 bg-white min-h-[200px]"
-                    dangerouslySetInnerHTML={{ __html: currentMessage.content }}
+                    className="wysiwyg-content prose prose-slate max-w-none p-6 rounded-xl border border-slate-200/80 bg-white min-h-[200px]"
+                    dangerouslySetInnerHTML={{
+                      __html: parseMessageContent(currentMessage.content, {
+                        currentUser: user,
+                        authorUserId: currentMessage.fromId,
+                      }),
+                    }}
                   />
                 </div>
               ) : null}
