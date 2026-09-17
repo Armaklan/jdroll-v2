@@ -4,6 +4,7 @@ import { DeleteNotificationUseCase } from './delete-notification.usecase.js';
 import { DeleteAllNotificationsUseCase } from './delete-all-notifications.usecase.js';
 import { NotificationQueries } from '../../queries/notification.queries.js';
 import { INotificationRepository } from '../../repositories/notification.repository.js';
+import { INotificationWebSocketService } from '../../services/notification-websocket.service.js';
 import { NotificationItem } from '../../types/index.js';
 import { ValidationError } from '../../errors/domain.errors.js';
 
@@ -11,7 +12,10 @@ describe('Notification Deletion and Queries', () => {
   let deleteOneUseCase: DeleteNotificationUseCase;
   let deleteAllUseCase: DeleteAllNotificationsUseCase;
   let queries: NotificationQueries;
+  let mockWsService: INotificationWebSocketService;
   let notifications: NotificationItem[];
+  let deletedIds: { userId: number; id: number }[];
+  let clearedUserIds: number[];
 
   beforeEach(() => {
     notifications = [
@@ -50,6 +54,9 @@ describe('Notification Deletion and Queries', () => {
       },
     ];
 
+    deletedIds = [];
+    clearedUserIds = [];
+
     const mockRepo: INotificationRepository = {
       findByUserId: async (userId: number) => notifications.filter((n) => n.userId === userId),
       countByUserId: async (userId: number) => notifications.filter((n) => n.userId === userId).length,
@@ -71,8 +78,21 @@ describe('Notification Deletion and Queries', () => {
       },
     };
 
-    deleteOneUseCase = new DeleteNotificationUseCase(mockRepo);
-    deleteAllUseCase = new DeleteAllNotificationsUseCase(mockRepo);
+    mockWsService = {
+      handleConnection: async () => {},
+      sendNotification: () => {},
+      sendNotificationDeleted: (userId, id) => {
+        deletedIds.push({ userId, id });
+      },
+      sendNotificationsCleared: (userId) => {
+        clearedUserIds.push(userId);
+      },
+      sendNotificationsUpdate: () => {},
+      getConnectedUserCount: () => 1,
+    };
+
+    deleteOneUseCase = new DeleteNotificationUseCase(mockRepo, mockWsService);
+    deleteAllUseCase = new DeleteAllNotificationsUseCase(mockRepo, mockWsService);
     queries = new NotificationQueries(mockRepo);
   });
 
@@ -87,23 +107,29 @@ describe('Notification Deletion and Queries', () => {
     await assert.rejects(() => queries.getUserNotifications(0), ValidationError);
   });
 
-  it('should delete a specific notification for user', async () => {
+  it('should delete a specific notification for user and push ws event', async () => {
     const success = await deleteOneUseCase.execute({ notificationId: 1, userId: 10 });
     assert.equal(success, true);
     assert.equal(notifications.length, 2);
     assert.equal(notifications.find((n) => n.id === 1), undefined);
+    assert.equal(deletedIds.length, 1);
+    assert.equal(deletedIds[0].id, 1);
+    assert.equal(deletedIds[0].userId, 10);
   });
 
   it('should not delete a notification if owned by another user', async () => {
     const success = await deleteOneUseCase.execute({ notificationId: 3, userId: 10 });
     assert.equal(success, false);
     assert.equal(notifications.length, 3);
+    assert.equal(deletedIds.length, 0);
   });
 
-  it('should delete all notifications for a user', async () => {
+  it('should delete all notifications for a user and push ws event', async () => {
     const count = await deleteAllUseCase.execute({ userId: 10 });
     assert.equal(count, 2);
     assert.equal(notifications.length, 1);
     assert.equal(notifications[0].userId, 20);
+    assert.equal(clearedUserIds.length, 1);
+    assert.equal(clearedUserIds[0], 10);
   });
 });

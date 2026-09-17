@@ -9,6 +9,10 @@ import {
   deleteAllNotificationsUseCase,
   DeleteAllNotificationsUseCase,
 } from '../usecases/notification/delete-all-notifications.usecase.js';
+import {
+  notificationWebSocketService,
+  INotificationWebSocketService,
+} from '../services/notification-websocket.service.js';
 import { DomainError, ValidationError } from '../errors/domain.errors.js';
 import { JWTPayload } from '../types/index.js';
 
@@ -20,7 +24,8 @@ export class NotificationController {
   constructor(
     private readonly notifQueries: NotificationQueries = notificationQueries,
     private readonly deleteUseCase: DeleteNotificationUseCase = deleteNotificationUseCase,
-    private readonly deleteAllUseCase: DeleteAllNotificationsUseCase = deleteAllNotificationsUseCase
+    private readonly deleteAllUseCase: DeleteAllNotificationsUseCase = deleteAllNotificationsUseCase,
+    private readonly wsService: INotificationWebSocketService = notificationWebSocketService
   ) {}
 
   private handleError(error: unknown, reply: FastifyReply) {
@@ -86,6 +91,25 @@ export class NotificationController {
     app.delete('/api/notifications', { preHandler: [app.authenticate] }, (req, rep) =>
       this.deleteAllNotifications(req, rep)
     );
+
+    app.get('/api/notifications/ws', { websocket: true }, (socket, req) => {
+      // Extract token from query or Authorization header
+      const queryToken = (req.query as any)?.token;
+      const headerAuth = req.headers.authorization;
+      const token = queryToken || (headerAuth?.startsWith('Bearer ') ? headerAuth.slice(7) : null);
+
+      if (!token) {
+        socket.close(4001, 'Unauthorized: token manquant');
+        return;
+      }
+
+      try {
+        const decoded = app.jwt.verify<JWTPayload>(token);
+        this.wsService.handleConnection(socket, decoded);
+      } catch (err) {
+        socket.close(4001, 'Unauthorized: token invalide');
+      }
+    });
   }
 }
 

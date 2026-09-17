@@ -1,4 +1,8 @@
 import { INotificationRepository, notificationRepository } from '../../repositories/notification.repository.js';
+import {
+  INotificationWebSocketService,
+  notificationWebSocketService,
+} from '../../services/notification-websocket.service.js';
 import { ValidationError } from '../../errors/domain.errors.js';
 
 export interface DeleteNotificationInput {
@@ -7,7 +11,10 @@ export interface DeleteNotificationInput {
 }
 
 export class DeleteNotificationUseCase {
-  constructor(private readonly notifRepo: INotificationRepository = notificationRepository) {}
+  constructor(
+    private readonly notifRepo: INotificationRepository = notificationRepository,
+    private readonly notifWsService: INotificationWebSocketService = notificationWebSocketService
+  ) {}
 
   async execute(input: DeleteNotificationInput): Promise<boolean> {
     if (!input.notificationId || input.notificationId <= 0) {
@@ -17,7 +24,11 @@ export class DeleteNotificationUseCase {
       throw new ValidationError("L'identifiant de l'utilisateur est invalide");
     }
 
-    return this.notifRepo.deleteNotification(input.notificationId, input.userId);
+    const deleted = await this.notifRepo.deleteNotification(input.notificationId, input.userId);
+    if (deleted) {
+      this.notifWsService.sendNotificationDeleted(input.userId, input.notificationId);
+    }
+    return deleted;
   }
 }
 

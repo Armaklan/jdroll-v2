@@ -45,4 +45,11 @@ export const notificationsApi = {
       method: 'DELETE',
     });
   },
+
+  getWebSocketUrl(): string {
+    const token = getToken();
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.host;
+    return `${protocol}//${host}/api/notifications/ws?token=${encodeURIComponent(token || '')}`;
+  },
 };

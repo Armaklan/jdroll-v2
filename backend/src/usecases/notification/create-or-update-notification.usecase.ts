@@ -1,5 +1,10 @@
 import { INotificationRepository, notificationRepository } from '../../repositories/notification.repository.js';
+import {
+  INotificationWebSocketService,
+  notificationWebSocketService,
+} from '../../services/notification-websocket.service.js';
 import { ValidationError } from '../../errors/domain.errors.js';
+import { NotificationItem } from '../../types/index.js';
 
 export interface CreateOrUpdateNotificationInput {
   userId: number;
@@ -11,9 +16,12 @@ export interface CreateOrUpdateNotificationInput {
 }
 
 export class CreateOrUpdateNotificationUseCase {
-  constructor(private readonly notifRepo: INotificationRepository = notificationRepository) {}
+  constructor(
+    private readonly notifRepo: INotificationRepository = notificationRepository,
+    private readonly notifWsService: INotificationWebSocketService = notificationWebSocketService
+  ) {}
 
-  async execute(input: CreateOrUpdateNotificationInput): Promise<void> {
+  async execute(input: CreateOrUpdateNotificationInput): Promise<NotificationItem> {
     if (!input.userId || input.userId <= 0) {
       throw new ValidationError("L'identifiant de l'utilisateur destinataire est invalide");
     }
@@ -25,6 +33,8 @@ export class CreateOrUpdateNotificationUseCase {
 
     const existing = await this.notifRepo.findNotification(input.userId, trimmedType, input.targetId);
 
+    let notification: NotificationItem;
+
     if (existing) {
       await this.notifRepo.updateNotification(existing.id, {
         title: trimmedTitle,
@@ -32,8 +42,16 @@ export class CreateOrUpdateNotificationUseCase {
         url: trimmedUrl,
         nbIncrement: true,
       });
+      notification = {
+        ...existing,
+        title: trimmedTitle,
+        content: trimmedContent,
+        url: trimmedUrl,
+        nb: existing.nb + 1,
+        lastUpdate: new Date().toISOString(),
+      };
     } else {
-      await this.notifRepo.createNotification({
+      const createdId = await this.notifRepo.createNotification({
         userId: input.userId,
         title: trimmedTitle,
         content: trimmedContent,
@@ -41,7 +59,22 @@ export class CreateOrUpdateNotificationUseCase {
         type: trimmedType,
         targetId: input.targetId,
       });
+      notification = {
+        id: createdId,
+        userId: input.userId,
+        title: trimmedTitle,
+        content: trimmedContent,
+        url: trimmedUrl,
+        type: trimmedType,
+        targetId: input.targetId,
+        nb: 1,
+        lastUpdate: new Date().toISOString(),
+      };
     }
+
+    this.notifWsService.sendNotification(input.userId, notification);
+
+    return notification;
   }
 }
 

@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { notificationsApi } from '../api/notifications';
+import { useNotifications } from '../contexts/NotificationContext';
 import { messagesApi } from '../api/messages';
-import { NotificationItem } from '../types/notification';
 import { NotificationPopover } from './NotificationPopover';
 import { getUserColorClass } from '../utils/user';
 import {
@@ -74,32 +73,20 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) => {
   const { user, isAuthenticated, logout } = useAuth();
+  const {
+    notifications,
+    isLoading: isNotifLoading,
+    deleteNotification: handleDeleteNotification,
+    deleteAllNotifications: handleDeleteAllNotifications,
+  } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState<number>(0);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [isNotifLoading, setIsNotifLoading] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const mobileNotifRef = useRef<HTMLDivElement>(null);
-
-  const fetchNotifications = useCallback(async () => {
-    if (!isAuthenticated) {
-      setNotifications([]);
-      return;
-    }
-    try {
-      setIsNotifLoading(true);
-      const res = await notificationsApi.getNotifications();
-      setNotifications(res.notifications || []);
-    } catch {
-      // ignore
-    } finally {
-      setIsNotifLoading(false);
-    }
-  }, [isAuthenticated]);
 
   const fetchUnreadMessages = useCallback(async () => {
     if (!isAuthenticated) {
@@ -115,32 +102,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
   }, [isAuthenticated]);
 
   useEffect(() => {
-    fetchNotifications();
     fetchUnreadMessages();
     const interval = setInterval(() => {
-      fetchNotifications();
       fetchUnreadMessages();
     }, 30000);
     return () => clearInterval(interval);
-  }, [fetchNotifications, fetchUnreadMessages, location.pathname]);
-
-  const handleDeleteNotification = async (id: number) => {
-    try {
-      await notificationsApi.deleteNotification(id);
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleDeleteAllNotifications = async () => {
-    try {
-      await notificationsApi.deleteAllNotifications();
-      setNotifications([]);
-    } catch {
-      // ignore
-    }
-  };
+  }, [fetchUnreadMessages, location.pathname]);
 
   // Close dropdown on outside click
   useEffect(() => {
