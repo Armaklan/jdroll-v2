@@ -4,6 +4,8 @@ import { EventEmitter } from 'node:events';
 import { ChatWebSocketService } from './chat-websocket.service.js';
 import { IUserRepository } from '../repositories/user.repository.js';
 import { SendChatMessageUseCase } from '../usecases/chat/send-chat-message.usecase.js';
+import { CreateOrUpdateNotificationUseCase } from '../usecases/notification/create-or-update-notification.usecase.js';
+import { INotificationRepository } from '../repositories/notification.repository.js';
 import { IChatRepository } from '../repositories/chat.repository.js';
 import { ChatMessage, JWTPayload } from '../types/index.js';
 
@@ -22,6 +24,22 @@ class MockWebSocket extends EventEmitter {
 
 describe('ChatWebSocketService', () => {
   const setup = () => {
+    const notifications: any[] = [];
+    const mockNotifRepo: INotificationRepository = {
+      findByUserId: async () => [],
+      countByUserId: async () => 0,
+      findNotification: async () => null,
+      createNotification: async (data) => {
+        notifications.push(data);
+        return notifications.length;
+      },
+      updateNotification: async () => {},
+      deleteNotification: async () => true,
+      deleteAllByUserId: async () => 0,
+    };
+
+    const notifUseCase = new CreateOrUpdateNotificationUseCase(mockNotifRepo);
+
     const mockChatRepo: IChatRepository = {
       createMessage: async (d) => ({
         id: 100,
@@ -40,7 +58,7 @@ describe('ChatWebSocketService', () => {
     const mockUserRepo: IUserRepository = {
       findById: async (id) => ({
         id,
-        username: id === 1 ? 'Alice' : 'Bob',
+        username: id === 1 ? 'Alice' : id === 2 ? 'Bob' : 'Charlie',
         mail: 'user@test.com',
         avatar: id === 1 ? 'alice.png' : 'bob.png',
         description: '',
@@ -48,7 +66,18 @@ describe('ChatWebSocketService', () => {
         titre: '',
         subscribe_date: '',
       }),
-      findByUsernameOrEmail: async () => null,
+      findByUsernameOrEmail: async (identifier) => {
+        if (identifier === 'Alice') {
+          return { id: 1, username: 'Alice', mail: 'alice@test.com', avatar: '', description: '', profil: 1, titre: '', subscribe_date: '' };
+        }
+        if (identifier === 'Bob') {
+          return { id: 2, username: 'Bob', mail: 'bob@test.com', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '' };
+        }
+        if (identifier === 'Charlie') {
+          return { id: 3, username: 'Charlie', mail: 'charlie@test.com', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '' };
+        }
+        return null;
+      },
       findByUsernames: async () => [],
       searchByUsername: async () => [],
       existsByUsernameOrEmail: async () => false,
@@ -56,9 +85,9 @@ describe('ChatWebSocketService', () => {
     };
 
     const useCase = new SendChatMessageUseCase(mockChatRepo, mockUserRepo);
-    const wsService = new ChatWebSocketService(mockUserRepo, useCase);
+    const wsService = new ChatWebSocketService(mockUserRepo, useCase, notifUseCase);
 
-    return { wsService, mockUserRepo, useCase };
+    return { wsService, mockUserRepo, useCase, notifUseCase, notifications };
   };
 
   it('gère la connexion et la présence des utilisateurs', async () => {
@@ -153,5 +182,86 @@ describe('ChatWebSocketService', () => {
     assert.equal(lastMsg2.message.message, 'Message pour Bob');
     // Charlie should NOT have received this message
     assert.equal(socket3.sentMessages.length, initialLen3);
+  });
+
+  it('crée une notification si le destinataire d’un message privé n’est pas connecté au tchat', async () => {
+    const { wsService, notifications } = setup();
+
+    // Only Alice is connected
+    const socket1 = new MockWebSocket() as any;
+    const user1: JWTPayload = { id: 1, username: 'Alice', mail: 'alice@test.com', profil: 1 };
+    await wsService.handleConnection(socket1, user1);
+
+    const privateMessageToOfflineBob: ChatMessage = {
+      id: 52,
+      username: 'Alice',
+      time: '2026-09-16 12:05:00',
+      message: 'Coucou Bob es-tu là ?',
+      to: '2',
+      to_username: 'Bob',
+    };
+
+    wsService.broadcastChatMessage(privateMessageToOfflineBob);
+
+    // Wait a tick for async notification
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.equal(notifications.length, 1);
+    assert.equal(notifications[0].userId, 2);
+    assert.equal(notifications[0].type, 'chat');
+    assert.equal(notifications[0].targetId, 1);
+    assert.equal(notifications[0].title, 'Nouveau message sur le tchat');
+    assert.match(notifications[0].content, /Alice/);
+    assert.equal(notifications[0].url, '/chat');
+  });
+
+  it('ne crée PAS de notification si le destinataire est connecté au tchat', async () => {
+    const { wsService, notifications } = setup();
+
+    const socket1 = new MockWebSocket() as any;
+    const user1: JWTPayload = { id: 1, username: 'Alice', mail: 'alice@test.com', profil: 1 };
+    await wsService.handleConnection(socket1, user1);
+
+    const socket2 = new MockWebSocket() as any;
+    const user2: JWTPayload = { id: 2, username: 'Bob', mail: 'bob@test.com', profil: 0 };
+    await wsService.handleConnection(socket2, user2);
+
+    const privateMessageToOnlineBob: ChatMessage = {
+      id: 53,
+      username: 'Alice',
+      time: '2026-09-16 12:06:00',
+      message: 'Salut Bob !',
+      to: '2',
+      to_username: 'Bob',
+    };
+
+    wsService.broadcastChatMessage(privateMessageToOnlineBob);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.equal(notifications.length, 0);
+  });
+
+  it('ne crée PAS de notification pour un message public dans le salon général', async () => {
+    const { wsService, notifications } = setup();
+
+    const socket1 = new MockWebSocket() as any;
+    const user1: JWTPayload = { id: 1, username: 'Alice', mail: 'alice@test.com', profil: 1 };
+    await wsService.handleConnection(socket1, user1);
+
+    const generalMessage: ChatMessage = {
+      id: 54,
+      username: 'Alice',
+      time: '2026-09-16 12:07:00',
+      message: 'Hello le salon général',
+      to: '',
+      to_username: '',
+    };
+
+    wsService.broadcastChatMessage(generalMessage);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    assert.equal(notifications.length, 0);
   });
 });

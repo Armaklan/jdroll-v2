@@ -1,6 +1,6 @@
 import React from 'react';
 import { NotificationItem } from '../types/notification';
-import { Bell, Trash2, X, ExternalLink, MessageSquare, Dices, UserCheck } from 'lucide-react';
+import { Bell, Trash2, X, ExternalLink, MessageSquare, Dices, UserCheck, MessagesSquare } from 'lucide-react';
 
 interface NotificationPopoverProps {
   isOpen: boolean;
@@ -57,6 +57,10 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
       case 'perso':
       case 'character':
         return <UserCheck className="w-4 h-4 text-emerald-600" />;
+      case 'chat':
+      case 'tchat':
+      case 'mp':
+        return <MessagesSquare className="w-4 h-4 text-indigo-600" />;
       default:
         return <Bell className="w-4 h-4 text-slate-500" />;
     }

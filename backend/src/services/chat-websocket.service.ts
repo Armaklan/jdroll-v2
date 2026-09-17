@@ -5,6 +5,10 @@ import {
   SendChatMessageUseCase,
   sendChatMessageUseCase,
 } from '../usecases/chat/send-chat-message.usecase.js';
+import {
+  CreateOrUpdateNotificationUseCase,
+  createOrUpdateNotificationUseCase,
+} from '../usecases/notification/create-or-update-notification.usecase.js';
 
 interface ConnectedClient {
   socket: WebSocket;
@@ -17,7 +21,8 @@ export class ChatWebSocketService {
 
   constructor(
     private readonly userRepo: IUserRepository = userRepository,
-    private readonly sendUseCase: SendChatMessageUseCase = sendChatMessageUseCase
+    private readonly sendUseCase: SendChatMessageUseCase = sendChatMessageUseCase,
+    private readonly notifUseCase: CreateOrUpdateNotificationUseCase = createOrUpdateNotificationUseCase
   ) {}
 
   async handleConnection(socket: WebSocket, user: JWTPayload) {
@@ -125,11 +130,17 @@ export class ChatWebSocketService {
     const targetUsername = message.to_username.toLowerCase();
     const senderUsername = message.username.toLowerCase();
 
+    let recipientFound = false;
+
     for (const client of this.clients) {
       const isSender = client.user.username.toLowerCase() === senderUsername;
       const isRecipient =
         (targetUserIdStr && String(client.user.id) === targetUserIdStr) ||
         (targetUsername && client.user.username.toLowerCase() === targetUsername);
+
+      if (isRecipient && !isSender) {
+        recipientFound = true;
+      }
 
       if (isSender || isRecipient) {
         this.sendToSocket(client.socket, {
@@ -137,6 +148,48 @@ export class ChatWebSocketService {
           message,
         });
       }
+    }
+
+    // If recipient is NOT connected to chat, create notification
+    if (!recipientFound && senderUsername !== targetUsername) {
+      this.notifyOfflineRecipient(message);
+    }
+  }
+
+  private async notifyOfflineRecipient(message: ChatMessage) {
+    try {
+      let recipientId = Number(message.to);
+      if (!recipientId || isNaN(recipientId)) {
+        if (message.to_username) {
+          const user = await this.userRepo.findByUsernameOrEmail(message.to_username);
+          if (user) {
+            recipientId = user.id;
+          }
+        }
+      }
+
+      if (!recipientId) return;
+
+      let senderId = 0;
+      try {
+        const sender = await this.userRepo.findByUsernameOrEmail(message.username);
+        if (sender) {
+          senderId = sender.id;
+        }
+      } catch {
+        // ignore
+      }
+
+      await this.notifUseCase.execute({
+        userId: recipientId,
+        title: 'Nouveau message sur le tchat',
+        content: `Message privé reçu de <strong>${message.username}</strong> sur le tchat`,
+        url: '/chat',
+        type: 'chat',
+        targetId: senderId,
+      });
+    } catch {
+      // Non-blocking notification failure
     }
   }
 

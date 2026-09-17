@@ -29,6 +29,7 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<ChatConnectedUser[]>([]);
   const [activeChannel, setActiveChannel] = useState<ChatActiveChannel>({ type: 'general' });
+  const [unreadMap, setUnreadMap] = useState<Record<string, number>>({});
   const [messageInput, setMessageInput] = useState('');
   const [isSmileyPickerOpen, setIsSmileyPickerOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,9 +55,31 @@ export function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<any>(null);
+  const activeChannelRef = useRef<ChatActiveChannel>(activeChannel);
+
+  useEffect(() => {
+    activeChannelRef.current = activeChannel;
+  }, [activeChannel]);
 
   const currentUsername = user?.username || '';
   const currentUserId = user?.id;
+
+  const selectChannel = useCallback((channel: ChatActiveChannel) => {
+    setActiveChannel(channel);
+    if (channel.type === 'private') {
+      const key = channel.user.username.toLowerCase();
+      setUnreadMap((prev) => {
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+  }, []);
+
+  const totalUnreadCount = useMemo(() => {
+    return Object.values(unreadMap).reduce((acc, count) => acc + count, 0);
+  }, [unreadMap]);
 
   // Scroll to bottom helper
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
@@ -160,8 +183,9 @@ export function ChatPage() {
                 const otherProfil = !isSender ? newMsg.userProfil : undefined;
 
                 if (otherUsername && otherUsername.toLowerCase() !== currentUsername.toLowerCase()) {
+                  const otherKey = otherUsername.toLowerCase();
                   setOpenPrivateChats((prev) => {
-                    if (prev.some((p) => p.username.toLowerCase() === otherUsername.toLowerCase())) {
+                    if (prev.some((p) => p.username.toLowerCase() === otherKey)) {
                       return prev;
                     }
                     return [
@@ -174,6 +198,21 @@ export function ChatPage() {
                       },
                     ];
                   });
+
+                  // If this message was sent by the other user to me, update unread state
+                  if (!isSender) {
+                    const curActive = activeChannelRef.current;
+                    const isCurrentlyActive =
+                      curActive.type === 'private' &&
+                      curActive.user.username.toLowerCase() === otherKey;
+
+                    if (!isCurrentlyActive) {
+                      setUnreadMap((prev) => ({
+                        ...prev,
+                        [otherKey]: (prev[otherKey] || 0) + 1,
+                      }));
+                    }
+                  }
                 }
               }
             }
@@ -372,7 +411,7 @@ export function ChatPage() {
       return prev;
     });
 
-    setActiveChannel({
+    selectChannel({
       type: 'private',
       user: target,
     });
@@ -384,9 +423,16 @@ export function ChatPage() {
   // Close private chat tab
   const closePrivateChat = (username: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setOpenPrivateChats((prev) => prev.filter((p) => p.username.toLowerCase() !== username.toLowerCase()));
-    if (activeChannel.type === 'private' && activeChannel.user.username.toLowerCase() === username.toLowerCase()) {
-      setActiveChannel({ type: 'general' });
+    const key = username.toLowerCase();
+    setOpenPrivateChats((prev) => prev.filter((p) => p.username.toLowerCase() !== key));
+    setUnreadMap((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    if (activeChannel.type === 'private' && activeChannel.user.username.toLowerCase() === key) {
+      selectChannel({ type: 'general' });
     }
   };
 
@@ -495,11 +541,16 @@ export function ChatPage() {
             <button
               type="button"
               onClick={() => setMobileTab('channels')}
-              className={`px-2.5 py-1 rounded-md transition ${
+              className={`relative px-2.5 py-1 rounded-md transition flex items-center gap-1.5 ${
                 mobileTab === 'channels' ? 'bg-indigo-600 text-white font-medium' : 'text-slate-400 hover:text-white'
               }`}
             >
-              Salons
+              <span>Salons</span>
+              {totalUnreadCount > 0 && (
+                <span className="min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center shadow-xs">
+                  {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                </span>
+              )}
             </button>
             <button
               type="button"
@@ -556,7 +607,7 @@ export function ChatPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setActiveChannel({ type: 'general' });
+                  selectChannel({ type: 'general' });
                   setMobileTab('chat');
                 }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition ${
@@ -590,9 +641,16 @@ export function ChatPage() {
             {/* Private Chats */}
             <div>
               <div className="flex items-center justify-between px-2 mb-1">
-                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                  Discussions privées
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Discussions privées
+                  </span>
+                  {totalUnreadCount > 0 && (
+                    <span className="px-1.5 py-0.2 text-[10px] font-bold bg-indigo-600 text-white rounded-full">
+                      {totalUnreadCount}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[11px] text-slate-400 font-medium">
                   {openPrivateChats.length}
                 </span>
@@ -606,16 +664,18 @@ export function ChatPage() {
               ) : (
                 <div className="space-y-1">
                   {openPrivateChats.map((chatUser) => {
+                    const key = chatUser.username.toLowerCase();
                     const isSelected =
                       activeChannel.type === 'private' &&
-                      activeChannel.user.username.toLowerCase() === chatUser.username.toLowerCase();
+                      activeChannel.user.username.toLowerCase() === key;
                     const online = isUserOnline(chatUser.username);
+                    const unreadCount = unreadMap[key] || 0;
 
                     return (
                       <div
                         key={chatUser.username}
                         onClick={() => {
-                          setActiveChannel({
+                          selectChannel({
                             type: 'private',
                             user: chatUser,
                           });
@@ -624,6 +684,8 @@ export function ChatPage() {
                         className={`group relative flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer transition ${
                           isSelected
                             ? 'bg-indigo-600 text-white font-medium shadow-sm'
+                            : unreadCount > 0
+                            ? 'bg-indigo-50/80 hover:bg-indigo-100/80 text-slate-800 font-semibold border border-indigo-200 shadow-2xs'
                             : 'text-slate-700 hover:bg-slate-200/60'
                         }`}
                       >
@@ -642,13 +704,34 @@ export function ChatPage() {
                             <span className={isSelected ? 'text-white' : getUserColorClass(chatUser.profil)}>
                               {chatUser.username}
                             </span>
+                            {unreadCount > 0 && (
+                              <span
+                                className={`ml-1.5 min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-bold rounded-full shrink-0 ${
+                                  isSelected
+                                    ? 'bg-white text-indigo-600'
+                                    : 'bg-indigo-600 text-white animate-pulse'
+                                }`}
+                              >
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                              </span>
+                            )}
                           </div>
                           <div
                             className={`text-[11px] truncate ${
-                              isSelected ? 'text-indigo-100' : online ? 'text-emerald-600 font-medium' : 'text-slate-400'
+                              isSelected
+                                ? 'text-indigo-100'
+                                : unreadCount > 0
+                                ? 'text-indigo-600 font-semibold'
+                                : online
+                                ? 'text-emerald-600 font-medium'
+                                : 'text-slate-400'
                             }`}
                           >
-                            {online ? 'En ligne' : 'Hors ligne'}
+                            {unreadCount > 0
+                              ? `${unreadCount} message${unreadCount > 1 ? 's' : ''} non lu${unreadCount > 1 ? 's' : ''}`
+                              : online
+                              ? 'En ligne'
+                              : 'Hors ligne'}
                           </div>
                         </div>
 
@@ -944,6 +1027,7 @@ export function ChatPage() {
             ) : (
               onlineUsers.map((u) => {
                 const isMe = u.username.toLowerCase() === currentUsername.toLowerCase();
+                const userUnread = unreadMap[u.username.toLowerCase()] || 0;
                 return (
                   <div
                     key={u.id}
@@ -955,6 +1039,8 @@ export function ChatPage() {
                     className={`group flex items-center gap-2.5 px-3 py-2 rounded-xl transition ${
                       isMe
                         ? 'bg-indigo-50/70 text-indigo-900 cursor-default'
+                        : userUnread > 0
+                        ? 'bg-indigo-50/80 hover:bg-indigo-100/80 text-slate-800 font-semibold border border-indigo-200 cursor-pointer'
                         : 'cursor-pointer text-slate-700 hover:bg-slate-200/60'
                     }`}
                   >
@@ -968,14 +1054,22 @@ export function ChatPage() {
                         <span className={getUserColorClass(u.profil)}>
                           {u.username}
                         </span>
-                        {isMe && (
+                        {isMe ? (
                           <span className="text-[10px] text-indigo-600 bg-indigo-100 px-1.5 py-0.2 rounded font-normal">
                             Vous
                           </span>
-                        )}
+                        ) : userUnread > 0 ? (
+                          <span className="min-w-[18px] h-4.5 px-1 bg-indigo-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                            {userUnread}
+                          </span>
+                        ) : null}
                       </div>
                       <div className="text-[11px] text-slate-400 truncate">
-                        {isMe ? 'Connecté' : 'Cliquer pour message privé'}
+                        {isMe
+                          ? 'Connecté'
+                          : userUnread > 0
+                          ? `${userUnread} message${userUnread > 1 ? 's' : ''} non lu${userUnread > 1 ? 's' : ''}`
+                          : 'Cliquer pour message privé'}
                       </div>
                     </div>
 
