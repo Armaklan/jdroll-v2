@@ -7,6 +7,7 @@ import {
   RawTopicDetail,
   CharacterSummary,
   TopicUserSummary,
+  TopicDraft,
 } from '../types/index.js';
 
 export interface IForumRepository {
@@ -45,6 +46,9 @@ export interface IForumRepository {
   getCanReadUsersByTopicIds(topicIds: number[]): Promise<Map<number, TopicUserSummary[]>>;
   setTopicCanReadUsers(topicId: number, userIds: number[]): Promise<void>;
   isUserTopicCanRead(topicId: number, userId: number): Promise<boolean>;
+  findDraft(topicId: number, userId: number): Promise<TopicDraft | null>;
+  saveDraft(data: { topicId: number; userId: number; persoId?: number | null; content: string }): Promise<TopicDraft>;
+  deleteDraft(topicId: number, userId: number): Promise<void>;
 }
 
 export class MysqlForumRepository implements IForumRepository {
@@ -1094,6 +1098,57 @@ export class MysqlForumRepository implements IForumRepository {
 
     const row = await queryOne<CanReadCheckRow>(sql, [topicId, userId]);
     return Boolean(row?.allowed);
+  }
+
+  async findDraft(topicId: number, userId: number): Promise<TopicDraft | null> {
+    const sql = `
+      SELECT 
+        id,
+        topic_id AS topicId,
+        user_id AS userId,
+        perso_id AS persoId,
+        content
+      FROM draft
+      WHERE topic_id = ? AND user_id = ?
+      LIMIT 1
+    `;
+    return queryOne<TopicDraft>(sql, [topicId, userId]);
+  }
+
+  async saveDraft(data: { topicId: number; userId: number; persoId?: number | null; content: string }): Promise<TopicDraft> {
+    const existing = await this.findDraft(data.topicId, data.userId);
+    if (existing) {
+      await execute(
+        `UPDATE draft SET content = ?, perso_id = ? WHERE topic_id = ? AND user_id = ?`,
+        [data.content, data.persoId ?? null, data.topicId, data.userId]
+      );
+      return {
+        id: existing.id,
+        topicId: data.topicId,
+        userId: data.userId,
+        persoId: data.persoId ?? null,
+        content: data.content,
+      };
+    } else {
+      const insertSql = `INSERT INTO draft (topic_id, user_id, perso_id, content) VALUES (?, ?, ?, ?)`;
+      const result = await execute(insertSql, [
+        data.topicId,
+        data.userId,
+        data.persoId ?? null,
+        data.content,
+      ]);
+      return {
+        id: result.insertId,
+        topicId: data.topicId,
+        userId: data.userId,
+        persoId: data.persoId ?? null,
+        content: data.content,
+      };
+    }
+  }
+
+  async deleteDraft(topicId: number, userId: number): Promise<void> {
+    await execute(`DELETE FROM draft WHERE topic_id = ? AND user_id = ?`, [topicId, userId]);
   }
 
   async getMaxTopicOrdre(sectionId: number): Promise<number> {

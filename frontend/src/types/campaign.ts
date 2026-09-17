@@ -266,6 +266,14 @@ export interface UpdateCharacterPayload {
   widgets?: string;
 }
 
+export interface TopicDraft {
+  id: number;
+  topicId: number;
+  userId: number;
+  persoId: number | null;
+  content: string;
+}
+
 export interface TopicDetail {
   id: number;
   sectionId: number;
@@ -291,6 +299,7 @@ export interface TopicDetail {
   campaign?: CampaignSummary | null;
   canReadUsers?: TopicUserSummary[];
   canReadUserIds?: number[];
+  draft?: TopicDraft | null;
   dialogueColor?: string | null;
   penseeColor?: string | null;
   rp1Color?: string | null;

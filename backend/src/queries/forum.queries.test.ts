@@ -381,6 +381,25 @@ class MockForumRepository implements IForumRepository {
   async isUserTopicCanRead(topicId: number, userId: number): Promise<boolean> {
     return (topicId === 101 || topicId === 301) && userId === 2;
   }
+
+  async findDraft(topicId: number, userId: number): Promise<any> {
+    if (topicId === 101 && userId === 2) {
+      return {
+        id: 1,
+        topicId: 101,
+        userId: 2,
+        persoId: 1,
+        content: '<p>Brouillon test</p>',
+      };
+    }
+    return null;
+  }
+
+  async saveDraft(data: any): Promise<any> {
+    return { id: 1, ...data };
+  }
+
+  async deleteDraft(_topicId: number, _userId: number): Promise<void> {}
 }
 
 describe('ForumQueries', () => {

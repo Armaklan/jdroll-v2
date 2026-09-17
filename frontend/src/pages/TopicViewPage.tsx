@@ -45,6 +45,7 @@ import {
   Pencil,
   Trash2,
   X,
+  Check,
 } from 'lucide-react';
 
 interface TopicViewPageProps {
@@ -82,10 +83,15 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   // Formulaire d'envoi de message
   const [postContent, setPostContent] = useState<string>('');
   const [selectedPersoId, setSelectedPersoId] = useState<number | null>(null);
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
+  const initialDraftLoadedRef = useRef<number | null>(null);
+  const draftDebounceTimeoutRef = useRef<any>(null);
+  const lastSavedDraftRef = useRef<{ content: string; persoId: number | null } | null>(null);
 
   // Formulaire de jet de dés
   const [diceFormula, setDiceFormula] = useState<string>('');
@@ -213,9 +219,88 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
   useEffect(() => {
     if (effectiveTopicId) {
+      initialDraftLoadedRef.current = null;
+      lastSavedDraftRef.current = null;
+      setDraftStatus('idle');
       fetchTopic(targetPageFromUrl);
     }
   }, [effectiveTopicId, targetPageFromUrl]);
+
+  // Initialisation du contenu avec le brouillon s'il existe
+  useEffect(() => {
+    if (topicDetail && topicDetail.id && initialDraftLoadedRef.current !== topicDetail.id) {
+      initialDraftLoadedRef.current = topicDetail.id;
+      if (topicDetail.draft) {
+        setPostContent(topicDetail.draft.content || '');
+        if (topicDetail.draft.persoId !== undefined && topicDetail.draft.persoId !== null) {
+          setSelectedPersoId(topicDetail.draft.persoId);
+        }
+        lastSavedDraftRef.current = {
+          content: topicDetail.draft.content || '',
+          persoId: topicDetail.draft.persoId ?? null,
+        };
+        setDraftStatus('saved');
+      } else {
+        lastSavedDraftRef.current = {
+          content: '',
+          persoId: null,
+        };
+      }
+    }
+  }, [topicDetail]);
+
+  // Sauvegarde automatique du brouillon au fur et à mesure de la frappe avec debounce
+  useEffect(() => {
+    if (!topicDetail || !effectiveTopicId || initialDraftLoadedRef.current !== effectiveTopicId) {
+      return;
+    }
+
+    if (!topicDetail.canPost || topicDetail.isClosed) {
+      return;
+    }
+
+    if (
+      lastSavedDraftRef.current &&
+      lastSavedDraftRef.current.content === postContent &&
+      lastSavedDraftRef.current.persoId === selectedPersoId
+    ) {
+      return;
+    }
+
+    if (draftDebounceTimeoutRef.current) {
+      clearTimeout(draftDebounceTimeoutRef.current);
+    }
+
+    setDraftStatus('saving');
+
+    draftDebounceTimeoutRef.current = setTimeout(async () => {
+      try {
+        lastSavedDraftRef.current = { content: postContent, persoId: selectedPersoId };
+        const stripped = postContent.replace(/<[^>]*>/g, '').trim();
+        const hasContent = Boolean(
+          postContent.trim() &&
+            (stripped || postContent.includes('<img') || postContent.includes('<hr'))
+        );
+
+        if (hasContent) {
+          await campaignsApi.saveDraft(effectiveTopicId, postContent, selectedPersoId);
+          setDraftStatus('saved');
+        } else {
+          await campaignsApi.deleteDraft(effectiveTopicId);
+          setDraftStatus('idle');
+        }
+      } catch (err) {
+        console.error('Erreur sauvegarde automatique du brouillon:', err);
+        setDraftStatus('idle');
+      }
+    }, 600);
+
+    return () => {
+      if (draftDebounceTimeoutRef.current) {
+        clearTimeout(draftDebounceTimeoutRef.current);
+      }
+    };
+  }, [postContent, selectedPersoId, effectiveTopicId, topicDetail]);
 
   // Défilement automatique vers l'ancre du post (ex: #post1081687), vers le 1er non lu, ou vers la zone de post si tout lu
   useEffect(() => {
@@ -419,6 +504,10 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     setSubmitError(null);
     setSubmitSuccess(null);
 
+    if (draftDebounceTimeoutRef.current) {
+      clearTimeout(draftDebounceTimeoutRef.current);
+    }
+
     const stripped = postContent.replace(/<[^>]*>/g, '').trim();
     if (!postContent.trim() || (!stripped && !postContent.includes('<img') && !postContent.includes('<hr'))) {
       setSubmitError('Veuillez saisir un contenu pour votre message avant de publier.');
@@ -429,6 +518,9 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     try {
       const res = await campaignsApi.createPost(effectiveTopicId, postContent, selectedPersoId);
       setPostContent('');
+      lastSavedDraftRef.current = { content: '', persoId: null };
+      setDraftStatus('idle');
+      setTopicDetail((prev) => (prev ? { ...prev, draft: null } : null));
       setIsPreviewOpen(false);
       setSubmitSuccess('Votre message a été publié avec succès !');
 
@@ -1505,10 +1597,27 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
               className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4"
             >
             <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
-              <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-indigo-600" />
-                <span>Rédiger une réponse</span>
-              </h3>
+              <div className="flex items-center gap-3">
+                <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-indigo-600" />
+                  <span>Rédiger une réponse</span>
+                </h3>
+                {draftStatus === 'saving' && (
+                  <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 font-medium bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200 animate-pulse">
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    <span>Sauvegarde du brouillon...</span>
+                  </span>
+                )}
+                {draftStatus === 'saved' && postContent.trim() && (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs text-emerald-700 font-medium bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200"
+                    title="Votre message est automatiquement sauvegardé en brouillon"
+                  >
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    <span>Brouillon enregistré</span>
+                  </span>
+                )}
+              </div>
 
               {/* Sélecteur "Poster en tant que" - affiché seulement si l'utilisateur a des personnages (MJ ou joueur avec persos) */}
               {topicDetail.availableCharacters.length > 0 && (

@@ -290,6 +290,22 @@ export const campaignsApi = {
     });
   },
 
+  async saveDraft(topicId: number, content: string, persoId?: number | null) {
+    return request<{ draft: any }>(`/api/topics/${topicId}/draft`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        content,
+        persoId: persoId ?? null,
+      }),
+    });
+  },
+
+  async deleteDraft(topicId: number) {
+    return request<{ success: boolean }>(`/api/topics/${topicId}/draft`, {
+      method: 'DELETE',
+    });
+  },
+
   async updatePost(postId: number, data: { content: string; persoId?: number | null }) {
     return request<{ post: any }>(`/api/posts/${postId}`, {
       method: 'PUT',

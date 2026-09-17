@@ -261,6 +261,11 @@ export class ForumQueries {
       canReadUsers = await this.forumRepo.getTopicCanReadUsers(topic.id);
     }
 
+    let draft = null;
+    if (userId) {
+      draft = await this.forumRepo.findDraft(topic.id, userId);
+    }
+
     return {
       id: topic.id,
       sectionId: topic.sectionId,
@@ -286,6 +291,15 @@ export class ForumQueries {
       campaign,
       canReadUsers,
       canReadUserIds: canReadUsers ? canReadUsers.map((u) => u.id) : undefined,
+      draft: draft
+        ? {
+            id: draft.id,
+            topicId: draft.topicId,
+            userId: draft.userId,
+            persoId: draft.persoId,
+            content: draft.content,
+          }
+        : null,
       dialogueColor: topic.dialogueColor || null,
       penseeColor: topic.penseeColor || null,
       rp1Color: topic.rp1Color || null,

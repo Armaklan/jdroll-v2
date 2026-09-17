@@ -1,6 +1,5 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
-import { IEventBus, domainEventBus } from '../../events/event-bus.js';
-import { ForumPost } from '../../types/index.js';
+import { TopicDraft } from '../../types/index.js';
 import {
   TopicNotFoundError,
   TopicClosedError,
@@ -8,27 +7,17 @@ import {
   ValidationError,
 } from '../../errors/domain.errors.js';
 
-export interface CreatePostDTO {
+export interface SaveDraftDTO {
   topicId: number;
   userId: number;
   content: string;
   persoId?: number | null;
 }
 
-export class CreatePostUseCase {
-  constructor(
-    private readonly forumRepo: IForumRepository = forumRepository,
-    private readonly eventBus: IEventBus = domainEventBus
-  ) {}
+export class SaveDraftUseCase {
+  constructor(private readonly forumRepo: IForumRepository = forumRepository) {}
 
-  async execute(dto: CreatePostDTO): Promise<ForumPost> {
-    const rawContent = (dto.content || '').trim();
-    const textOnly = rawContent.replace(/<[^>]*>/g, '').trim();
-
-    if (!rawContent || (!textOnly && !rawContent.includes('<img') && !rawContent.includes('<hr'))) {
-      throw new ValidationError('Le contenu du message ne peut pas être vide');
-    }
-
+  async execute(dto: SaveDraftDTO): Promise<TopicDraft | null> {
     const topic = await this.forumRepo.findTopicById(dto.topicId);
     if (!topic) {
       throw new TopicNotFoundError(`Le sujet avec l'identifiant ${dto.topicId} n'existe pas`);
@@ -66,7 +55,6 @@ export class CreatePostUseCase {
           throw new ForbiddenError("Seuls les joueurs et le MJ peuvent poster dans ce sujet public");
         }
       }
-      // isPrivateVal === 2 (Grand public) : tout le monde peut poster
 
       if (dto.persoId) {
         const perso = await this.forumRepo.findPersoById(dto.persoId);
@@ -89,35 +77,21 @@ export class CreatePostUseCase {
       finalPersoId = null;
     }
 
-    const postId = await this.forumRepo.createPost({
+    const rawContent = (dto.content || '').trim();
+    const textOnly = rawContent.replace(/<[^>]*>/g, '').trim();
+
+    if (!rawContent || (!textOnly && !rawContent.includes('<img') && !rawContent.includes('<hr'))) {
+      await this.forumRepo.deleteDraft(dto.topicId, dto.userId);
+      return null;
+    }
+
+    return this.forumRepo.saveDraft({
       topicId: dto.topicId,
       userId: dto.userId,
       persoId: finalPersoId,
       content: dto.content,
-      editor: 0,
     });
-
-    await this.forumRepo.updateTopicLastPost(dto.topicId, postId);
-    await this.forumRepo.markTopicAsRead(dto.topicId, dto.userId, postId);
-    await this.forumRepo.deleteDraft(dto.topicId, dto.userId);
-
-    const post = await this.forumRepo.getPostById(postId, dto.userId);
-    if (!post) {
-      throw new Error('Erreur lors de la récupération du message créé');
-    }
-
-    await this.eventBus.publish({
-      name: 'PostCreated',
-      postId,
-      topicId: dto.topicId,
-      campagneId: topic.campagneId,
-      userId: dto.userId,
-      topicTitle: topic.title,
-      isPrivate: isPrivateVal,
-    });
-
-    return post;
   }
 }
 
-export const createPostUseCase = new CreatePostUseCase();
+export const saveDraftUseCase = new SaveDraftUseCase();

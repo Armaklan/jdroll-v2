@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { campaignQueries, CampaignQueries } from '../queries/campaign.queries.js';
 import { forumQueries, ForumQueries } from '../queries/forum.queries.js';
 import { createPostUseCase, CreatePostUseCase } from '../usecases/forum/create-post.usecase.js';
+import { saveDraftUseCase, SaveDraftUseCase } from '../usecases/forum/save-draft.usecase.js';
+import { deleteDraftUseCase, DeleteDraftUseCase } from '../usecases/forum/delete-draft.usecase.js';
 import { updatePostUseCase, UpdatePostUseCase } from '../usecases/forum/update-post.usecase.js';
 import { deletePostUseCase, DeletePostUseCase } from '../usecases/forum/delete-post.usecase.js';
 import { rollDiceUseCase, RollDiceUseCase } from '../usecases/forum/roll-dice.usecase.js';
@@ -148,6 +150,11 @@ const createPostParamsSchema = z.object({
 const createPostBodySchema = z.object({
   content: z.string().min(1, 'Le message ne peut pas être vide'),
   persoId: z.number().int().positive().nullable().optional(),
+});
+
+const saveDraftBodySchema = z.object({
+  content: z.string().optional().default(''),
+  persoId: z.coerce.number().int().positive().nullable().optional(),
 });
 
 const updatePostParamsSchema = z.object({
@@ -325,6 +332,8 @@ export class CampaignController {
     private readonly campaignQueryService: CampaignQueries = campaignQueries,
     private readonly forumQueryService: ForumQueries = forumQueries,
     private readonly createPostUseCaseService: CreatePostUseCase = createPostUseCase,
+    private readonly saveDraftUseCaseService: SaveDraftUseCase = saveDraftUseCase,
+    private readonly deleteDraftUseCaseService: DeleteDraftUseCase = deleteDraftUseCase,
     private readonly updatePostUseCaseService: UpdatePostUseCase = updatePostUseCase,
     private readonly deletePostUseCaseService: DeletePostUseCase = deletePostUseCase,
     private readonly rollDiceUseCaseService: RollDiceUseCase = rollDiceUseCase,
@@ -751,6 +760,90 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la création du message' });
+    }
+  }
+
+  /**
+   * PUT / POST /api/topics/:id/draft
+   * Sauvegarde le brouillon de message d'un utilisateur pour un sujet
+   */
+  async saveDraft(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getTopicPostsParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de sujet invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = saveDraftBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données de brouillon invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: topicId } = parseParams.data;
+    const { content, persoId } = parseBody.data;
+
+    try {
+      const draft = await this.saveDraftUseCaseService.execute({
+        topicId,
+        userId: user.id,
+        content: content ?? '',
+        persoId: persoId ?? null,
+      });
+
+      return reply.status(200).send({ draft });
+    } catch (error) {
+      if (error instanceof TopicNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof TopicClosedError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la sauvegarde du brouillon' });
+    }
+  }
+
+  /**
+   * DELETE /api/topics/:id/draft
+   * Supprime le brouillon de message d'un utilisateur pour un sujet
+   */
+  async deleteDraft(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getTopicPostsParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de sujet invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+    const { id: topicId } = parseParams.data;
+
+    try {
+      await this.deleteDraftUseCaseService.execute({
+        topicId,
+        userId: user.id,
+      });
+
+      return reply.status(200).send({ success: true });
+    } catch (error) {
+      if (error instanceof TopicNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la suppression du brouillon' });
     }
   }
 
@@ -2503,6 +2596,23 @@ export class CampaignController {
       '/api/topics/:id/posts',
       { preHandler: [app.authenticate] },
       (req, rep) => this.createPost(req, rep)
+    );
+
+    // Routes authentifiées pour le brouillon d'un sujet
+    app.put(
+      '/api/topics/:id/draft',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.saveDraft(req, rep)
+    );
+    app.post(
+      '/api/topics/:id/draft',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.saveDraft(req, rep)
+    );
+    app.delete(
+      '/api/topics/:id/draft',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.deleteDraft(req, rep)
     );
 
     // Routes authentifiées pour modifier un message

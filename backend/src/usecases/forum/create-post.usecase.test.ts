@@ -62,13 +62,20 @@ describe('CreatePostUseCase', () => {
   let createdPosts: any[] = [];
   let updatedLastPosts: Map<number, number> = new Map();
   let readPosts: Map<string, number> = new Map();
+  let deletedDrafts: Array<{ topicId: number; userId: number }> = [];
 
   beforeEach(() => {
     createdPosts = [];
     updatedLastPosts = new Map();
     readPosts = new Map();
+    deletedDrafts = [];
 
     mockForumRepo = {
+      findDraft: async () => null,
+      saveDraft: async (data) => ({ id: 1, ...data, persoId: data.persoId ?? null }),
+      deleteDraft: async (topicId, userId) => {
+        deletedDrafts.push({ topicId, userId });
+      },
       findSectionsByCampaignId: async (): Promise<ForumSectionSummary[]> => [],
       findSectionById: async () => null,
       createSection: async () => 1,
@@ -171,6 +178,7 @@ describe('CreatePostUseCase', () => {
     assert.equal(post.perso?.name, 'Eldrin');
     assert.equal(updatedLastPosts.get(10), post.id);
     assert.equal(readPosts.get('10_2'), post.id);
+    assert.deepEqual(deletedDrafts, [{ topicId: 10, userId: 2 }]);
   });
 
   it("permet au MJ de poster avec n'importe quel personnage (PNJ ou PJ de la campagne)", async () => {
