@@ -30,6 +30,7 @@ export interface CreateCampaignDTO {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  defaultPersoId?: number | null;
   template?: string | null;
   templateHtml?: string | null;
   templateImg?: string | null;
@@ -100,6 +101,7 @@ export class CreateCampaignUseCase {
       hr: dto.hr || null,
       width: dto.width || null,
       defaultDice: dto.defaultDice || null,
+      defaultPersoId: dto.defaultPersoId ?? null,
       template: dto.template || null,
       templateHtml,
       templateImg,

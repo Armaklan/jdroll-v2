@@ -29,6 +29,7 @@ export interface CreateCampaignData {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  defaultPersoId?: number | null;
   template?: string | null;
   templateHtml?: string | null;
   templateImg?: string | null;
@@ -63,6 +64,7 @@ export interface UpdateCampaignData {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  defaultPersoId?: number | null;
   template?: string | null;
   templateHtml?: string | null;
   templateImg?: string | null;
@@ -707,6 +709,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.hr,
         cc.width,
         cc.default_dice AS defaultDice,
+        cc.default_perso_id AS defaultPersoId,
         cc.template,
         cc.template_html AS templateHtml,
         cc.template_img AS templateImg,
@@ -753,6 +756,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       hr: string | null;
       width: string | null;
       defaultDice: string | null;
+      defaultPersoId: number | null;
       template: string | null;
       templateHtml: string | null;
       templateImg: string | null;
@@ -800,6 +804,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       hr: row.hr || null,
       width: row.width || null,
       defaultDice: row.defaultDice || null,
+      defaultPersoId: row.defaultPersoId !== null && row.defaultPersoId !== undefined ? Number(row.defaultPersoId) : null,
       template: row.template || null,
       templateHtml: row.templateHtml || null,
       templateImg: row.templateImg || null,
@@ -839,9 +844,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         campagne_id, banniere, hr, odd_line_color, even_line_color,
         sidebar_color, link_color, template, sidebar_text, link_sidebar_color,
         text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
-        quote_color, width, widgets, default_dice,
+        quote_color, width, widgets, default_dice, default_perso_id,
         template_html, template_img, template_fields
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     await execute(configSql, [
@@ -863,6 +868,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       data.width || '800px',
       data.widgets || '',
       data.defaultDice || '1d20',
+      data.defaultPersoId ?? null,
       data.templateHtml || null,
       data.templateImg || null,
       data.templateFields || null,
@@ -988,6 +994,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       configFields.push('default_dice = ?');
       configParams.push(data.defaultDice ?? '1d20');
     }
+    if (data.defaultPersoId !== undefined) {
+      configFields.push('default_perso_id = ?');
+      configParams.push(data.defaultPersoId ?? null);
+    }
     if (data.template !== undefined) {
       configFields.push('template = ?');
       configParams.push(data.template ?? '');
@@ -1027,9 +1037,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
             campagne_id, banniere, hr, odd_line_color, even_line_color,
             sidebar_color, link_color, template, sidebar_text, link_sidebar_color,
             text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
-            quote_color, width, widgets, default_dice,
+            quote_color, width, widgets, default_dice, default_perso_id,
             template_html, template_img, template_fields
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         await execute(insertSql, [
           id,
@@ -1050,6 +1060,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
           data.width ?? '800px',
           data.widgets ?? '',
           data.defaultDice ?? '1d20',
+          data.defaultPersoId ?? null,
           data.templateHtml ?? null,
           data.templateImg ?? null,
           data.templateFields ?? null,

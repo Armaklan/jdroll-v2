@@ -1426,14 +1426,6 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                 )}
                               </div>
 
-                              {/* Posts Count */}
-                              <div className="md:col-span-2 flex items-center md:justify-center gap-1.5 text-xs text-slate-500">
-                                <span className="md:hidden font-medium text-slate-400">Messages:</span>
-                                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-semibold text-xs">
-                                  {topic.postsCount}
-                                </span>
-                              </div>
-
                               {/* Last Post Info */}
                               <div className="md:col-span-3 text-xs text-slate-500 flex md:flex-col md:items-end justify-between gap-1">
                                 {topic.lastPost ? (

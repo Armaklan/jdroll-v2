@@ -51,6 +51,8 @@ describe('CreateCampaignUseCase', () => {
           linkColor: data.linkColor || null,
           linkSidebarColor: data.linkSidebarColor || null,
           template: data.template || null,
+          defaultDice: data.defaultDice || null,
+          defaultPersoId: data.defaultPersoId || null,
           templateHtml: data.templateHtml || null,
           templateImg: data.templateImg || null,
           templateFields: data.templateFields || null,
@@ -185,5 +187,20 @@ describe('CreateCampaignUseCase', () => {
     assert.equal(result.template, '<p>Description technique</p>');
     assert.equal(createdList.length, 1);
     assert.equal(createdList[0].templateHtml, '<img id="zoneImg" src="https://images.com/sheet-bg.png" style="width: 800px">');
+  });
+
+  it('crée avec succès une campagne avec un PNJ par défaut (defaultPersoId)', async () => {
+    const { repo, createdList } = createMockCampaignRepo();
+    const useCase = new CreateCampaignUseCase(repo);
+
+    const result = await useCase.execute({
+      mjId: 10,
+      name: 'Campagne avec PNJ par défaut',
+      defaultPersoId: 42,
+    });
+
+    assert.equal(result.name, 'Campagne avec PNJ par défaut');
+    assert.equal(result.defaultPersoId, 42);
+    assert.equal(createdList[0].defaultPersoId, 42);
   });
 });

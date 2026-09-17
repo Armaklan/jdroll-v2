@@ -73,6 +73,7 @@ describe('UpdateCampaignUseCase', () => {
           if (data.linkSidebarColor !== undefined) c.linkSidebarColor = data.linkSidebarColor;
           if (data.width !== undefined) c.width = data.width;
           if (data.defaultDice !== undefined) c.defaultDice = data.defaultDice;
+          if (data.defaultPersoId !== undefined) c.defaultPersoId = data.defaultPersoId;
           if (data.template !== undefined) c.template = data.template;
           if (data.templateHtml !== undefined) c.templateHtml = data.templateHtml;
           if (data.templateImg !== undefined) c.templateImg = data.templateImg;
@@ -267,5 +268,18 @@ describe('UpdateCampaignUseCase', () => {
     assert.equal(result.templateImg, '/files/1/4ec9f08b7524df922cf76b5553f4a882.jpg');
     assert.equal(result.templateHtml, '<img id="zoneImg" src="/files/1/4ec9f08b7524df922cf76b5553f4a882.jpg" style="width: 800px">');
     assert.equal(result.templateFields, '<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="0"></div>');
+  });
+
+  it('met à jour avec succès le PNJ par défaut (defaultPersoId)', async () => {
+    const { repo } = createMockCampaignRepo();
+    const useCase = new UpdateCampaignUseCase(repo, createMockForumRepo());
+
+    const result = await useCase.execute({
+      campaignId: 1,
+      userId: 10,
+      defaultPersoId: 15,
+    });
+
+    assert.equal(result.defaultPersoId, 15);
   });
 });

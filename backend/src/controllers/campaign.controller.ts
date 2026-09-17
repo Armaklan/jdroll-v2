@@ -122,6 +122,8 @@ const createCampaignBodySchema = z.object({
   hr: z.string().nullable().optional(),
   width: z.string().nullable().optional(),
   defaultDice: z.string().nullable().optional(),
+  defaultPersoId: z
+    .preprocess((val) => (val === '' || val === 0 || val === '0' ? null : val), z.coerce.number().int().positive().nullable().optional()),
   template: z.string().nullable().optional(),
   templateHtml: z.string().nullable().optional(),
   templateImg: z.string().nullable().optional(),

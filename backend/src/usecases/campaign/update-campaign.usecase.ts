@@ -32,6 +32,7 @@ export interface UpdateCampaignDTO {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  defaultPersoId?: number | null;
   template?: string | null;
   templateHtml?: string | null;
   templateImg?: string | null;
@@ -120,6 +121,7 @@ export class UpdateCampaignUseCase {
       hr: dto.hr,
       width: dto.width,
       defaultDice: dto.defaultDice,
+      defaultPersoId: dto.defaultPersoId,
       template: dto.template !== undefined ? (dto.template ? dto.template.trim() : '') : undefined,
       templateHtml,
       templateImg,

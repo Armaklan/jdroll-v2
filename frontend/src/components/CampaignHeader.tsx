@@ -323,7 +323,7 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
         </div>
 
         {/* 3 Main Action Links + Admin Config */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isAdminMode && (
             <button
               onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}

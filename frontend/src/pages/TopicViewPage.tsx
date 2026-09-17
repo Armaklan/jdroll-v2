@@ -124,6 +124,23 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     topicDetail?.userRole === 'mj' ||
     Boolean(topicDetail?.campaign && topicDetail.campaign.mjId === user?.id);
 
+  const getDefaultPersoId = (detail: TopicDetail | null, isMj: boolean): number | null => {
+    if (!detail) return null;
+    if (detail.userRole === 'mj' || isMj) {
+      if (detail.campaign?.defaultPersoId) {
+        return detail.campaign.defaultPersoId;
+      }
+      return null;
+    }
+    if (detail.userRole === 'player') {
+      if (detail.availableCharacters && detail.availableCharacters.length > 0) {
+        return detail.availableCharacters[0].id;
+      }
+      return null;
+    }
+    return null;
+  };
+
   const userCharacterNames = useMemo(() => {
     if (!user || !topicDetail?.availableCharacters) return [];
     return topicDetail.availableCharacters
@@ -234,6 +251,8 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
         setPostContent(topicDetail.draft.content || '');
         if (topicDetail.draft.persoId !== undefined && topicDetail.draft.persoId !== null) {
           setSelectedPersoId(topicDetail.draft.persoId);
+        } else {
+          setSelectedPersoId(null);
         }
         lastSavedDraftRef.current = {
           content: topicDetail.draft.content || '',
@@ -241,13 +260,16 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
         };
         setDraftStatus('saved');
       } else {
+        const defaultPerso = getDefaultPersoId(topicDetail, isUserCampaignMj);
+        setSelectedPersoId(defaultPerso);
+        setPostContent('');
         lastSavedDraftRef.current = {
           content: '',
-          persoId: null,
+          persoId: defaultPerso,
         };
       }
     }
-  }, [topicDetail]);
+  }, [topicDetail, isUserCampaignMj]);
 
   // Sauvegarde automatique du brouillon au fur et à mesure de la frappe avec debounce
   useEffect(() => {
@@ -518,7 +540,9 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     try {
       const res = await campaignsApi.createPost(effectiveTopicId, postContent, selectedPersoId);
       setPostContent('');
-      lastSavedDraftRef.current = { content: '', persoId: null };
+      const defaultPerso = getDefaultPersoId(topicDetail, isUserCampaignMj);
+      setSelectedPersoId(defaultPerso);
+      lastSavedDraftRef.current = { content: '', persoId: defaultPerso };
       setDraftStatus('idle');
       setTopicDetail((prev) => (prev ? { ...prev, draft: null } : null));
       setIsPreviewOpen(false);
@@ -829,7 +853,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
         </div>
 
         {/* Contrôles de pagination */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => handlePageChange(topicDetail.page - 1)}
             disabled={topicDetail.page <= 1}
@@ -1337,7 +1361,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             <span>Retour au forum</span>
           </button>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => handlePageChange(topicDetail.page - 1)}
               disabled={topicDetail.page <= 1}

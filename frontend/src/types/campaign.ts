@@ -37,6 +37,7 @@ export interface CampaignSummary {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  defaultPersoId?: number | null;
   template?: string | null;
   templateHtml?: string | null;
   templateImg?: string | null;
@@ -73,6 +74,7 @@ export interface CreateCampaignPayload {
   hr?: string | null;
   width?: string | null;
   defaultDice?: string | null;
+  defaultPersoId?: number | null;
   template?: string | null;
   templateHtml?: string | null;
   templateImg?: string | null;

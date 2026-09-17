@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
-import { CreateCampaignPayload, UpdateCampaignPayload } from '../types/campaign';
+import { CreateCampaignPayload, UpdateCampaignPayload, CampaignCharacter } from '../types/campaign';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import {
   ArrowLeft,
@@ -119,6 +119,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const [rp, setRp] = useState<number>(1);
   const [isMultiCharacter, setIsMultiCharacter] = useState<boolean>(false);
   const [defaultDice, setDefaultDice] = useState<string>('1d20');
+  const [defaultPersoId, setDefaultPersoId] = useState<number | null>(null);
+  const [campaignCharacters, setCampaignCharacters] = useState<CampaignCharacter[]>([]);
 
   // Colors & visual theme
   const [dialogueColor, setDialogueColor] = useState<string>(DEFAULT_DIALOGUE_COLOR);
@@ -192,6 +194,17 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         setRp(campaign.rp ?? 1);
         setIsMultiCharacter(Boolean(campaign.isMultiCharacter));
         setDefaultDice(campaign.defaultDice || '1d20');
+        setDefaultPersoId(campaign.defaultPersoId ?? null);
+
+        try {
+          const charsData = await campaignsApi.getCampaignCharacters(campaignId);
+          if (charsData && charsData.categories) {
+            const allChars: CampaignCharacter[] = charsData.categories.flatMap((cat) => cat.characters || []);
+            setCampaignCharacters(allChars);
+          }
+        } catch (charErr) {
+          console.error('Erreur lors du chargement des personnages de la campagne:', charErr);
+        }
 
         setDialogueColor(campaign.dialogueColor || DEFAULT_DIALOGUE_COLOR);
         setPenseeColor(campaign.penseeColor || DEFAULT_PENSEE_COLOR);
@@ -475,6 +488,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           rp,
           isMultiCharacter,
           defaultDice: defaultDice.trim() || null,
+          defaultPersoId: defaultPersoId ?? null,
           dialogueColor: dialogueColor || null,
           penseeColor: penseeColor || null,
           rp1Color: rp1Color || null,
@@ -520,6 +534,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           rp,
           isMultiCharacter,
           defaultDice: defaultDice.trim() || null,
+          defaultPersoId: defaultPersoId ?? null,
           dialogueColor: dialogueColor || null,
           penseeColor: penseeColor || null,
           rp1Color: rp1Color || null,
@@ -1161,6 +1176,43 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+
+            {/* Default Character / PNJ */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-indigo-600" />
+                  <span>PNJ par Défaut</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Sélectionnez le PNJ utilisé par défaut dans le champ « Poster en tant que » lors de la rédaction de messages sur le forum.
+                </p>
+              </div>
+
+              <div className="space-y-3 max-w-md">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                  Personnage sélectionné par défaut
+                </label>
+                {isEditMode ? (
+                  <select
+                    value={defaultPersoId ?? ''}
+                    onChange={(e) => setDefaultPersoId(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-800 outline-hidden transition bg-white"
+                  >
+                    <option value="">Aucun (Moi-même)</option>
+                    {campaignCharacters.map((char) => (
+                      <option key={char.id} value={char.id}>
+                        {char.name} {char.concept ? `(${char.concept})` : ''} {!char.isPlayer ? '— [PNJ]' : '— [PJ]'}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <p className="text-xs text-slate-500 italic bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    Les PNJ pourront être créés et sélectionnés comme PNJ par défaut une fois la campagne créée.
+                  </p>
+                )}
               </div>
             </div>
           </div>
