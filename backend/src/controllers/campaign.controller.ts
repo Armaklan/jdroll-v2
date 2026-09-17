@@ -10,6 +10,8 @@ import { rollDiceTowerUseCase, RollDiceTowerUseCase } from '../usecases/campaign
 import { createCampaignUseCase, CreateCampaignUseCase } from '../usecases/campaign/create-campaign.usecase.js';
 import { updateCampaignUseCase, UpdateCampaignUseCase } from '../usecases/campaign/update-campaign.usecase.js';
 import { joinCampaignUseCase, JoinCampaignUseCase } from '../usecases/campaign/join-campaign.usecase.js';
+import { validateParticipantUseCase, ValidateParticipantUseCase } from '../usecases/campaign/validate-participant.usecase.js';
+import { rejectParticipantUseCase, RejectParticipantUseCase } from '../usecases/campaign/reject-participant.usecase.js';
 import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/create-section.usecase.js';
 import { updateSectionUseCase, UpdateSectionUseCase } from '../usecases/forum/update-section.usecase.js';
 import { deleteSectionUseCase, DeleteSectionUseCase } from '../usecases/forum/delete-section.usecase.js';
@@ -46,6 +48,7 @@ import {
   TopicClosedError,
   ForbiddenError,
   ValidationError,
+  UserNotFoundError,
   NoteNotFoundError,
 } from '../errors/domain.errors.js';
 
@@ -83,6 +86,11 @@ const getAllCampaignsSchema = z.object({
 
 const getCampaignParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
+});
+
+const participantActionParamsSchema = z.object({
+  id: z.coerce.number().int().positive(),
+  userId: z.coerce.number().int().positive(),
 });
 
 const createCampaignBodySchema = z.object({
@@ -341,6 +349,8 @@ export class CampaignController {
     private readonly uploadCharacterAvatarUseCaseService: UploadCharacterAvatarUseCase = uploadCharacterAvatarUseCase,
     private readonly uploadCampaignBannerUseCaseService: UploadCampaignBannerUseCase = uploadCampaignBannerUseCase,
     private readonly joinCampaignUseCaseService: JoinCampaignUseCase = joinCampaignUseCase,
+    private readonly validateParticipantUseCaseService: ValidateParticipantUseCase = validateParticipantUseCase,
+    private readonly rejectParticipantUseCaseService: RejectParticipantUseCase = rejectParticipantUseCase,
     private readonly observeCampaignUseCaseService: ObserveCampaignUseCase = observeCampaignUseCase,
     private readonly unobserveCampaignUseCaseService: UnobserveCampaignUseCase = unobserveCampaignUseCase,
     private readonly setCampaignAlertUseCaseService: SetCampaignAlertUseCase = setCampaignAlertUseCase,
@@ -1833,6 +1843,116 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/campaigns/:id/participants/:userId/accept
+   * Valide l'inscription d'un joueur en attente (MJ)
+   */
+  async validateParticipant(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = participantActionParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Paramètres invalides',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.validateParticipantUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        mjId: user.id,
+        targetUserId: parseParams.data.userId,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError || error instanceof UserNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la validation de l’inscription' });
+    }
+  }
+
+  /**
+   * POST /api/campaigns/:id/participants/:userId/reject
+   * Refuse l'inscription d'un joueur en attente (MJ)
+   */
+  async rejectParticipant(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = participantActionParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Paramètres invalides',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.rejectParticipantUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        mjId: user.id,
+        targetUserId: parseParams.data.userId,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors du refus de l’inscription' });
+    }
+  }
+
+  /**
+   * GET /api/campaigns/:id/pending-participants
+   * Récupère la liste des inscriptions en attente de validation (MJ)
+   */
+  async getPendingParticipants(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const pendingParticipants = await this.campaignQueryService.getPendingCampaignParticipants(
+        parseParams.data.id,
+        user.id
+      );
+
+      return reply.status(200).send({ pendingParticipants });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération des inscriptions en attente' });
+    }
+  }
+
+  /**
    * POST /api/campaigns/:id/observe
    * Permet à un utilisateur connecté d'observer une campagne
    */
@@ -2163,6 +2283,33 @@ export class CampaignController {
       '/api/campaigns/:id/join',
       { preHandler: [app.authenticate] },
       (req, rep) => this.joinCampaign(req, rep)
+    );
+
+    // Routes authentifiées pour valider / refuser les inscriptions (MJ)
+    app.post(
+      '/api/campaigns/:id/participants/:userId/accept',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.validateParticipant(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/participants/:userId/validate',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.validateParticipant(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/participants/:userId/reject',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.rejectParticipant(req, rep)
+    );
+    app.delete(
+      '/api/campaigns/:id/participants/:userId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.rejectParticipant(req, rep)
+    );
+    app.get(
+      '/api/campaigns/:id/pending-participants',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getPendingParticipants(req, rep)
     );
 
     // Routes authentifiées pour observer / ne plus observer une campagne

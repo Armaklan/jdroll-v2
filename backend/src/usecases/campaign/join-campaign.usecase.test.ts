@@ -7,7 +7,7 @@ import { CampaignSummary } from '../../types/index.js';
 
 function createMockCampaignRepo(initialCampaigns: CampaignSummary[] = []) {
   const campaigns = [...initialCampaigns];
-  const participants = new Set<string>();
+  const participants = new Map<string, number>();
 
   const repo: ICampaignRepository = {
     async findMasteredCampaigns(userId: number): Promise<CampaignSummary[]> {
@@ -39,19 +39,36 @@ function createMockCampaignRepo(initialCampaigns: CampaignSummary[] = []) {
       return 1;
     },
     async updateCharacter(): Promise<void> {},
+    async deleteCharacter(): Promise<void> {},
     async updateCampaignBanner(): Promise<void> {},
     async findCampaignParticipants(): Promise<any[]> {
       return [];
     },
-    async isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean> {
-      return participants.has(`${campaignId}-${userId}`);
+    async findPendingCampaignParticipants(): Promise<any[]> {
+      return [];
     },
-    async addCampaignParticipant(campaignId: number, userId: number): Promise<void> {
-      participants.add(`${campaignId}-${userId}`);
+    async isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean> {
+      return participants.get(`${campaignId}-${userId}`) === 1;
+    },
+    async getCampaignParticipantStatus(campaignId: number, userId: number): Promise<number | null> {
+      const val = participants.get(`${campaignId}-${userId}`);
+      return val !== undefined ? val : null;
+    },
+    async isUserCampaignPending(campaignId: number, userId: number): Promise<boolean> {
+      return participants.get(`${campaignId}-${userId}`) === 0;
+    },
+    async addCampaignParticipant(campaignId: number, userId: number, statut: number = 0): Promise<void> {
+      participants.set(`${campaignId}-${userId}`, statut);
       const c = campaigns.find((item) => item.id === campaignId);
-      if (c) {
+      if (c && statut === 1) {
         c.nbJoueursActuel += 1;
       }
+    },
+    async validateCampaignParticipant(campaignId: number, userId: number): Promise<void> {
+      participants.set(`${campaignId}-${userId}`, 1);
+    },
+    async removeCampaignParticipant(campaignId: number, userId: number): Promise<void> {
+      participants.delete(`${campaignId}-${userId}`);
     },
     async findObservedCampaigns(): Promise<CampaignSummary[]> {
       return [];
@@ -155,17 +172,28 @@ describe('JoinCampaignUseCase', () => {
 
     assert.equal(result.success, true);
     assert.equal(result.campaignId, 10);
-    assert.equal(participants.has('10-2'), true);
+    assert.equal(participants.get('10-2'), 0);
   });
 
   it('retourne un message informatif si le joueur participe déjà', async () => {
     const { repo, participants } = createMockCampaignRepo([sampleCampaign]);
-    participants.add('10-2');
+    participants.set('10-2', 1);
     const useCase = new JoinCampaignUseCase(repo);
 
     const result = await useCase.execute({ campaignId: 10, userId: 2 });
 
     assert.equal(result.success, true);
     assert.match(result.message, /déjà/);
+  });
+
+  it('retourne un message informatif si la demande du joueur est déjà en attente', async () => {
+    const { repo, participants } = createMockCampaignRepo([sampleCampaign]);
+    participants.set('10-2', 0);
+    const useCase = new JoinCampaignUseCase(repo);
+
+    const result = await useCase.execute({ campaignId: 10, userId: 2 });
+
+    assert.equal(result.success, true);
+    assert.match(result.message, /attente/);
   });
 });

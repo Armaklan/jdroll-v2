@@ -48,8 +48,8 @@ export class JoinCampaignUseCase {
       throw new ValidationError('Vous êtes le Maître du Jeu de cette campagne');
     }
 
-    const isAlreadyParticipant = await this.campaignRepo.isUserCampaignParticipant(campaignId, userId);
-    if (isAlreadyParticipant) {
+    const status = await this.campaignRepo.getCampaignParticipantStatus(campaignId, userId);
+    if (status === 1) {
       return {
         success: true,
         message: 'Vous participez déjà à cette campagne',
@@ -57,11 +57,19 @@ export class JoinCampaignUseCase {
       };
     }
 
-    await this.campaignRepo.addCampaignParticipant(campaignId, userId);
+    if (status === 0) {
+      return {
+        success: true,
+        message: "Votre demande d'inscription est déjà en attente de validation par le MJ",
+        campaignId,
+      };
+    }
+
+    await this.campaignRepo.addCampaignParticipant(campaignId, userId, 0);
 
     return {
       success: true,
-      message: `Félicitations, vous avez rejoint la campagne « ${campaign.name} » !`,
+      message: `Votre demande d'inscription à la campagne « ${campaign.name} » a bien été enregistrée et est en attente de validation par le MJ.`,
       campaignId,
     };
   }

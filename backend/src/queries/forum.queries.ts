@@ -1,6 +1,6 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
-import { CampaignForumData, GeneralForumData, TopicDetail, CharacterSummary, CampaignSummary, TopicUserSummary } from '../types/index.js';
+import { CampaignForumData, GeneralForumData, TopicDetail, CharacterSummary, CampaignSummary, TopicUserSummary, CampaignParticipant } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
 export class ForumQueries {
@@ -31,16 +31,25 @@ export class ForumQueries {
 
     let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
     let isObserving = false;
+    let isPending = false;
     let hasAlert = false;
+    let pendingParticipants: CampaignParticipant[] | undefined = undefined;
+
     if (userId) {
       hasAlert = this.campaignRepo.isUserCampaignAlert ? await this.campaignRepo.isUserCampaignAlert(campaignId, userId) : false;
       if (campaign.mjId === userId) {
         userRole = 'mj';
+        pendingParticipants = this.campaignRepo.findPendingCampaignParticipants
+          ? await this.campaignRepo.findPendingCampaignParticipants(campaignId)
+          : [];
       } else {
         const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, userId);
         if (isParticipant) {
           userRole = 'player';
         } else {
+          isPending = this.campaignRepo.isUserCampaignPending
+            ? await this.campaignRepo.isUserCampaignPending(campaignId, userId)
+            : false;
           isObserving = this.campaignRepo.isUserCampaignObserver ? await this.campaignRepo.isUserCampaignObserver(campaignId, userId) : false;
           if (isObserving) {
             userRole = 'observer';
@@ -56,9 +65,11 @@ export class ForumQueries {
         ...campaign,
         userRole: userRole ?? campaign.userRole,
         isObserving: isObserving || campaign.isObserving,
+        isPending: isPending || campaign.isPending,
         hasAlert: hasAlert || Boolean(campaign.hasAlert),
       },
       sections,
+      pendingParticipants,
     };
   }
 

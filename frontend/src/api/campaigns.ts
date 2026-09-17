@@ -160,6 +160,23 @@ export const campaignsApi = {
     return result.participants;
   },
 
+  async getPendingParticipants(campaignId: number): Promise<CampaignParticipant[]> {
+    const result = await request<{ pendingParticipants: CampaignParticipant[] }>(`/api/campaigns/${campaignId}/pending-participants`);
+    return result.pendingParticipants;
+  },
+
+  async acceptParticipant(campaignId: number, userId: number): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>(`/api/campaigns/${campaignId}/participants/${userId}/accept`, {
+      method: 'POST',
+    });
+  },
+
+  async rejectParticipant(campaignId: number, userId: number): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>(`/api/campaigns/${campaignId}/participants/${userId}/reject`, {
+      method: 'POST',
+    });
+  },
+
   async createCharacter(campaignId: number, payload: CreateCharacterPayload): Promise<CampaignCharacter> {
     return request<CampaignCharacter>(`/api/campaigns/${campaignId}/characters`, {
       method: 'POST',

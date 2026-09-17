@@ -128,8 +128,13 @@ export interface ICampaignRepository {
   deleteCharacter(id: number): Promise<void>;
   updateCampaignBanner(campagneId: number, bannerUrl: string): Promise<void>;
   findCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]>;
+  findPendingCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]>;
   isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean>;
-  addCampaignParticipant(campaignId: number, userId: number): Promise<void>;
+  getCampaignParticipantStatus(campaignId: number, userId: number): Promise<number | null>;
+  isUserCampaignPending(campaignId: number, userId: number): Promise<boolean>;
+  addCampaignParticipant(campaignId: number, userId: number, statut?: number): Promise<void>;
+  validateCampaignParticipant(campaignId: number, userId: number): Promise<void>;
+  removeCampaignParticipant(campaignId: number, userId: number): Promise<void>;
   isUserCampaignObserver(campaignId: number, userId: number): Promise<boolean>;
   addCampaignObserver(campaignId: number, userId: number): Promise<void>;
   removeCampaignObserver(campaignId: number, userId: number): Promise<void>;
@@ -330,7 +335,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
       LEFT JOIN personnages p ON p.campagne_id = c.id AND p.user_id = cp.user_id
-      WHERE cp.user_id = ?
+      WHERE cp.user_id = ? AND cp.statut = 1
         ${archiveCondition}
       ORDER BY hasAlert DESC, c.id DESC
     `;
@@ -1339,7 +1344,23 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         u.profil
       FROM campagne_participant cp
       JOIN user u ON cp.user_id = u.id
-      WHERE cp.campagne_id = ?
+      WHERE cp.campagne_id = ? AND cp.statut = 1
+      ORDER BY u.username ASC
+    `;
+
+    return query<CampaignParticipant>(sql, [campaignId]);
+  }
+
+  async findPendingCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]> {
+    const sql = `
+      SELECT 
+        u.id,
+        u.username,
+        u.avatar,
+        u.profil
+      FROM campagne_participant cp
+      JOIN user u ON cp.user_id = u.id
+      WHERE cp.campagne_id = ? AND cp.statut = 0
       ORDER BY u.username ASC
     `;
 
@@ -1347,22 +1368,64 @@ export class MysqlCampaignRepository implements ICampaignRepository {
   }
 
   async isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean> {
-    const sql = `SELECT user_id FROM campagne_participant WHERE campagne_id = ? AND user_id = ?`;
+    const sql = `SELECT user_id FROM campagne_participant WHERE campagne_id = ? AND user_id = ? AND statut = 1`;
     const row = await queryOne<{ user_id: number }>(sql, [campaignId, userId]);
     return Boolean(row);
   }
 
-  async addCampaignParticipant(campaignId: number, userId: number): Promise<void> {
+  async getCampaignParticipantStatus(campaignId: number, userId: number): Promise<number | null> {
+    const sql = `SELECT statut FROM campagne_participant WHERE campagne_id = ? AND user_id = ?`;
+    const row = await queryOne<{ statut: number }>(sql, [campaignId, userId]);
+    return row !== null && row !== undefined ? row.statut : null;
+  }
+
+  async isUserCampaignPending(campaignId: number, userId: number): Promise<boolean> {
+    const sql = `SELECT user_id FROM campagne_participant WHERE campagne_id = ? AND user_id = ? AND statut = 0`;
+    const row = await queryOne<{ user_id: number }>(sql, [campaignId, userId]);
+    return Boolean(row);
+  }
+
+  async addCampaignParticipant(campaignId: number, userId: number, statut: number = 0): Promise<void> {
     const sql = `
       INSERT INTO campagne_participant (campagne_id, user_id, statut)
-      VALUES (?, ?, 1)
-      ON DUPLICATE KEY UPDATE statut = 1
+      VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE statut = VALUES(statut)
+    `;
+    await execute(sql, [campaignId, userId, statut]);
+    const countSql = `
+      UPDATE campagne
+      SET nb_joueurs_actuel = (
+        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ? AND statut = 1
+      )
+      WHERE id = ?
+    `;
+    await execute(countSql, [campaignId, campaignId]);
+  }
+
+  async validateCampaignParticipant(campaignId: number, userId: number): Promise<void> {
+    const sql = `
+      UPDATE campagne_participant
+      SET statut = 1
+      WHERE campagne_id = ? AND user_id = ?
     `;
     await execute(sql, [campaignId, userId]);
     const countSql = `
       UPDATE campagne
       SET nb_joueurs_actuel = (
-        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ?
+        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ? AND statut = 1
+      )
+      WHERE id = ?
+    `;
+    await execute(countSql, [campaignId, campaignId]);
+  }
+
+  async removeCampaignParticipant(campaignId: number, userId: number): Promise<void> {
+    const sql = `DELETE FROM campagne_participant WHERE campagne_id = ? AND user_id = ?`;
+    await execute(sql, [campaignId, userId]);
+    const countSql = `
+      UPDATE campagne
+      SET nb_joueurs_actuel = (
+        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ? AND statut = 1
       )
       WHERE id = ?
     `;

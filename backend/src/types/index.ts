@@ -53,6 +53,7 @@ export interface CampaignSummary {
   isMultiCharacter?: boolean;
   userRole?: 'mj' | 'player' | 'observer';
   isObserving?: boolean;
+  isPending?: boolean;
   characterName?: string | null;
   characterAvatar?: string | null;
   dialogueColor?: string | null;
@@ -129,6 +130,7 @@ export interface ForumSectionSummary {
 export interface CampaignForumData {
   campaign: CampaignSummary;
   sections: ForumSectionSummary[];
+  pendingParticipants?: CampaignParticipant[];
 }
 
 export interface GeneralForumData {

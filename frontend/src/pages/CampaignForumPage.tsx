@@ -33,6 +33,7 @@ import {
   Image as ImageIcon,
   Globe,
   Users,
+  UserCheck,
 } from 'lucide-react';
 
 interface CampaignForumPageProps {
@@ -54,6 +55,9 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const { user } = useAuth();
   const [forumData, setForumData] = useState<CampaignForumData | null>(null);
   const [participants, setParticipants] = useState<CampaignParticipant[]>([]);
+  const [pendingParticipants, setPendingParticipants] = useState<CampaignParticipant[]>([]);
+  const [actionParticipantUserId, setActionParticipantUserId] = useState<number | null>(null);
+  const [participantActionFeedback, setParticipantActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
@@ -226,6 +230,11 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     try {
       const data = await campaignsApi.getCampaignForum(effectiveCampaignId);
       setForumData(data);
+      if (data.pendingParticipants) {
+        setPendingParticipants(data.pendingParticipants);
+      } else {
+        setPendingParticipants([]);
+      }
 
       // Initialize collapsed state from defaultCollapse
       const initialCollapse: Record<number, boolean> = {};
@@ -244,6 +253,50 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
       setError(err.message || 'Impossible de charger le forum de la campagne.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleAcceptParticipant = async (candidateUserId: number) => {
+    setActionParticipantUserId(candidateUserId);
+    setParticipantActionFeedback(null);
+    try {
+      const res = await campaignsApi.acceptParticipant(effectiveCampaignId, candidateUserId);
+      setPendingParticipants((prev) => prev.filter((p) => p.id !== candidateUserId));
+      setParticipantActionFeedback({
+        type: 'success',
+        message: res.message || "L'inscription a été validée avec succès.",
+      });
+      try {
+        const pList = await campaignsApi.getCampaignParticipants(effectiveCampaignId);
+        setParticipants(pList);
+      } catch {}
+    } catch (err: any) {
+      setParticipantActionFeedback({
+        type: 'error',
+        message: err.message || "Erreur lors de la validation de l'inscription.",
+      });
+    } finally {
+      setActionParticipantUserId(null);
+    }
+  };
+
+  const handleRejectParticipant = async (candidateUserId: number) => {
+    setActionParticipantUserId(candidateUserId);
+    setParticipantActionFeedback(null);
+    try {
+      const res = await campaignsApi.rejectParticipant(effectiveCampaignId, candidateUserId);
+      setPendingParticipants((prev) => prev.filter((p) => p.id !== candidateUserId));
+      setParticipantActionFeedback({
+        type: 'success',
+        message: res.message || "L'inscription a été refusée.",
+      });
+    } catch (err: any) {
+      setParticipantActionFeedback({
+        type: 'error',
+        message: err.message || "Erreur lors du refus de l'inscription.",
+      });
+    } finally {
+      setActionParticipantUserId(null);
     }
   };
 
@@ -1410,6 +1463,134 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Inscriptions en attente de validation (MJ) */}
+      {isMj && pendingParticipants.length > 0 && (
+        <div className="mt-8 bg-white border border-amber-200/90 rounded-2xl shadow-sm overflow-hidden animate-in fade-in">
+          <div className="px-5 py-4 bg-amber-50/70 border-b border-amber-200/80 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-amber-100 text-amber-800 rounded-xl">
+                <UserCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-slate-800 flex items-center gap-2">
+                  Inscriptions en attente de validation
+                  <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-xs font-semibold">
+                    {pendingParticipants.length}
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Validez les inscriptions pour créer automatiquement leur personnage et leur donner l'accès joueur, ou refusez-les.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {participantActionFeedback && (
+            <div
+              className={`mx-5 mt-4 p-3 rounded-xl text-xs flex items-center justify-between gap-2 ${
+                participantActionFeedback.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-red-50 text-red-800 border border-red-200'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {participantActionFeedback.type === 'success' ? (
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                )}
+                <span>{participantActionFeedback.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setParticipantActionFeedback(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          <div className="p-5 divide-y divide-slate-100">
+            {pendingParticipants.map((candidate) => {
+              const isProcessing = actionParticipantUserId === candidate.id;
+              return (
+                <div
+                  key={candidate.id}
+                  className="py-3.5 first:pt-0 last:pb-0 flex items-center justify-between flex-wrap gap-3"
+                >
+                  <div className="flex items-center gap-3">
+                    {candidate.avatar ? (
+                      <img
+                        src={candidate.avatar.startsWith('http') ? candidate.avatar : `/files/${candidate.avatar}`}
+                        alt={candidate.username}
+                        className="w-10 h-10 rounded-full object-cover border border-slate-200"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-sm">
+                        {candidate.username.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-semibold text-slate-800 text-sm">
+                        {candidate.username}
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Demande d'inscription en attente
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={isProcessing}
+                      onClick={() => handleAcceptParticipant(candidate.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5" />
+                      )}
+                      <span>Valider l'inscription</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isProcessing}
+                      onClick={() => handleRejectParticipant(candidate.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-red-50 text-red-600 hover:text-red-700 border border-red-200 disabled:opacity-50 text-xs font-semibold rounded-xl shadow-xs transition cursor-pointer"
+                    >
+                      {isProcessing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <X className="w-3.5 h-3.5" />
+                      )}
+                      <span>Refuser</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Message candidat en attente de validation */}
+      {forumData?.campaign.isPending && (
+        <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3 text-amber-900 text-sm shadow-xs animate-in fade-in">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-bold text-amber-900">
+              Votre inscription est en attente de validation
+            </h4>
+            <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+              Votre demande d'inscription à cette campagne est actuellement en attente de validation par le Maître du Jeu. Vous pourrez poster sur les sujets et accéder aux personnages dès que votre inscription sera validée.
+            </p>
+          </div>
         </div>
       )}
 

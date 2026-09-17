@@ -304,6 +304,20 @@ export class CampaignQueries {
   }
 
   /**
+   * Récupère les demandes d'inscription en attente d'une campagne (MJ uniquement)
+   */
+  async getPendingCampaignParticipants(campaignId: number, mjId: number) {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) {
+      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
+    }
+    if (campaign.mjId !== mjId) {
+      throw new ForbiddenError("Seul le Maître du Jeu peut consulter les inscriptions en attente");
+    }
+    return this.campaignRepo.findPendingCampaignParticipants(campaignId);
+  }
+
+  /**
    * Récupère une campagne par son identifiant avec le rôle de l'utilisateur
    */
   async getCampaignById(campaignId: number, currentUserId?: number): Promise<CampaignSummary> {

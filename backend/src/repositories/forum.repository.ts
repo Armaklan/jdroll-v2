@@ -712,7 +712,7 @@ export class MysqlForumRepository implements IForumRepository {
   }
 
   async isUserCampaignParticipant(campagneId: number, userId: number): Promise<boolean> {
-    const sql = `SELECT user_id AS userId FROM campagne_participant WHERE campagne_id = ? AND user_id = ?`;
+    const sql = `SELECT user_id AS userId FROM campagne_participant WHERE campagne_id = ? AND user_id = ? AND statut = 1`;
     const row = await queryOne<{ userId: number }>(sql, [campagneId, userId]);
     return Boolean(row);
   }
