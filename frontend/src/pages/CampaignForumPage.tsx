@@ -61,7 +61,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const [participantActionFeedback, setParticipantActionFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
+  const [collapsedSections, setCollapsedSections] = useState<Record<string | number, boolean>>({});
   const [isDiceTowerOpen, setIsDiceTowerOpen] = useState<boolean>(false);
 
   // Mode Administration state
@@ -307,7 +307,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
     }
   }, [effectiveCampaignId]);
 
-  const toggleSection = (sectionId: number) => {
+  const toggleSection = (sectionId: string | number) => {
     setCollapsedSections((prev) => ({
       ...prev,
       [sectionId]: !prev[sectionId],
@@ -895,6 +895,12 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const isPlayer = Boolean(user && campaign.userRole === 'player');
   const isCampaignMember = isMj || isPlayer;
 
+  const unreadTopics = sections.flatMap((sec) =>
+    sec.topics
+      .filter((topic) => !topic.isRead)
+      .map((topic) => ({ ...topic, sectionTitle: sec.title }))
+  );
+
   const campaignStyles = {
     '--pensee-color': campaign.penseeColor || '#8844CC',
     '--dialogue-color': campaign.dialogueColor || '#4488CC',
@@ -1043,6 +1049,183 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Section Messages non lus */}
+          {unreadTopics.length > 0 && (
+            <div className="relative bg-white border border-indigo-200 ring-1 ring-indigo-100 rounded-2xl overflow-hidden shadow-xs transition-all duration-200">
+              {/* En-tête de la section non lus */}
+              <div
+                style={{
+                  backgroundColor: campaign.sidebarColor || undefined,
+                  color: campaign.linkSidebarColor || undefined,
+                }}
+                className="w-full px-5 py-3.5 bg-indigo-50/80 border-b border-slate-200 flex items-center justify-between transition group"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <button
+                    onClick={() => toggleSection('unread')}
+                    className="flex items-center gap-2.5 text-left truncate flex-1"
+                  >
+                    <MessageSquare
+                      className="w-5 h-5 shrink-0 transition-transform group-hover:scale-105"
+                      style={{ color: campaign.linkSidebarColor || undefined }}
+                    />
+                    <h2
+                      className="font-bold text-sm sm:text-base tracking-tight truncate"
+                      style={{ color: campaign.linkSidebarColor || undefined }}
+                    >
+                      Messages non lus
+                    </h2>
+                    <span
+                      className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700 shrink-0"
+                      style={{
+                        backgroundColor: campaign.sidebarColor ? 'rgba(255,255,255,0.25)' : undefined,
+                        color: campaign.linkSidebarColor || undefined,
+                      }}
+                    >
+                      {unreadTopics.length} {unreadTopics.length > 1 ? 'sujets' : 'sujet'}
+                    </span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleSection('unread')}
+                    className="p-1 rounded hover:bg-black/10 transition"
+                    style={{ color: campaign.linkSidebarColor || undefined }}
+                    title={collapsedSections['unread'] ? 'Déplier la section' : 'Replier la section'}
+                  >
+                    {collapsedSections['unread'] ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Contenu de la section non lus */}
+              {!collapsedSections['unread'] && (
+                <div className="divide-y divide-slate-100">
+                  {/* Topic Rows */}
+                  {unreadTopics.map((topic, topicIdx) => {
+                    const isOdd = topicIdx % 2 === 0;
+                    const rowBg = isOdd
+                      ? campaign.oddLineColor
+                      : campaign.evenLineColor;
+                    const rowTextColor = campaign.textColor;
+                    const rowLinkColor = campaign.linkColor;
+
+                    return (
+                      <div
+                        key={`unread-${topic.id}`}
+                        onClick={() => handleSelectTopic(topic.id)}
+                        style={{
+                          backgroundColor: rowBg || undefined,
+                          color: rowTextColor || undefined,
+                        }}
+                        className="p-4 sm:px-5 sm:py-3.5 hover:brightness-95 transition flex flex-col md:grid md:grid-cols-12 gap-3 md:gap-4 md:items-center cursor-pointer"
+                      >
+                        {/* Topic Title & Badges */}
+                        <div className="md:col-span-9 flex items-start justify-between gap-3 min-w-0">
+                          <div className="flex items-start gap-3 min-w-0 flex-1">
+                            {/* Read/Unread Icon Indicator */}
+                            <div className="mt-0.5 shrink-0">
+                              <div className="relative">
+                                <MessageSquare className="w-4 h-4 text-indigo-600" />
+                                <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1 min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {topic.sectionTitle && (
+                                  <span
+                                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200"
+                                  >
+                                    {topic.sectionTitle}
+                                  </span>
+                                )}
+
+                                {topic.stickable && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider">
+                                    <Pin className="w-3 h-3 text-amber-600" />
+                                    Épinglé
+                                  </span>
+                                )}
+
+                                {topic.isClosed && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-100 text-red-800 text-[10px] font-bold uppercase tracking-wider">
+                                    <Lock className="w-3 h-3 text-red-600" />
+                                    Fermé
+                                  </span>
+                                )}
+
+                                {(topic.isPrivate === 1 || topic.isPrivate === true) ? (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider">
+                                    <EyeOff className="w-3 h-3 text-purple-600" />
+                                    Privé
+                                  </span>
+                                ) : (topic.isPrivate as any) === 2 ? (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-teal-100 text-teal-800 text-[10px] font-bold uppercase tracking-wider">
+                                    <Globe className="w-3 h-3 text-teal-600" />
+                                    Grand public
+                                  </span>
+                                ) : null}
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSelectTopic(topic.id);
+                                  }}
+                                  style={{ color: rowLinkColor || undefined }}
+                                  className="font-bold text-sm hover:underline text-left line-clamp-2 text-slate-900"
+                                >
+                                  {topic.title}
+                                </button>
+                              </div>
+
+                              {(topic.isPrivate === 1 || topic.isPrivate === true) && (
+                                <div className="flex items-center gap-1.5 text-[11px] text-purple-700 bg-purple-50/90 px-2 py-0.5 rounded-md border border-purple-200/70 w-fit">
+                                  <Users className="w-3 h-3 text-purple-500 shrink-0" />
+                                  <span className="font-semibold">Accès :</span>
+                                  <span className="truncate max-w-xs sm:max-w-md">
+                                    {topic.canReadUsers && topic.canReadUsers.length > 0
+                                      ? topic.canReadUsers.map((u) => u.username).join(', ')
+                                      : 'MJ uniquement'}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Last Post Info */}
+                        <div className="md:col-span-3 text-xs text-slate-500 flex md:flex-col md:items-end justify-between gap-1">
+                          {topic.lastPost ? (
+                            <>
+                              <div className="flex items-center gap-1.5 font-medium text-slate-700 truncate">
+                                <span className="text-slate-400">par</span>
+                                <span className="font-semibold truncate">
+                                  {topic.lastPost.username}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                                <Clock className="w-3 h-3" />
+                                <span>{formatDate(topic.lastPost.createDate)}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-slate-400 italic">Aucun message</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {sections.map((section, secIdx) => {
             const isCollapsed = collapsedSections[section.id];
             const isSectionDragged = draggedSectionIndex === secIdx;
@@ -1233,22 +1416,6 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-100">
-                        {/* Desktop Table Header */}
-                        <div
-                          className="hidden md:grid md:grid-cols-12 gap-4 px-5 py-2.5 bg-slate-50/60 text-[11px] font-semibold text-slate-400 uppercase tracking-wider"
-                          style={{
-                            backgroundColor: campaign.sidebarColor || undefined,
-                            color: campaign.linkSidebarColor || undefined,
-                          }}
-                        >
-                          <div className="col-span-7 flex items-center gap-2">
-                            {isAdminMode && <span className="w-5"></span>}
-                            <span>Sujet</span>
-                          </div>
-                          <div className="col-span-2 text-center">Messages</div>
-                          <div className="col-span-3 text-right">Dernier message</div>
-                        </div>
-
                         {/* Topic Rows */}
                         {section.topics.map((topic, topicIdx) => {
                           const isOdd = topicIdx % 2 === 0;
@@ -1300,7 +1467,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                               } ${isAdminMode ? 'cursor-default' : 'cursor-pointer'}`}
                             >
                               {/* Topic Title & Badges */}
-                              <div className="md:col-span-7 flex items-start justify-between gap-3 min-w-0">
+                              <div className="md:col-span-9 flex items-start justify-between gap-3 min-w-0">
                                 <div className="flex items-start gap-3 min-w-0 flex-1">
                                   {isAdminMode && (
                                     <div

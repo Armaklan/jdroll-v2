@@ -46,7 +46,7 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
   const [forumData, setForumData] = useState<GeneralForumData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Record<number, boolean>>({});
+  const [collapsedSections, setCollapsedSections] = useState<Record<string | number, boolean>>({});
 
   // Mode Administration
   const [isAdminMode, setIsAdminMode] = useState<boolean>(false);
@@ -156,7 +156,7 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
     fetchForum();
   }, []);
 
-  const toggleSection = (sectionId: number) => {
+  const toggleSection = (sectionId: string | number) => {
     setCollapsedSections((prev) => ({
       ...prev,
       [sectionId]: !prev[sectionId],
@@ -592,6 +592,12 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
     );
   }
 
+  const unreadTopics = forumData.sections.flatMap((sec) =>
+    sec.topics
+      .filter((topic) => !topic.isRead)
+      .map((topic) => ({ ...topic, sectionTitle: sec.title }))
+  );
+
   return (
     <div className="space-y-6">
       {/* En-tête du Forum Général */}
@@ -696,6 +702,125 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
         </div>
       ) : (
         <div className="space-y-6">
+          {/* Section Messages non lus */}
+          {unreadTopics.length > 0 && (
+            <div className="bg-white border border-indigo-200 ring-1 ring-indigo-100 rounded-2xl shadow-xs overflow-hidden">
+              {/* En-tête de la section non lus */}
+              <div className="p-4 sm:px-6 bg-indigo-50/70 flex items-center justify-between gap-4 border-b border-indigo-100">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-800 truncate">
+                    Messages non lus
+                  </h2>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-200/70 text-indigo-800 shrink-0">
+                    {unreadTopics.length} {unreadTopics.length > 1 ? 'sujets' : 'sujet'}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => toggleSection('unread')}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-indigo-100/50 transition cursor-pointer"
+                    title={collapsedSections['unread'] ? 'Déplier la section' : 'Replier la section'}
+                  >
+                    {collapsedSections['unread'] ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronUp className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Liste des sujets non lus */}
+              {!collapsedSections['unread'] && (
+                <div className="divide-y divide-slate-100">
+                  {unreadTopics.map((topic) => (
+                    <div
+                      key={`unread-${topic.id}`}
+                      className="p-4 sm:px-6 flex items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="shrink-0">
+                          {topic.stickable ? (
+                            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center">
+                              <Pin className="w-4 h-4" />
+                            </div>
+                          ) : topic.isClosed ? (
+                            <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center">
+                              <Lock className="w-4 h-4" />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 rounded-xl border flex items-center justify-center bg-indigo-50 text-indigo-600 border-indigo-200">
+                              <MessageSquare className="w-4 h-4" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {topic.sectionTitle && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                {topic.sectionTitle}
+                              </span>
+                            )}
+                            {topic.stickable && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                                Épinglé
+                              </span>
+                            )}
+                            {topic.isClosed && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                Fermé
+                              </span>
+                            )}
+                            <button
+                              onClick={() => handleSelectTopic(topic.id)}
+                              className="text-sm font-bold truncate text-left hover:text-indigo-600 transition cursor-pointer text-slate-900"
+                            >
+                              {topic.title}
+                            </button>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                            <span>
+                              {topic.postsCount} {topic.postsCount > 1 ? 'messages' : 'message'}
+                            </span>
+
+                            {topic.lastPost && (
+                              <>
+                                <span>&bull;</span>
+                                <span>
+                                  Dernier message par{' '}
+                                  <strong className={`font-semibold ${getUserColorClass(topic.lastPost.userProfil, 'text-slate-700')}`}>
+                                    {topic.lastPost.username}
+                                  </strong>{' '}
+                                  le {formatDate(topic.lastPost.createDate)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleSelectTopic(topic.id)}
+                          className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 border border-slate-200 transition cursor-pointer"
+                        >
+                          Voir
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {forumData.sections.map((section, sectionIdx) => {
             const isCollapsed = collapsedSections[section.id];
             const isSectionDragged = draggedSectionIndex === sectionIdx;
