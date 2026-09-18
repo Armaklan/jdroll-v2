@@ -178,7 +178,7 @@ export function AppContent() {
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
-        JdRoll 2.0 &bull; Refonte Fastify + Vite React &bull; Compatible Base de données MySQL
+        JdRoll 2.0 &bull; by Armaklan. Du jeu, du rôle, du roll !
       </footer>
     </div>
   );

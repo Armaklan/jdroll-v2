@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../api/auth';
-import { User as UserIcon, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { AppView, viewToPath } from '../components/Navbar';
 
 interface HomePageProps {
@@ -39,120 +39,171 @@ export const HomePage: React.FC<HomePageProps> = ({
   }, []);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
-      {/* Hero section */}
-      <div className="bg-gradient-to-br from-indigo-50/60 via-white to-slate-50 border border-slate-200 p-8 sm:p-10 rounded-3xl shadow-sm">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Bienvenue sur <span className="text-indigo-600">JdRoll 2.0</span>
-            </h1>
-            <p className="text-slate-600 mt-2 max-w-xl text-sm sm:text-base leading-relaxed">
-              Plateforme de jeu de rôle textuel par forum.
-            </p>
-            <p className="text-red-800 mt-2 max-w-xl text-sm sm:text-base leading-relaxed">
-              Attention, tout usage de ce site est à vos risques et périls. Cette plateforme est mise à disposition uniquement à des fins de démonstrations. Toute utilisation est sous votre responsabilité.
-            </p>
-          </div>
+      <div className="max-w-5xl mx-auto space-y-8">
+        {/* Hero section */}
+        <div
+            className="bg-gradient-to-br from-indigo-50/60 via-white to-slate-50 border border-slate-200 p-8 sm:p-10 rounded-3xl shadow-sm">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                Bienvenue sur <span className="text-indigo-600">JdRoll 2.0</span>
+              </h1>
+              <p className="text-slate-600 mt-2 max-w-xl text-sm sm:text-base leading-relaxed">
+                Du jeu, du rôle, du roll !
+              </p>
+            </div>
 
-          <div className="flex flex-col gap-2 w-full md:w-auto">
-            {isLoading ? (
-              <div className="text-slate-500 text-sm">Chargement du profil...</div>
-            ) : isAuthenticated && user ? (
-              <div className="p-4 bg-white border border-slate-200 shadow-sm rounded-2xl text-left min-w-[220px]">
-                <div className="text-xs text-slate-500 font-medium">Connecté en tant que</div>
-                <div className="text-lg font-bold text-slate-900 flex items-center gap-2 mt-0.5">
-                  <UserIcon className="w-4 h-4 text-indigo-600" />
-                  {user.username}
-                </div>
-                <div className="text-xs text-slate-500 mt-0.5">{user.mail}</div>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={handleNavigateLogin}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition shadow-sm text-center"
-                >
-                  Se connecter
-                </button>
-                <button
-                  onClick={handleNavigateRegister}
-                  className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium rounded-xl transition text-center shadow-sm"
-                >
-                  S'inscrire
-                </button>
-              </div>
-            )}
+            <div className="flex flex-col gap-2 w-full md:w-auto">
+              {isLoading ? (
+                  <div className="text-slate-500 text-sm">Chargement du profil...</div>
+              ) : isAuthenticated && user ? (
+                  <div>
+                  </div>
+              ) : (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                        onClick={handleNavigateLogin}
+                        className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition shadow-sm text-center"
+                    >
+                      Se connecter
+                    </button>
+                    <button
+                        onClick={handleNavigateRegister}
+                        className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-medium rounded-xl transition text-center shadow-sm"
+                    >
+                      S'inscrire
+                    </button>
+                  </div>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Accès rapide */}
+        <ul className="flex flex-wrap -m-responsive-xl-32 justify-center">
+          <li className="w-full md:w-1/2 xl:w-1/3 p-4">
+            <div className="p-responsive-xl-32">
+
+
+              <article>
+                <div className="text-center dark:text-white whitespace-nowrap text-2xl font-bold mb-3">
+                    Une communauté
+                </div>
+
+                <div>
+                    <p className="mb-4">La barrière des distances n'existant pas, vous rencontrerez ici des joueurs/euses venus de tous horizons.</p>
+                    <p className="mb-4">Une grande communauté francophone est prête à vous accueillir autour du Jeu de Rôle pour partager de bons moments, à toute heure du jour, voire de la nuit. Ouvert même les jours fériés !</p>
+                </div>
+              </article>
+
+            </div>
+          </li>
+          <li className="w-full md:w-1/2 xl:w-1/3 p-4">
+            <div className="p-responsive-xl-32">
+
+
+              <article>
+                <div className="text-center dark:text-white whitespace-nowrap text-2xl font-bold mb-3">
+                  Du choix
+                </div>
+
+                <div>
+                  <p className="mb-4">Vous êtes fan de science-fiction ? Vous êtes plutôt épée et bouclier contre un vil félon ? Vous préférez cramer du zombie avec des copains ? Ou alors découvrir la dernière sortie indé ?</p>
+                  <p className="mb-4">JDRoll est fait pour vous !</p>
+                  <p>Tout ce que l'on vous demande, c'est de prendre plaisir à jouer. Et grâce au PbF, rien ne vous empêche de vous amuser sur plusieurs parties en même temps !</p>
+                </div>
+              </article>
+
+            </div>
+          </li>
+          <li className="w-full md:w-1/2 xl:w-1/3 p-4">
+            <div className="p-responsive-xl-32">
+
+              <article>
+                <div className="text-center dark:text-white whitespace-nowrap text-2xl font-bold mb-3">
+                  Une plateforme dediée
+                </div>
+
+                <div>
+                  <p className="mb-4">jdRoll a été conçu spécialement pour le jeu de rôle par forum. C'est pour cela que vous aurez à votre disposition tout le matériel nécessaire afin d'organiser une partie ou de la jouer : bloc-note, lanceur de dés, fiche de personnage,...</p>
+                  <p>Tout ici a été conçu pour le confort des MJ et des joueurs. Et l'endroit est en perpétuelle évolution !</p>
+                </div>
+              </article>
+
+            </div>
+          </li>
+        </ul>
+
+        {/* Quick Access Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <button
+              onClick={() => handleNavigate('my-campaigns')}
+              className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
+          >
+            <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
+              Mes Parties
+            </div>
+            <div className="text-base font-bold text-slate-900 flex items-center justify-between">
+              <span>Mes Campagnes</span>
+              <ArrowRight
+                  className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition"/>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Accédez à vos tables de jeu en tant que MJ ou joueur
+            </p>
+          </button>
+
+          <button
+              onClick={() => handleNavigate('create-campaign')}
+              className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group cursor-pointer"
+          >
+            <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
+              Création
+            </div>
+            <div className="text-base font-bold text-slate-900 flex items-center justify-between">
+              <span>Créer une Campagne</span>
+              <ArrowRight
+                  className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition"/>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Lancez votre table, personnalisez l'univers et invitez des joueurs
+            </p>
+          </button>
+
+          <button
+              onClick={() => handleNavigate('join-campaign')}
+              className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
+          >
+            <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
+              Recrutement
+            </div>
+            <div className="text-base font-bold text-slate-900 flex items-center justify-between">
+              <span>Rejoindre</span>
+              <ArrowRight
+                  className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition"/>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Découvrez les campagnes ouvertes aux nouveaux joueurs
+            </p>
+          </button>
+
+          <button
+              onClick={() => handleNavigate('forum')}
+              className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
+          >
+            <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
+              Communauté
+            </div>
+            <div className="text-base font-bold text-slate-900 flex items-center justify-between">
+              <span>Forum Général</span>
+              <ArrowRight
+                  className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition"/>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Échangez avec la communauté et trouvez des MJ
+            </p>
+          </button>
+        </div>
       </div>
-
-      {/* Quick Access Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <button
-          onClick={() => handleNavigate('my-campaigns')}
-          className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
-        >
-          <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
-            Mes Parties
-          </div>
-          <div className="text-base font-bold text-slate-900 flex items-center justify-between">
-            <span>Mes Campagnes</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition" />
-          </div>
-          <p className="text-xs text-slate-500 mt-2">
-            Accédez à vos tables de jeu en tant que MJ ou joueur
-          </p>
-        </button>
-
-        <button
-          onClick={() => handleNavigate('create-campaign')}
-          className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group cursor-pointer"
-        >
-          <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
-            Création
-          </div>
-          <div className="text-base font-bold text-slate-900 flex items-center justify-between">
-            <span>Créer une Campagne</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition" />
-          </div>
-          <p className="text-xs text-slate-500 mt-2">
-            Lancez votre table, personnalisez l'univers et invitez des joueurs
-          </p>
-        </button>
-
-        <button
-          onClick={() => handleNavigate('join-campaign')}
-          className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
-        >
-          <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
-            Recrutement
-          </div>
-          <div className="text-base font-bold text-slate-900 flex items-center justify-between">
-            <span>Rejoindre</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition" />
-          </div>
-          <p className="text-xs text-slate-500 mt-2">
-            Découvrez les campagnes ouvertes aux nouveaux joueurs
-          </p>
-        </button>
-
-        <button
-          onClick={() => handleNavigate('forum')}
-          className="bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md p-5 rounded-2xl text-left transition group"
-        >
-          <div className="text-xs font-semibold uppercase tracking-wider text-indigo-600 mb-1">
-            Communauté
-          </div>
-          <div className="text-base font-bold text-slate-900 flex items-center justify-between">
-            <span>Forum Général</span>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition" />
-          </div>
-          <p className="text-xs text-slate-500 mt-2">
-            Échangez avec la communauté et trouvez des MJ
-          </p>
-        </button>
-      </div>
-    </div>
   );
 };
