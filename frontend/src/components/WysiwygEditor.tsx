@@ -327,26 +327,159 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       editorRef.current.focus();
     }
     const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
+    if (!selection || selection.rangeCount === 0 || !editorRef.current?.contains(selection.anchorNode)) return;
 
     const range = selection.getRangeAt(0);
-    const span = document.createElement('span');
-    span.className = className;
 
-    if (!range.collapsed) {
-      const fragment = range.extractContents();
-      span.appendChild(fragment);
-    } else {
-      span.innerHTML = '&nbsp;';
+    const RP_CLASSES = ['dialogue', 'pensee', 'rp1', 'rp2', 'hrp'];
+    const isTargetRpClass = RP_CLASSES.includes(className);
+
+    // Fonction d'aide pour déplier un élément et récupérer ses enfants
+    const unwrapElement = (el: HTMLElement): Node[] => {
+      const parent = el.parentNode;
+      if (!parent) return [];
+      const children = Array.from(el.childNodes);
+      while (el.firstChild) {
+        parent.insertBefore(el.firstChild, el);
+      }
+      parent.removeChild(el);
+      return children;
+    };
+
+    // Cherche si la sélection se trouve à l'intérieur d'un élément ayant la classe ou une classe RP
+    let matchingAncestor: HTMLElement | null = null;
+    let node: Node | null = range.commonAncestorContainer;
+    if (node.nodeType === Node.TEXT_NODE) {
+      node = node.parentNode;
+    }
+    while (node && node !== editorRef.current) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as HTMLElement;
+        if (
+          el.classList.contains(className) ||
+          (isTargetRpClass && RP_CLASSES.some((cls) => el.classList.contains(cls)))
+        ) {
+          matchingAncestor = el;
+          break;
+        }
+      }
+      node = node.parentNode;
     }
 
-    range.insertNode(span);
+    if (matchingAncestor) {
+      const hasExactClass = matchingAncestor.classList.contains(className);
 
-    // Repositionne le curseur après le span
-    range.setStartAfter(span);
-    range.collapse(true);
-    selection.removeAllRanges();
-    selection.addRange(range);
+      if (hasExactClass) {
+        // Le style cible est déjà présent : on le retire (toggle OFF)
+        const wholeRange = document.createRange();
+        wholeRange.selectNodeContents(matchingAncestor);
+
+        const isCollapsed = range.collapsed;
+        const isWholeElement =
+          isCollapsed ||
+          (range.compareBoundaryPoints(Range.START_TO_START, wholeRange) <= 0 &&
+            range.compareBoundaryPoints(Range.END_TO_END, wholeRange) >= 0) ||
+          matchingAncestor.textContent === range.toString();
+
+        if (isWholeElement) {
+          if (matchingAncestor.classList.length > 1) {
+            matchingAncestor.classList.remove(className);
+          } else {
+            const children = unwrapElement(matchingAncestor);
+            if (!isCollapsed && children.length > 0) {
+              const newRange = document.createRange();
+              newRange.setStartBefore(children[0]);
+              newRange.setEndAfter(children[children.length - 1]);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            }
+          }
+        } else {
+          // Découpage partiel du span
+          const preRange = document.createRange();
+          preRange.setStart(matchingAncestor, 0);
+          preRange.setEnd(range.startContainer, range.startOffset);
+          const preContent = preRange.extractContents();
+
+          const selectedContent = range.extractContents();
+          const parent = matchingAncestor.parentNode;
+
+          if (parent) {
+            if (preContent.textContent && preContent.textContent.length > 0) {
+              const preSpan = matchingAncestor.cloneNode(false) as HTMLElement;
+              preSpan.appendChild(preContent);
+              parent.insertBefore(preSpan, matchingAncestor);
+            }
+
+            const insertedNodes: Node[] = [];
+            while (selectedContent.firstChild) {
+              const child = selectedContent.firstChild;
+              insertedNodes.push(child);
+              parent.insertBefore(child, matchingAncestor);
+            }
+
+            if (!matchingAncestor.textContent || matchingAncestor.textContent.length === 0) {
+              parent.removeChild(matchingAncestor);
+            }
+
+            if (insertedNodes.length > 0) {
+              const newRange = document.createRange();
+              newRange.setStartBefore(insertedNodes[0]);
+              newRange.setEndAfter(insertedNodes[insertedNodes.length - 1]);
+              selection.removeAllRanges();
+              selection.addRange(newRange);
+            }
+          }
+        }
+      } else {
+        // L'élément a un autre style RP : on remplace le style RP précédent par le nouveau
+        RP_CLASSES.forEach((cls) => matchingAncestor?.classList.remove(cls));
+        matchingAncestor.classList.add(className);
+      }
+    } else {
+      // Vérifier si des éléments enfants dans la sélection ont déjà la classe
+      const matchingChildren = Array.from(
+        editorRef.current?.querySelectorAll<HTMLElement>(`.${className}`) || []
+      ).filter((el) => {
+        try {
+          return range.intersectsNode(el);
+        } catch {
+          return false;
+        }
+      });
+
+      if (matchingChildren.length > 0) {
+        matchingChildren.forEach((el) => {
+          if (el.classList.length > 1) {
+            el.classList.remove(className);
+          } else {
+            unwrapElement(el);
+          }
+        });
+      } else {
+        // Appliquer la nouvelle classe
+        const span = document.createElement('span');
+        span.className = className;
+
+        if (!range.collapsed) {
+          const fragment = range.extractContents();
+          span.appendChild(fragment);
+          range.insertNode(span);
+
+          const newRange = document.createRange();
+          newRange.selectNodeContents(span);
+          selection.removeAllRanges();
+          selection.addRange(newRange);
+        } else {
+          span.innerHTML = '&nbsp;';
+          range.insertNode(span);
+          range.setStartAfter(span);
+          range.collapse(true);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+      }
+    }
 
     handleInput();
   };
