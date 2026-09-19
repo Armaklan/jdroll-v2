@@ -1095,7 +1095,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                         if (charWidgets.length === 0) return null;
 
                         return (
-                          <div className="w-full pt-1.5">
+                          <div className="hidden md:block w-full pt-1.5">
                             <CharacterWidgetsRenderer
                               widgets={charWidgets}
                               isEditable={isMj || isCharacterOwner}
