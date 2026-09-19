@@ -124,6 +124,88 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [isOpen]);
 
+  // Handle mobile swipe gesture to open/close search modal
+  useEffect(() => {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartTime = 0;
+    let isTouchActive = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      touchStartX = touch.clientX;
+      touchStartY = touch.clientY;
+      touchStartTime = Date.now();
+      isTouchActive = true;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!isTouchActive || e.changedTouches.length !== 1) return;
+      isTouchActive = false;
+
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartX;
+      const deltaY = touch.clientY - touchStartY;
+      const duration = Date.now() - touchStartTime;
+
+      const target = e.target as HTMLElement | null;
+
+      // Ignore interactive form controls or editors when closed to avoid interfering with user input
+      if (!isOpen && target) {
+        const isInteractive = target.closest(
+          'input, textarea, select, button, a, [contenteditable="true"], .ql-editor, .leaflet-container, .no-swipe'
+        );
+        if (isInteractive) {
+          return;
+        }
+      }
+
+      // Horizontal swipe detection:
+      // - Minimum distance: 50px
+      // - Horizontal movement dominant over vertical movement (ratio > 1.4) to avoid triggering during vertical scroll
+      // - Quick gesture duration (<= 600ms)
+      const isHorizontalSwipe =
+        Math.abs(deltaX) >= 50 &&
+        Math.abs(deltaX) > Math.abs(deltaY) * 1.4 &&
+        duration <= 600;
+
+      if (isHorizontalSwipe) {
+        if (!isOpen) {
+          setIsOpen(true);
+        }
+      } else if (isOpen) {
+        // Vertical swipe down to close modal when open
+        const isSwipeDown =
+          deltaY >= 80 &&
+          deltaY > Math.abs(deltaX) * 1.4 &&
+          duration <= 600;
+
+        if (isSwipeDown) {
+          // Only close if scroll position is at the top or swiping header/backdrop
+          const isScrollableContent = target?.closest('.overflow-y-auto');
+          if (!isScrollableContent || (isScrollableContent && isScrollableContent.scrollTop <= 0)) {
+            setIsOpen(false);
+          }
+        }
+      }
+    };
+
+    const handleTouchCancel = () => {
+      isTouchActive = false;
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchCancel);
+    };
+  }, [isOpen]);
+
   // Reset & focus search when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -218,25 +300,29 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
       {/* Modal / Menu de navigation rapide et recherche */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 flex items-start justify-center pt-3 sm:pt-16 px-2 sm:px-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setIsOpen(false)}
         >
           <div
-            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
+            className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={handleKeyDown}
           >
             {/* Header: Grands menus de la campagne */}
             <div className="p-3.5 bg-slate-50/90 border-b border-slate-200">
+              {/* Poignée visuelle pour mobile */}
+              <div className="w-10 h-1 bg-slate-300 rounded-full mx-auto mb-2 sm:hidden" />
+
               <div className="flex items-center justify-between mb-2.5 px-1">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider truncate mr-2">
                   Accès rapide • {campaign.name}
                 </span>
                 <button
                   type="button"
                   onClick={() => setIsOpen(false)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition cursor-pointer shrink-0"
                   title="Fermer (Échap)"
+                  aria-label="Fermer le menu"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -618,9 +704,9 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
               )}
             </div>
 
-            {/* Footer / Raccourcis clavier */}
+            {/* Footer / Raccourcis clavier & Gestes mobiles */}
             <div className="p-3 bg-slate-50 border-t border-slate-200 text-slate-500 text-xs flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-3">
                 <span className="flex items-center gap-1">
                   <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-mono shadow-2xs">
                     ↑
@@ -637,12 +723,24 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                   <span className="text-[11px]">Accéder</span>
                 </span>
               </div>
-              <span className="flex items-center gap-1">
-                <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-mono shadow-2xs">
-                  Échap
-                </kbd>
-                <span className="text-[11px]">Fermer</span>
-              </span>
+              <div className="sm:hidden flex items-center gap-1 text-[11px] text-slate-400">
+                <span>Glisser vers le bas pour fermer</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline-flex items-center gap-1">
+                  <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded text-[10px] font-mono shadow-2xs">
+                    Échap
+                  </kbd>
+                  <span className="text-[11px]">Fermer</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="sm:hidden px-2.5 py-1 text-xs font-semibold text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-lg transition"
+                >
+                  Fermer
+                </button>
+              </div>
             </div>
           </div>
         </div>
