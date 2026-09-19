@@ -395,3 +395,37 @@ export interface UpdateCartePayload {
   published?: boolean;
   config?: CarteConfig;
 }
+
+export interface CampaignSearchTopicItem {
+  id: number;
+  title: string;
+  sectionId: number;
+  sectionTitle: string;
+  isPrivate: boolean;
+  url: string;
+}
+
+export interface CampaignSearchCarteItem {
+  id: number;
+  name: string;
+  description: string;
+  image: string | null;
+  published: boolean;
+  url: string;
+}
+
+export interface CampaignSearchCharacterItem {
+  id: number;
+  name: string;
+  concept: string;
+  avatar: string | null;
+  categoryName: string;
+  isPlayer: boolean;
+  url: string;
+}
+
+export interface CampaignSearchResults {
+  topics: CampaignSearchTopicItem[];
+  cartes: CampaignSearchCarteItem[];
+  characters: CampaignSearchCharacterItem[];
+}

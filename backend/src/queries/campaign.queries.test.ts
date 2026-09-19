@@ -4,6 +4,7 @@ import { CampaignQueries } from './campaign.queries.js';
 import { ICampaignRepository } from '../repositories/campaign.repository.js';
 import { IDicerRepository, DicerRollWithUser } from '../repositories/dicer.repository.js';
 import { IForumRepository } from '../repositories/forum.repository.js';
+import { ICarteRepository } from '../repositories/carte.repository.js';
 import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow } from '../types/index.js';
 import { CampaignNotFoundError, CharacterNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
@@ -32,7 +33,8 @@ class MockDicerRepository implements IDicerRepository {
 class MockForumRepository implements Partial<IForumRepository> {
   constructor(
     private mjList: Array<{ campaignId: number; userId: number }> = [],
-    private participantList: Array<{ campaignId: number; userId: number }> = []
+    private participantList: Array<{ campaignId: number; userId: number }> = [],
+    private topics: Array<{ id: number; campaignId: number; sectionId: number; sectionTitle: string; title: string; isPrivate: number; canReadUserIds?: number[] }> = []
   ) {}
 
   async isUserCampaignMj(campagneId: number, userId: number): Promise<boolean> {
@@ -41,6 +43,34 @@ class MockForumRepository implements Partial<IForumRepository> {
 
   async isUserCampaignParticipant(campagneId: number, userId: number): Promise<boolean> {
     return this.participantList.some((item) => item.campaignId === campagneId && item.userId === userId);
+  }
+
+  async searchCampaignTopics(campaignId: number, queryText: string, userId?: number, isMj: boolean = false): Promise<any[]> {
+    const q = queryText.trim().toLowerCase();
+    return this.topics.filter((t) => {
+      if (t.campaignId !== campaignId) return false;
+      if (t.isPrivate === 1 && !isMj) {
+        if (!userId || !t.canReadUserIds?.includes(userId)) return false;
+      }
+      if (q && !t.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
+}
+
+class MockCarteRepository implements Partial<ICarteRepository> {
+  constructor(
+    private cartes: Array<{ id: number; campagneId: number; name: string; description: string; image: string; published: boolean }> = []
+  ) {}
+
+  async searchCampaignCartes(campaignId: number, queryText: string, withUnpublished: boolean = false): Promise<any[]> {
+    const q = queryText.trim().toLowerCase();
+    return this.cartes.filter((c) => {
+      if (c.campagneId !== campaignId) return false;
+      if (!withUnpublished && !c.published) return false;
+      if (q && !c.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
   }
 }
 
@@ -93,6 +123,15 @@ class MockCampaignRepository implements ICampaignRepository {
 
   async findCampaignCharacters(campaignId: number): Promise<RawCampaignCharacterRow[]> {
     return this.characters.filter((char) => char.campagneId === campaignId);
+  }
+
+  async searchCampaignCharacters(campaignId: number, queryText: string): Promise<RawCampaignCharacterRow[]> {
+    const q = queryText.trim().toLowerCase();
+    return this.characters.filter((char) => {
+      if (char.campagneId !== campaignId) return false;
+      if (q && !char.name.toLowerCase().includes(q)) return false;
+      return true;
+    });
   }
 
   async findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]> {
@@ -831,6 +870,139 @@ describe('CampaignQueries', () => {
       assert.equal(resultUser3[0].id, 3);
       assert.equal(resultUser3[0].userId, 3);
       assert.equal(resultUser3[0].description, 'Chance Joueur 2');
+    });
+  });
+
+  describe('searchCampaign', () => {
+    const campaign: CampaignSummary = {
+      id: 5,
+      name: 'Campagne de Quête',
+      mjId: 1,
+      mjUsername: 'mj_user',
+      nbJoueurs: 4,
+      nbJoueursActuel: 2,
+      banniere: '',
+      systeme: 'D&D 5',
+      univers: 'Fantasy',
+      description: 'Test',
+      statut: 0,
+      isArchived: false,
+      isRecrutementOpen: true,
+    };
+
+    const topics = [
+      { id: 101, campaignId: 5, sectionId: 1, sectionTitle: 'Général', title: 'Règles du jeu', isPrivate: 0 },
+      { id: 102, campaignId: 5, sectionId: 1, sectionTitle: 'Général', title: 'Discussion secrète', isPrivate: 1, canReadUserIds: [2] },
+      { id: 103, campaignId: 5, sectionId: 2, sectionTitle: 'Quêtes', title: 'La forêt maudite', isPrivate: 0 },
+    ];
+
+    const cartes = [
+      { id: 201, campagneId: 5, name: 'Carte du Royaume', description: 'Vue globale', image: 'carte1.png', published: true },
+      { id: 202, campagneId: 5, name: 'Carte Secrète du Donjon', description: 'MJ Only', image: 'carte2.png', published: false },
+    ];
+
+    const characters: RawCampaignCharacterRow[] = [
+      {
+        id: 301,
+        userId: 2,
+        userName: 'joueur1',
+        userAvatar: null,
+        userProfil: 1,
+        campagneId: 5,
+        name: 'Aragorn',
+        concept: 'Rôdeur',
+        avatar: 'aragorn.png',
+        publicDescription: 'Héros',
+        privateDescription: '',
+        technical: '',
+        statut: 1,
+        catId: null,
+        categoryName: null,
+        persoFields: null,
+        widgets: null,
+      },
+      {
+        id: 302,
+        userId: null,
+        userName: null,
+        userAvatar: null,
+        userProfil: null,
+        campagneId: 5,
+        name: 'Aubergiste',
+        concept: 'PNJ Tavernier',
+        avatar: 'aubergiste.png',
+        publicDescription: 'Tavernier',
+        privateDescription: '',
+        technical: '',
+        statut: 1,
+        catId: 10,
+        categoryName: 'PNJ Ville',
+        persoFields: null,
+        widgets: null,
+      },
+    ];
+
+    it('lève CampaignNotFoundError si la campagne n’existe pas', async () => {
+      const campaignRepo = new MockCampaignRepository();
+      const dicerRepo = new MockDicerRepository();
+      const forumRepo = new MockForumRepository() as any;
+      const carteRepo = new MockCarteRepository() as any;
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+
+      await assert.rejects(() => queries.searchCampaign(999, 'test', 1), CampaignNotFoundError);
+    });
+
+    it('retourne tous les éléments accessibles pour le MJ (y compris les cartes non publiées et topics privés)', async () => {
+      const campaignRepo = new MockCampaignRepository([campaign], [], [], characters);
+      const dicerRepo = new MockDicerRepository();
+      const forumRepo = new MockForumRepository([{ campaignId: 5, userId: 1 }], [], topics) as any;
+      const carteRepo = new MockCarteRepository(cartes) as any;
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+
+      const result = await queries.searchCampaign(5, '', 1);
+
+      assert.equal(result.topics.length, 3);
+      assert.equal(result.cartes.length, 2);
+      assert.equal(result.characters.length, 2);
+    });
+
+    it('filtre les éléments pour un joueur (ne voit pas les cartes non publiées ni les topics privés non autorisés)', async () => {
+      const campaignRepo = new MockCampaignRepository([campaign], [], [], characters);
+      const dicerRepo = new MockDicerRepository();
+      const forumRepo = new MockForumRepository([], [{ campaignId: 5, userId: 2 }], topics) as any;
+      const carteRepo = new MockCarteRepository(cartes) as any;
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+
+      // Utilisateur 2 a accès au topic 102 car il est dans canReadUserIds
+      const resultUser2 = await queries.searchCampaign(5, '', 2);
+      assert.equal(resultUser2.topics.length, 3); // 101, 102 (autorisé), 103
+      assert.equal(resultUser2.cartes.length, 1); // seulement 201 (published)
+      assert.equal(resultUser2.characters.length, 2);
+
+      // Utilisateur 3 (sans droit sur le topic privé)
+      const forumRepo3 = new MockForumRepository([], [{ campaignId: 5, userId: 3 }], topics) as any;
+      const queries3 = new CampaignQueries(campaignRepo, dicerRepo, forumRepo3, carteRepo);
+      const resultUser3 = await queries3.searchCampaign(5, '', 3);
+      assert.equal(resultUser3.topics.length, 2); // 101, 103 (pas 102)
+      assert.equal(resultUser3.cartes.length, 1); // seulement 201
+    });
+
+    it('filtre par mot-clé dans le nom / titre', async () => {
+      const campaignRepo = new MockCampaignRepository([campaign], [], [], characters);
+      const dicerRepo = new MockDicerRepository();
+      const forumRepo = new MockForumRepository([{ campaignId: 5, userId: 1 }], [], topics) as any;
+      const carteRepo = new MockCarteRepository(cartes) as any;
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+
+      const result = await queries.searchCampaign(5, 'forêt', 1);
+      assert.equal(result.topics.length, 1);
+      assert.equal(result.topics[0].title, 'La forêt maudite');
+      assert.equal(result.cartes.length, 0);
+      assert.equal(result.characters.length, 0);
+
+      const resultChar = await queries.searchCampaign(5, 'Aragorn', 1);
+      assert.equal(resultChar.characters.length, 1);
+      assert.equal(resultChar.characters[0].name, 'Aragorn');
     });
   });
 });

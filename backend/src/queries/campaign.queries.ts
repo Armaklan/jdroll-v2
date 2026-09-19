@@ -1,12 +1,17 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { IDicerRepository, dicerRepository, DicerRollWithUser } from '../repositories/dicer.repository.js';
 import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
+import { ICarteRepository, carteRepository } from '../repositories/carte.repository.js';
 import {
   CampaignSummary,
   CampaignRole,
   CampaignCharactersData,
   CampaignCharacterCategory,
   CampaignCharacter,
+  CampaignSearchResults,
+  CampaignSearchTopicItem,
+  CampaignSearchCarteItem,
+  CampaignSearchCharacterItem,
 } from '../types/index.js';
 import { CampaignNotFoundError, CharacterNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
@@ -14,7 +19,8 @@ export class CampaignQueries {
   constructor(
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
     private readonly dicerRepo: IDicerRepository = dicerRepository,
-    private readonly forumRepo: IForumRepository = forumRepository
+    private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly carteRepo: ICarteRepository = carteRepository
   ) {}
 
   /**
@@ -377,6 +383,62 @@ export class CampaignQueries {
     }
 
     return this.dicerRepo.getRecentRollsByCampaign(campaignId, 20, userId);
+  }
+
+  /**
+   * Effectue une recherche dans la campagne (topics, cartes, personnages) selon les droits d'accès
+   */
+  async searchCampaign(
+    campaignId: number,
+    queryText: string = '',
+    currentUserId?: number
+  ): Promise<CampaignSearchResults> {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) {
+      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
+    }
+
+    const isMj = Boolean(currentUserId && (campaign.mjId === currentUserId || (await this.forumRepo.isUserCampaignMj(campaignId, currentUserId))));
+
+    const [topicRows, carteRows, characterRows] = await Promise.all([
+      this.forumRepo.searchCampaignTopics(campaignId, queryText, currentUserId, isMj),
+      this.carteRepo.searchCampaignCartes(campaignId, queryText, isMj),
+      this.campaignRepo.searchCampaignCharacters(campaignId, queryText),
+    ]);
+
+    const topics: CampaignSearchTopicItem[] = topicRows.map((t) => ({
+      id: t.id,
+      title: t.title,
+      sectionId: t.sectionId,
+      sectionTitle: t.sectionTitle,
+      isPrivate: t.isPrivate === 1,
+      url: `/forum/${campaignId}/${t.id}`,
+    }));
+
+    const cartes: CampaignSearchCarteItem[] = carteRows.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description || '',
+      image: c.image || null,
+      published: c.published,
+      url: `/campaigns/${campaignId}/cartes/${c.id}`,
+    }));
+
+    const characters: CampaignSearchCharacterItem[] = characterRows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      concept: p.concept || '',
+      avatar: p.avatar || null,
+      categoryName: p.categoryName || (p.userId ? 'Personnage joueur' : 'Non classées'),
+      isPlayer: Boolean(p.userId),
+      url: `/campaigns/${campaignId}/characters?char=${p.id}`,
+    }));
+
+    return {
+      topics,
+      cartes,
+      characters,
+    };
   }
 }
 

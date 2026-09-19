@@ -25,6 +25,7 @@ export interface CarteRecord extends CarteSummary {
 
 export interface ICarteRepository {
   findByCampaignId(campaignId: number, withUnpublished?: boolean): Promise<CarteSummary[]>;
+  searchCampaignCartes(campaignId: number, queryText: string, withUnpublished?: boolean): Promise<CarteSummary[]>;
   findById(id: number): Promise<CarteRecord | null>;
   createCarte(data: CreateCarteData): Promise<number>;
   updateCarte(id: number, data: UpdateCarteData): Promise<void>;
@@ -45,6 +46,42 @@ export class MysqlCarteRepository implements ICarteRepository {
     }
 
     sql += ` ORDER BY name ASC`;
+
+    const rows = await query<RawCarteRow>(sql, params);
+
+    return rows.map((row) => ({
+      id: row.id,
+      campagneId: row.campagne_id,
+      name: row.name || '',
+      description: row.description || '',
+      image: row.image || '',
+      published: Boolean(row.published),
+    }));
+  }
+
+  async searchCampaignCartes(
+    campaignId: number,
+    queryText: string,
+    withUnpublished: boolean = false
+  ): Promise<CarteSummary[]> {
+    const trimmed = queryText.trim();
+    let sql = `
+      SELECT id, campagne_id, name, description, image, published
+      FROM carte
+      WHERE campagne_id = ?
+    `;
+    const params: any[] = [campaignId];
+
+    if (!withUnpublished) {
+      sql += ` AND published = 1`;
+    }
+
+    if (trimmed) {
+      sql += ` AND LOWER(name) LIKE LOWER(?)`;
+      params.push(`%${trimmed}%`);
+    }
+
+    sql += ` ORDER BY name ASC LIMIT 20`;
 
     const rows = await query<RawCarteRow>(sql, params);
 

@@ -6,7 +6,9 @@ import {
   CarteMarker,
   CarteConfig,
   CarteCharacter,
+  CampaignSummary,
 } from '../types/campaign';
+import { CampaignFloatingSearch } from '../components/CampaignFloatingSearch';
 import {
   ArrowLeft,
   ZoomIn,
@@ -42,6 +44,7 @@ export const CampaignCarteViewerPage: React.FC = () => {
 
   // État des données
   const [carte, setCarte] = useState<CarteDetail | null>(null);
+  const [campaign, setCampaign] = useState<CampaignSummary | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -128,6 +131,12 @@ export const CampaignCarteViewerPage: React.FC = () => {
   useEffect(() => {
     loadCarte();
   }, [loadCarte]);
+
+  useEffect(() => {
+    if (campaignId) {
+      campaignsApi.getCampaign(campaignId).then(setCampaign).catch(() => {});
+    }
+  }, [campaignId]);
 
   // Détection des dimensions de l'image chargée
   const handleImageLoaded = () => {
@@ -1435,6 +1444,10 @@ export const CampaignCarteViewerPage: React.FC = () => {
                 </form>
               </div>
             </div>
+        )}
+
+        {campaign && (
+          <CampaignFloatingSearch campaign={campaign} activeTab="carte" />
         )}
       </div>
   );

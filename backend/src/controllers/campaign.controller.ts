@@ -137,6 +137,10 @@ const getCampaignForumParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
 
+const searchCampaignQuerySchema = z.object({
+  q: z.string().optional().default(''),
+});
+
 const getTopicPostsParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
@@ -635,6 +639,45 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la récupération des personnages de la campagne' });
+    }
+  }
+
+  /**
+   * GET /api/campaigns/:id/search
+   * Recherche dans la campagne (topics, cartes, personnages) selon les permissions de l'utilisateur
+   */
+  async searchCampaign(request: FastifyRequest, reply: FastifyReply) {
+    const parseResult = getCampaignForumParamsSchema.safeParse(request.params);
+
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseResult.error.format(),
+      });
+    }
+
+    const parseQuery = searchCampaignQuerySchema.safeParse(request.query);
+    const q = parseQuery.success ? parseQuery.data.q : '';
+
+    const { id: campaignId } = parseResult.data;
+
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      // Utilisateur non connecté / invité
+    }
+
+    try {
+      const data = await this.campaignQueryService.searchCampaign(campaignId, q, userId);
+      return reply.status(200).send(data);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la recherche dans la campagne' });
     }
   }
 
@@ -2479,6 +2522,9 @@ export class CampaignController {
     // Route pour voir la galerie des personnages d'une campagne
     app.get('/api/campaigns/:id/characters', (req, rep) => this.getCampaignCharacters(req, rep));
     app.get('/api/campaigns/:id/gallery', (req, rep) => this.getCampaignCharacters(req, rep));
+
+    // Route pour rechercher dans une campagne (topics, cartes, personnages)
+    app.get('/api/campaigns/:id/search', (req, rep) => this.searchCampaign(req, rep));
 
     // Route pour voir la fiche d'un personnage spécifique
     app.get('/api/characters/:id', (req, rep) => this.getCharacter(req, rep));

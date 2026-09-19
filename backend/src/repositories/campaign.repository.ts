@@ -81,6 +81,7 @@ export interface ICampaignRepository {
   createCampaign(data: CreateCampaignData): Promise<number>;
   updateCampaign(id: number, data: UpdateCampaignData): Promise<void>;
   findCampaignCharacters(campaignId: number): Promise<RawCampaignCharacterRow[]>;
+  searchCampaignCharacters(campaignId: number, queryText: string): Promise<RawCampaignCharacterRow[]>;
   findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]>;
   findPnjCategoryById(id: number): Promise<RawPnjCategoryRow | null>;
   createPnjCategory(category: {
@@ -1103,6 +1104,44 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     `;
 
     return query<RawCampaignCharacterRow>(sql, [campaignId]);
+  }
+
+  async searchCampaignCharacters(campaignId: number, queryText: string): Promise<RawCampaignCharacterRow[]> {
+    const trimmed = queryText.trim();
+    let sql = `
+      SELECT 
+        p.id,
+        p.user_id AS userId,
+        u.username AS userName,
+        u.avatar AS userAvatar,
+        u.profil AS userProfil,
+        p.campagne_id AS campagneId,
+        p.name,
+        p.concept,
+        p.avatar,
+        p.publicDescription,
+        p.privateDescription,
+        p.technical,
+        p.statut,
+        p.cat_id AS catId,
+        c.name AS categoryName,
+        p.perso_fields AS persoFields,
+        p.widgets
+      FROM personnages p
+      LEFT JOIN user u ON p.user_id = u.id
+      LEFT JOIN pnj_category c ON p.cat_id = c.id
+      WHERE p.campagne_id = ?
+    `;
+    const params: any[] = [campaignId];
+
+    if (trimmed) {
+      sql += ` AND LOWER(p.name) LIKE LOWER(?)`;
+      params.push(`%${trimmed}%`);
+    }
+
+    sql += ` ORDER BY p.name ASC LIMIT 20`;
+
+    return query<RawCampaignCharacterRow>(sql, params);
   }
 
   async findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]> {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { WysiwygEditor } from '../components/WysiwygEditor';
@@ -90,9 +90,12 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
   onBack,
 }) => {
   const params = useParams<{ campaignId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const effectiveCampaignId = campaignId ?? (params.campaignId ? Number(params.campaignId) : 0);
+
+  const charParam = searchParams.get('char') || searchParams.get('characterId');
 
   const [data, setData] = useState<CampaignCharactersData | null>(null);
   const [participants, setParticipants] = useState<CampaignParticipant[]>([]);
@@ -224,6 +227,22 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       fetchCharacters();
     }
   }, [effectiveCampaignId]);
+
+  // Handle opening character modal from URL query param (?char=... or ?characterId=...)
+  useEffect(() => {
+    if (data && charParam) {
+      const charId = Number(charParam);
+      if (!isNaN(charId)) {
+        for (const cat of data.categories) {
+          const found = cat.characters.find((c) => c.id === charId);
+          if (found) {
+            setSelectedCharacter(found);
+            break;
+          }
+        }
+      }
+    }
+  }, [data, charParam]);
 
   // Handle escape key to close modals
   useEffect(() => {

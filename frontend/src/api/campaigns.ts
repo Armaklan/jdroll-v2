@@ -18,6 +18,7 @@ import {
   CarteDetail,
   CreateCartePayload,
   UpdateCartePayload,
+  CampaignSearchResults,
 } from '../types/campaign';
 import { getToken } from './auth';
 
@@ -515,5 +516,14 @@ export const campaignsApi = {
     }
 
     return data as { url: string };
+  },
+
+  async searchCampaign(campaignId: number, query: string = ''): Promise<CampaignSearchResults> {
+    const params = new URLSearchParams();
+    if (query && query.trim()) {
+      params.set('q', query.trim());
+    }
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+    return request<CampaignSearchResults>(`/api/campaigns/${campaignId}/search${queryStr}`);
   },
 };

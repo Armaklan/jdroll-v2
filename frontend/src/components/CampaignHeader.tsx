@@ -24,6 +24,7 @@ import {
   StickyNote,
   Map,
 } from 'lucide-react';
+import { CampaignFloatingSearch } from './CampaignFloatingSearch';
 
 export interface CampaignHeaderProps {
   campaign: CampaignSummary;
@@ -465,6 +466,16 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
           )}
         </div>
       </div>
+
+      {/* Bouton et modal de recherche flottante pour la campagne */}
+      <CampaignFloatingSearch
+        campaign={campaign}
+        activeTab={activeTab}
+        onOpenDiceTower={onOpenDiceTower}
+        onToggleAlert={handleToggleAlert}
+        hasAlert={hasAlert}
+        isAlertLoading={isAlertLoading}
+      />
     </div>
   );
 };

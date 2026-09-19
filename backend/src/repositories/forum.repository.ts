@@ -49,6 +49,7 @@ export interface IForumRepository {
   findDraft(topicId: number, userId: number): Promise<TopicDraft | null>;
   saveDraft(data: { topicId: number; userId: number; persoId?: number | null; content: string }): Promise<TopicDraft>;
   deleteDraft(topicId: number, userId: number): Promise<void>;
+  searchCampaignTopics(campaignId: number, queryText: string, userId?: number, isMj?: boolean): Promise<{ id: number; sectionId: number; sectionTitle: string; title: string; isPrivate: number }[]>;
 }
 
 export class MysqlForumRepository implements IForumRepository {
@@ -1191,6 +1192,51 @@ export class MysqlForumRepository implements IForumRepository {
         }
       }
     }
+  }
+
+  async searchCampaignTopics(
+    campaignId: number,
+    queryText: string,
+    userId?: number,
+    isMj: boolean = false
+  ): Promise<{ id: number; sectionId: number; sectionTitle: string; title: string; isPrivate: number }[]> {
+    const currentUserId = userId ?? 0;
+    const trimmedQuery = queryText.trim();
+    const hasQuery = trimmedQuery.length > 0;
+    const searchPattern = `%${trimmedQuery}%`;
+
+    const sql = `
+      SELECT 
+        t.id,
+        t.section_id AS sectionId,
+        s.title AS sectionTitle,
+        t.title,
+        t.is_private AS isPrivate
+      FROM topics t
+      JOIN sections s ON t.section_id = s.id
+      WHERE s.campagne_id = ?
+        AND (
+          t.is_private != 1
+          OR ? = 1
+          OR (? > 0 AND EXISTS (SELECT 1 FROM can_read cr WHERE cr.topic_id = t.id AND cr.user_id = ?))
+        )
+        ${hasQuery ? 'AND LOWER(t.title) LIKE LOWER(?)' : ''}
+      ORDER BY t.stickable DESC, t.ordre ASC, t.id DESC
+      LIMIT 20
+    `;
+
+    const params: any[] = [
+      campaignId,
+      isMj ? 1 : 0,
+      currentUserId,
+      currentUserId,
+    ];
+
+    if (hasQuery) {
+      params.push(searchPattern);
+    }
+
+    return query<{ id: number; sectionId: number; sectionTitle: string; title: string; isPrivate: number }>(sql, params);
   }
 }
 
