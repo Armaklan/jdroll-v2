@@ -998,7 +998,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                 {/* Corps du message : Auteur à gauche, Texte à droite */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   {/* Colonne Profil / Personnage (Gauche) */}
-                  <div className="md:col-span-3 flex md:flex-col items-center md:items-start gap-3 md:gap-2 pb-3 md:pb-0 md:border-r border-slate-100 md:pr-4">
+                  <div className="md:col-span-3 flex md:flex-col items-center md:items-start gap-3 md:gap-2 pb-3 md:pb-0 md:border-r border-slate-100 md:pr-4 min-w-0">
                     {/* Avatar */}
                     <div className="relative">
                       {isSystem ? (
@@ -1038,7 +1038,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                     </div>
 
                     {/* Détails Auteur */}
-                    <div className="space-y-0.5 min-w-0">
+                    <div className="space-y-0.5 min-w-0 w-full">
                       {post.perso ? (
                         <h4
                           onClick={() => setViewingCharacterId(post.perso!.id)}
@@ -1095,7 +1095,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                         if (charWidgets.length === 0) return null;
 
                         return (
-                          <div className="hidden md:block w-full pt-1.5">
+                          <div className="hidden md:block w-full pt-1.5 min-w-0">
                             <CharacterWidgetsRenderer
                               widgets={charWidgets}
                               isEditable={isMj || isCharacterOwner}
@@ -1254,7 +1254,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
               {/* Rendu réel identique à un post */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                <div className="md:col-span-3 flex md:flex-col items-center md:items-start gap-3 md:gap-2 pb-3 md:pb-0 md:border-r border-amber-200 md:pr-4">
+                <div className="md:col-span-3 flex md:flex-col items-center md:items-start gap-3 md:gap-2 pb-3 md:pb-0 md:border-r border-amber-200 md:pr-4 min-w-0">
                   {previewAvatar ? (
                     <img
                       src={previewAvatar}
@@ -1277,7 +1277,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                     </div>
                   )}
 
-                  <div className="space-y-0.5 min-w-0">
+                  <div className="space-y-0.5 min-w-0 w-full">
                     {selectedCharacter ? (
                       <h4
                         onClick={() => setViewingCharacterId(selectedCharacter.id)}

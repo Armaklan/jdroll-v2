@@ -44,7 +44,7 @@ export const CharacterWidgetsRenderer: React.FC<CharacterWidgetsRendererProps> =
 
   if (variant === 'sidebar' || variant === 'card') {
     return (
-      <div className="mt-2 space-y-1.5 w-full">
+      <div className="mt-2 space-y-1.5 w-full min-w-0">
         {widgets.map((widget) => {
           const isLoading = loadingWidgetId === widget.id;
           const currentVal = Number(widget.value) || 0;
@@ -65,10 +65,10 @@ export const CharacterWidgetsRenderer: React.FC<CharacterWidgetsRendererProps> =
             return (
               <div
                 key={widget.id}
-                className="bg-black/10 dark:bg-white/10 rounded-lg p-1.5 border border-black/5 dark:border-white/5 text-xs shadow-2xs"
+                className="bg-black/10 dark:bg-white/10 rounded-lg p-1.5 border border-black/5 dark:border-white/5 text-xs shadow-2xs min-w-0"
               >
-                <div className="flex items-center justify-between gap-1 mb-1">
-                  <span className="font-semibold truncate text-[11px]" title={widget.name} style={{ color: textColor || undefined }}>
+                <div className="flex items-center justify-between gap-1 mb-1 min-w-0">
+                  <span className="font-semibold truncate text-[11px] min-w-0" title={widget.name} style={{ color: textColor || undefined }}>
                     {widget.name}
                   </span>
                   <span className="font-mono text-[10px] font-bold shrink-0 opacity-90" style={{ color: textColor || undefined }}>
@@ -130,11 +130,11 @@ export const CharacterWidgetsRenderer: React.FC<CharacterWidgetsRendererProps> =
             return (
               <div
                 key={widget.id}
-                className="flex items-center justify-between gap-1.5 bg-black/10 dark:bg-white/10 rounded-lg px-2 py-1 border border-black/5 dark:border-white/5 text-xs shadow-2xs"
+                className="flex items-center justify-between gap-1.5 bg-black/10 dark:bg-white/10 rounded-lg px-2 py-1 border border-black/5 dark:border-white/5 text-xs shadow-2xs min-w-0"
               >
-                <div className="flex items-center gap-1.5 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
                   <Coins className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span className="font-semibold truncate text-[11px]" title={widget.name} style={{ color: textColor || undefined }}>
+                  <span className="font-semibold truncate text-[11px] min-w-0" title={widget.name} style={{ color: textColor || undefined }}>
                     {widget.name}
                   </span>
                 </div>
@@ -188,13 +188,13 @@ export const CharacterWidgetsRenderer: React.FC<CharacterWidgetsRendererProps> =
           return (
             <div
               key={widget.id}
-              className="bg-black/10 dark:bg-white/10 rounded-lg px-2 py-1 border border-black/5 dark:border-white/5 text-xs shadow-2xs"
+              className="bg-black/10 dark:bg-white/10 rounded-lg px-2 py-1 border border-black/5 dark:border-white/5 text-xs shadow-2xs min-w-0"
             >
-              <div className="flex items-center justify-between gap-1">
-                <span className="font-semibold text-[11px] opacity-85 truncate" style={{ color: textColor || undefined }}>
-                  {widget.name} :
+              <div className="text-[11px] leading-snug break-words min-w-0" style={{ color: textColor || undefined }}>
+                <span className="font-semibold opacity-85">
+                  {widget.name} :{' '}
                 </span>
-                <span className="font-medium text-[11px] truncate" style={{ color: textColor || undefined }}>
+                <span className="font-medium [overflow-wrap:anywhere]">
                   {widget.value || '-'}
                 </span>
               </div>
@@ -373,13 +373,13 @@ export const CharacterWidgetsRenderer: React.FC<CharacterWidgetsRendererProps> =
         return (
           <div
             key={widget.id}
-            className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 shadow-2xs space-y-1"
+            className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 shadow-2xs space-y-1 min-w-0"
           >
-            <div className="flex items-center gap-2 text-slate-700 text-xs font-bold uppercase tracking-wider">
-              <Type className="w-3.5 h-3.5 text-indigo-500" />
-              <span>{widget.name}</span>
+            <div className="flex items-center gap-2 text-slate-700 text-xs font-bold uppercase tracking-wider min-w-0">
+              <Type className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span className="truncate">{widget.name}</span>
             </div>
-            <p className="text-sm font-medium text-slate-900 bg-white p-2.5 rounded-xl border border-slate-200 min-h-[38px] flex items-center">
+            <p className="text-sm font-medium text-slate-900 bg-white p-2.5 rounded-xl border border-slate-200 min-h-[38px] flex items-center break-words [overflow-wrap:anywhere] min-w-0 whitespace-pre-wrap">
               {widget.value || <span className="text-slate-400 italic">Non renseigné</span>}
             </p>
           </div>
