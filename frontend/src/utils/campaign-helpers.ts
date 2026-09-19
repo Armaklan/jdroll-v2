@@ -56,3 +56,50 @@ export function getStatutLabel(statut?: number | null): string {
       return 'Ouverte';
   }
 }
+
+/**
+ * Calcule la priorité de tri d'une campagne pour la page "Mes campagnes" :
+ * 1. Les campagnes en alerte
+ * 2. Les campagnes avec des messages non lus
+ * 3. Les campagnes "en cours" (statut = 0 ou non défini)
+ * 4. Les campagnes autres (en préparation statut = 3, en pause statut = 1, archivée statut = 2)
+ */
+export function getCampaignSortPriority(campaign: {
+  hasAlert?: boolean;
+  hasUnread?: boolean;
+  statut?: number | null;
+}): number {
+  if (campaign.hasAlert) return 1;
+  if (campaign.hasUnread) return 2;
+  if (campaign.statut === 0 || campaign.statut === undefined || campaign.statut === null) return 3;
+  return 4;
+}
+
+/**
+ * Compare deux campagnes pour le tri dans "Mes campagnes" selon les critères :
+ * 1. Priorité (alerte > messages non lus > en cours > autres)
+ * 2. Ordre alphabétique (nom de la campagne)
+ */
+export function compareCampaignsForMyCampaigns<T extends { name: string; hasAlert?: boolean; hasUnread?: boolean; statut?: number | null; id?: number }>(
+  a: T,
+  b: T
+): number {
+  const priorityA = getCampaignSortPriority(a);
+  const priorityB = getCampaignSortPriority(b);
+
+  if (priorityA !== priorityB) {
+    return priorityA - priorityB;
+  }
+
+  const nameComparison = a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' });
+  if (nameComparison !== 0) {
+    return nameComparison;
+  }
+
+  const exactNameComparison = a.name.localeCompare(b.name);
+  if (exactNameComparison !== 0) {
+    return exactNameComparison;
+  }
+
+  return (b.id ?? 0) - (a.id ?? 0);
+}

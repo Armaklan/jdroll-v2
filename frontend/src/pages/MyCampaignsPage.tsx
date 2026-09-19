@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignSummary, CampaignRole } from '../types/campaign';
+import { compareCampaignsForMyCampaigns } from '../utils/campaign-helpers';
 import { CampaignDetailModal } from '../components/CampaignDetailModal';
 import { CampaignCard } from '../components/CampaignCard';
 import { CampaignGridSkeleton } from '../components/CampaignCardSkeleton';
@@ -104,12 +105,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
           (c.characterName && c.characterName.toLowerCase().includes(query))
       );
     }
-    return [...result].sort((a, b) => {
-      if (Boolean(a.hasAlert) !== Boolean(b.hasAlert)) {
-        return a.hasAlert ? -1 : 1;
-      }
-      return b.id - a.id;
-    });
+    return [...result].sort(compareCampaignsForMyCampaigns);
   }, [campaigns, searchQuery]);
 
   if (!isAuthenticated) {
