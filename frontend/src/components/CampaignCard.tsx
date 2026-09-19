@@ -214,7 +214,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
 
           {/* MJ & Players overlay */}
           <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-white text-xs font-medium">
-            <div className="flex items-center gap-1.5 drop-shadow-sm">
+            <div className="flex items-center gap-1.5 drop-shadow-sm bg-black/40 backdrop-blur-xs px-2 py-0.5 rounded-md ">
               <Crown className="w-3.5 h-3.5 text-amber-400" />
               <span>
                 MJ : <span className={`font-semibold ${getUserColorClass(campaign.mjProfil, 'text-white')}`}>{campaign.mjUsername}</span>
