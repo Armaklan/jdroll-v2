@@ -315,16 +315,21 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         EXISTS (
           SELECT 1
           FROM sections s
-          JOIN topics t ON t.section_id = s.id
-          LEFT JOIN (
+                 JOIN topics t ON t.section_id = s.id
+                 LEFT JOIN (
             SELECT topic_id, MAX(post_id) AS post_id
             FROM read_post
             WHERE user_id = ?
             GROUP BY topic_id
           ) rp ON rp.topic_id = t.id
+                 LEFT JOIN can_read cr
+                           ON cr.topic_id = t.id
+                             AND cr.user_id = ?
           WHERE s.campagne_id = c.id
             AND t.last_post_id IS NOT NULL
             AND (rp.post_id IS NULL OR rp.post_id < t.last_post_id)
+            AND (t.is_private = false
+             OR (t.is_private = true AND cr.topic_id IS NOT NULL))
         ) AS hasUnread,
         EXISTS (
           SELECT 1
@@ -377,7 +382,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       hasAlert?: number | boolean;
     }
 
-    const rows = await query<RawPlayerCampaignRow>(sql, [userId, userId, userId]);
+    const rows = await query<RawPlayerCampaignRow>(sql, [userId, userId, userId, userId, userId]);
 
     return rows.map((row) => ({
       id: row.id,
@@ -452,8 +457,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         EXISTS (
           SELECT 1
           FROM sections s
-          JOIN topics t ON t.section_id = s.id
-          LEFT JOIN (
+                 JOIN topics t ON t.section_id = s.id
+                 LEFT JOIN (
             SELECT topic_id, MAX(post_id) AS post_id
             FROM read_post
             WHERE user_id = ?
@@ -462,6 +467,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
           WHERE s.campagne_id = c.id
             AND t.last_post_id IS NOT NULL
             AND (rp.post_id IS NULL OR rp.post_id < t.last_post_id)
+            AND t.is_private = false
         ) AS hasUnread,
         EXISTS (
           SELECT 1
