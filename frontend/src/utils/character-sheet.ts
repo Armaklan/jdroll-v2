@@ -25,7 +25,7 @@ export function parseTemplateFields(html?: string | null): { maxCount: number; f
   const countMatch = html.match(/id=["']hiddenFieldsCount["']\s+value=["'](\d+)["']/i);
   let maxCount = countMatch ? parseInt(countMatch[1], 10) : 0;
 
-  const controlRegex = /<div\s+[^>]*id=["']JDRollUserControl_(\d+)["'][^>]*>([\s\S]*?)<\/div>(?=(?:<div\s+[^>]*id=["']JDRollUserControl_|$))/gi;
+  const controlRegex = /<div\s+[^>]*id=["']JDRollUserControl_(\d+)["'][^>]*>([\s\S]*?)<\/div>(?=(?:\s*<div\s+[^>]*id=["']JDRollUserControl_|\s*$))/gi;
   const fields: TemplateField[] = [];
 
   let match: RegExpExecArray | null;
@@ -36,19 +36,72 @@ export function parseTemplateFields(html?: string | null): { maxCount: number; f
     const fullDiv = match[0];
     const innerContent = match[2];
 
-    // Extract styles: top, left, width, height
+    // Extract styles: top, left, width, height, inset
     const styleMatch = fullDiv.match(/style=["']([^"']*)["']/i);
     const styleStr = styleMatch ? styleMatch[1] : '';
 
-    const topMatch = styleStr.match(/top:\s*([-\d.]+)px/i);
-    const leftMatch = styleStr.match(/left:\s*([-\d.]+)px/i);
-    const widthMatch = styleStr.match(/width:\s*([-\d.]+)px/i);
-    const heightMatch = styleStr.match(/height:\s*([-\d.]+)px/i);
+    let parsedTop: number | null = null;
+    let parsedLeft: number | null = null;
 
-    const top = topMatch ? Math.max(0, parseFloat(topMatch[1])) : 0;
-    const left = leftMatch ? Math.max(0, parseFloat(leftMatch[1])) : 0;
-    const width = widthMatch ? Math.max(20, parseFloat(widthMatch[1])) : 150;
-    const height = heightMatch ? Math.max(20, parseFloat(heightMatch[1])) : 32;
+    const topMatch = styleStr.match(/(?:^|;|\s)top:\s*([-\d.]+)(?:px)?/i);
+    const leftMatch = styleStr.match(/(?:^|;|\s)left:\s*([-\d.]+)(?:px)?/i);
+    const widthMatch = styleStr.match(/(?:^|;|\s)width:\s*([-\d.]+)(?:px)?/i);
+    const heightMatch = styleStr.match(/(?:^|;|\s)height:\s*([-\d.]+)(?:px)?/i);
+
+    if (topMatch) {
+      const v = parseFloat(topMatch[1]);
+      if (!isNaN(v)) parsedTop = v;
+    }
+    if (leftMatch) {
+      const v = parseFloat(leftMatch[1]);
+      if (!isNaN(v)) parsedLeft = v;
+    }
+
+    const insetMatch = styleStr.match(/(?:^|;|\s)inset:\s*([^;]+)/i);
+    if (insetMatch) {
+      const insetParts = insetMatch[1].trim().split(/\s+/);
+      let insetTop: number | null = null;
+      let insetLeft: number | null = null;
+
+      if (insetParts.length === 1) {
+        // inset: <all>
+        const v = parseFloat(insetParts[0]);
+        if (!isNaN(v)) {
+          insetTop = v;
+          insetLeft = v;
+        }
+      } else if (insetParts.length === 2) {
+        // inset: <vertical> <horizontal>
+        const vTop = parseFloat(insetParts[0]);
+        const vLeft = parseFloat(insetParts[1]);
+        if (!isNaN(vTop)) insetTop = vTop;
+        if (!isNaN(vLeft)) insetLeft = vLeft;
+      } else if (insetParts.length === 3) {
+        // inset: <top> <horizontal> <bottom>
+        const vTop = parseFloat(insetParts[0]);
+        const vLeft = parseFloat(insetParts[1]);
+        if (!isNaN(vTop)) insetTop = vTop;
+        if (!isNaN(vLeft)) insetLeft = vLeft;
+      } else if (insetParts.length >= 4) {
+        // inset: <top> <right> <bottom> <left>
+        const vTop = parseFloat(insetParts[0]);
+        const vLeft = parseFloat(insetParts[3]);
+        if (!isNaN(vTop)) insetTop = vTop;
+        if (!isNaN(vLeft)) insetLeft = vLeft;
+      }
+
+      if (insetTop !== null) {
+        parsedTop = insetTop;
+      }
+      if (insetLeft !== null) {
+        parsedLeft = insetLeft;
+      }
+    }
+
+    const top = parsedTop !== null ? Math.max(0, parsedTop) : 0;
+    const left = parsedLeft !== null ? Math.max(0, parsedLeft) : 0;
+    const width = widthMatch && !isNaN(parseFloat(widthMatch[1])) ? Math.max(20, parseFloat(widthMatch[1])) : 150;
+    const height = heightMatch && !isNaN(parseFloat(heightMatch[1])) ? Math.max(20, parseFloat(heightMatch[1])) : 32;
 
     // Extract link tag (<a>)
     const linkMatch = innerContent.match(/<a\s+[^>]*id=["'](JDRollUserControlLink\d+_child)["'][^>]*>([\s\S]*?)<\/a>/i);
