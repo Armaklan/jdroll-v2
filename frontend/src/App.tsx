@@ -117,8 +117,8 @@ export function AppContent() {
             }
           />
           <Route path="/join-campaign" element={<JoinCampaignPage />} />
-          <Route path="/all-campaigns" element={<Navigate to="/join-campaign" replace />} />
-          <Route path="/campaigns" element={<Navigate to="/join-campaign" replace />} />
+          <Route path="/all-campaigns" element={<Navigate to="/join-campaign?filter=all" replace />} />
+          <Route path="/campaigns" element={<Navigate to="/join-campaign?filter=all" replace />} />
           <Route path="/campaigns/:campaignId" element={<CampaignForumPage />} />
           <Route path="/campaign-forum/:campaignId" element={<CampaignForumPage />} />
           <Route path="/campaigns/:campaignId/characters" element={<CampaignCharactersPage />} />

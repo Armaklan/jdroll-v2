@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {useNavigate} from 'react-router-dom';
+import {useLocation, useNavigate, useSearchParams} from 'react-router-dom';
 import {campaignsApi} from '../api/campaigns';
 import {CampaignSummary} from '../types/campaign';
 import {CampaignDetailModal} from '../components/CampaignDetailModal';
@@ -10,7 +10,7 @@ import {EmptyState} from '../components/EmptyState';
 import {useAuth} from '../contexts/AuthContext';
 import {isUserAdmin} from '../utils/user';
 import {AppView} from '../components/Navbar';
-import {AlertCircle, Archive, Clock, Layers, Search, Sparkles, X,} from 'lucide-react';
+import {AlertCircle, Archive, Clock, Gamepad2, Layers, Search, Sparkles, X,} from 'lucide-react';
 
 interface JoinCampaignPageProps {
   onNavigate?: (view: AppView) => void;
@@ -18,13 +18,27 @@ interface JoinCampaignPageProps {
 
 type FilterMode = 'recruiting' | 'all' | 'preparation';
 
-export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
+export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = ({ onNavigate }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user, isAuthenticated } = useAuth();
   const isAdmin = isUserAdmin(user);
 
+  const getInitialFilterMode = (): FilterMode => {
+    const filterParam = searchParams.get('filter') || searchParams.get('mode');
+    if (filterParam === 'all' || filterParam === 'preparation' || filterParam === 'recruiting') {
+      return filterParam as FilterMode;
+    }
+    const stateFilter = (location.state as { filterMode?: FilterMode } | null)?.filterMode;
+    if (stateFilter && ['recruiting', 'all', 'preparation'].includes(stateFilter)) {
+      return stateFilter;
+    }
+    return 'recruiting';
+  };
+
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [filterMode, setFilterMode] = useState<FilterMode>('recruiting');
+  const [filterMode, setFilterMode] = useState<FilterMode>(getInitialFilterMode);
   const [includeArchived, setIncludeArchived] = useState<boolean>(false);
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -73,6 +87,18 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const filterParam = searchParams.get('filter') || searchParams.get('mode');
+    if (filterParam === 'all' || filterParam === 'preparation' || filterParam === 'recruiting') {
+      setFilterMode(filterParam as FilterMode);
+    } else {
+      const stateFilter = (location.state as { filterMode?: FilterMode } | null)?.filterMode;
+      if (stateFilter && ['recruiting', 'all', 'preparation'].includes(stateFilter)) {
+        setFilterMode(stateFilter);
+      }
+    }
+  }, [searchParams, location.state]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -184,15 +210,17 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
               ? 'Campagnes en Préparation'
               : 'Toutes les Campagnes'}
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {filterMode === 'recruiting'
-              ? "Découvrez toutes les campagnes actives actuellement en phase de recrutement. Consultez leur fiche détaillée pour découvrir l'univers et postuler."
-              : filterMode === 'preparation'
-              ? 'Consultez les campagnes actuellement en cours de préparation par les Maîtres du Jeu (accès réservé aux administrateurs).'
-              : "Explorez l'ensemble des tables de jeu de la plateforme, qu'elles soient ouvertes aux recrutements, en cours de jeu ou archivées."}
-          </p>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+          <button
+            onClick={() => (onNavigate ? onNavigate('my-campaigns') : navigate('/my-campaigns'))}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold transition shadow-2xs cursor-pointer"
+          >
+            <Gamepad2 className="w-4 h-4 text-indigo-600" />
+            <span>Mes campagnes</span>
+          </button>
+        </div>
       </div>
 
       {/* Global Action Feedback Alert */}

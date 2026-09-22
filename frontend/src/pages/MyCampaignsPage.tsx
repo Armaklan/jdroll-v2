@@ -9,7 +9,7 @@ import {CampaignCard} from '../components/CampaignCard';
 import {CampaignGridSkeleton} from '../components/CampaignCardSkeleton';
 import {EmptyState} from '../components/EmptyState';
 import {AppView, viewToPath} from '../components/Navbar';
-import {AlertCircle, Archive, Crown, Eye, Gamepad2, Lock, LogIn, Plus, Search, Sparkles, Users, X,} from 'lucide-react';
+import {AlertCircle, Archive, Crown, Eye, Gamepad2, Layers, Lock, LogIn, Plus, Search, Sparkles, Users, X,} from 'lucide-react';
 
 interface MyCampaignsPageProps {
   onNavigate?: (view: AppView) => void;
@@ -127,9 +127,6 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Mes Campagnes
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Retrouvez l'ensemble de vos tables de jeu, que vous soyez Maître du Jeu, joueur ou observateur.
-          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
@@ -147,6 +144,14 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
           >
             <Sparkles className="w-4 h-4 text-indigo-600" />
             <span>Rejoindre une campagne</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/join-campaign?filter=all')}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold transition shadow-2xs cursor-pointer"
+          >
+            <Layers className="w-4 h-4 text-indigo-600" />
+            <span>Toutes les campagnes</span>
           </button>
         </div>
       </div>
@@ -340,6 +345,12 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
               onClick: () => navigate('/join-campaign'),
               variant: 'secondary' as const,
               icon: Sparkles,
+            },
+            {
+              label: 'Toutes les campagnes',
+              onClick: () => navigate('/join-campaign?filter=all'),
+              variant: 'secondary' as const,
+              icon: Layers,
             },
           ]}
         />

@@ -26,7 +26,6 @@ import {
   ArrowLeft,
   Reply,
   Users,
-  RefreshCw,
   AlertCircle,
   Loader2,
   Check,
@@ -360,9 +359,6 @@ export const MessagesPage: React.FC = () => {
             </div>
             Messagerie Privée
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Consultez vos messages reçus et envoyés, et échangez en privé avec les joueurs.
-          </p>
         </div>
 
         {/* Action Button: Nouveau message */}
