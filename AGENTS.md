@@ -29,3 +29,6 @@
 
 ## Règle absolue
 **TDD pur** : RED → GREEN → REFACTOR, avec exécution des tests à chaque étape.
+
+## Git
+**Ne pas faire de commits git** : Ne jamais tenter d'exécuter `git commit`, `git push`, ou toute autre commande git de validation, sauf demande explicite de l'utilisateur.
