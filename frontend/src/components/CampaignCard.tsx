@@ -142,7 +142,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
     >
       <div>
         {/* Banner / Header Image */}
-        <div className="relative h-36 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 overflow-hidden">
+        <div className="relative h-36 bg-slate-100 overflow-hidden">
           {campaign.banniere || campaign.banniereForum ? (
             <img
               src={campaign.banniere || campaign.banniereForum || undefined}
@@ -154,7 +154,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center opacity-30">
-              <BookOpen className="w-16 h-16 text-white" />
+              <BookOpen className="w-16 h-16 " />
             </div>
           )}
 

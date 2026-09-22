@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignHeader } from '../components/CampaignHeader';
+import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignNotesData, Note } from '../types/campaign';
@@ -326,6 +327,8 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Global Floating Search - Affiché pour campaign_id = 0 (notes globales) */}
+      {effectiveCampaignId === 0 && user && <GlobalFloatingSearch activeTab="notes" />}
       {/* Campaign Header - Masqué pour campaign_id = 0 (notes globales) */}
       {effectiveCampaignId !== 0 && data?.campaign && 
         <CampaignHeader

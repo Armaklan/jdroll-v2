@@ -1,26 +1,25 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { campaignsApi } from '../api/campaigns';
-import { useAuth } from '../contexts/AuthContext';
-import { CampaignSummary } from '../types/campaign';
-import { compareCampaignsForMyCampaigns } from '../utils/campaign-helpers';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {campaignsApi} from '../api/campaigns';
+import {useAuth} from '../contexts/AuthContext';
+import {CampaignSummary} from '../types/campaign';
+import {compareCampaignsForMyCampaigns} from '../utils/campaign-helpers';
 import {
-  Search,
-  MessageCircle,
-  MessageSquare,
   AlertCircle,
-  X,
-  Loader2,
+  Archive,
+  BookOpen,
   ChevronRight,
   Compass,
   Crown,
   Eye,
-  Archive,
-  BookOpen,
-  StickyNote,
-  Mail,
   Layers,
-  Gamepad2,
+  Loader2,
+  Mail,
+  MessageCircle,
+  MessageSquare,
+  Search,
+  StickyNote,
+  X,
 } from 'lucide-react';
 
 export interface GlobalFloatingSearchProps {
@@ -56,18 +55,6 @@ const mainMenuItems = [
     hoverBg: 'hover:bg-blue-50',
     hoverText: 'hover:text-blue-600',
     hoverBorder: 'hover:border-blue-200',
-  },
-  { 
-    key: 'join-campaign', 
-    label: 'Rejoindre', 
-    path: '/join-campaign', 
-    icon: Gamepad2,
-    bgColor: 'bg-emerald-600',
-    textColor: 'text-white',
-    borderColor: 'border-emerald-600',
-    hoverBg: 'hover:bg-emerald-50',
-    hoverText: 'hover:text-emerald-600',
-    hoverBorder: 'hover:border-emerald-200',
   },
   { 
     key: 'notes', 
@@ -425,7 +412,7 @@ export const GlobalFloatingSearch: React.FC<GlobalFloatingSearchProps> = ({
               </div>
 
               {/* Menus principaux globaux */}
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {mainMenuItems.map((item) => {
                   const isActive = activeTab === item.key;
                   const Icon = item.icon;
