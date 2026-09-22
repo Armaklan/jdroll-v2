@@ -15,7 +15,6 @@ import {CampaignHeader} from '../components/CampaignHeader';
 import {formatDate} from '../utils/date';
 import {
   AlertCircle,
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronUp,
@@ -923,19 +922,6 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
       {/* Navigation Breadcrumb & Back button & Action buttons */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm text-slate-500">
-          <button
-            onClick={handleBack}
-            className="inline-flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 font-medium transition"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Retour aux campagnes</span>
-          </button>
-          <span>/</span>
-          <span className="text-slate-900 font-semibold truncate max-w-xs sm:max-w-md">
-            {campaign.name}
-          </span>
-          <span>/</span>
-          <span className="text-indigo-600 font-semibold">Forum</span>
         </div>
 
         <div className="flex items-center gap-2.5">

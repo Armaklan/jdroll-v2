@@ -22,7 +22,6 @@ import {getUserColorClass} from '../utils/user';
 import {
   Activity,
   AlertCircle,
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronUp,
@@ -182,10 +181,6 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
     } else {
       navigate('/my-campaigns');
     }
-  };
-
-  const handleGoToForum = () => {
-    navigate(`/forum/${effectiveCampaignId}`);
   };
 
   const fetchCharacters = async () => {
@@ -659,22 +654,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       {/* Navigation Breadcrumb & Actions */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm text-slate-500">
-          <button
-            onClick={handleBack}
-            className="inline-flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 font-medium transition"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Retour aux campagnes</span>
-          </button>
-          <span>/</span>
-          <button
-            onClick={handleGoToForum}
-            className="text-slate-700 hover:text-indigo-600 font-semibold truncate max-w-xs sm:max-w-md transition"
-          >
-            {campaign.name}
-          </button>
-          <span>/</span>
-          <span className="text-indigo-600 font-semibold">Galerie de personnages</span>
+
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">

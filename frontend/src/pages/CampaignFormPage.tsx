@@ -1,39 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { campaignsApi } from '../api/campaigns';
-import { CreateCampaignPayload, UpdateCampaignPayload, CampaignCharacter } from '../types/campaign';
-import { WysiwygEditor } from '../components/WysiwygEditor';
+import React, {useEffect, useRef, useState} from 'react';
+import {useNavigate, useParams} from 'react-router-dom';
+import {useAuth} from '../contexts/AuthContext';
+import {campaignsApi} from '../api/campaigns';
+import {CampaignCharacter, CampaignWidget, CreateCampaignPayload, UpdateCampaignPayload} from '../types/campaign';
+import {WysiwygEditor} from '../components/WysiwygEditor';
 import {
-  ArrowLeft,
-  Save,
-  BookOpen,
-  Users,
-  Shield,
-  Palette,
-  Image as ImageIcon,
-  Upload,
-  Link as LinkIcon,
-  AlertCircle,
-  Loader2,
-  Dices,
-  RefreshCw,
-  Clock,
-  X,
-  Sliders,
-  LayoutTemplate,
-  FileText,
   Activity,
+  AlertCircle,
+  BookOpen,
+  Clock,
+  Dices,
+  FileText,
+  Image as ImageIcon,
+  LayoutTemplate,
+  Link as LinkIcon,
+  Loader2,
+  Palette,
+  RefreshCw,
+  Save,
+  Shield,
+  Sliders,
+  Upload,
+  Users,
+  X,
 } from 'lucide-react';
-import { CharacterSheetRenderer } from '../components/CharacterSheetRenderer';
-import { CampaignWidgetsConfig } from '../components/CampaignWidgetsConfig';
-import { CampaignWidget } from '../types/campaign';
-import { parseWidgets, serializeWidgets } from '../utils/widgets';
-import {
-  TemplateField,
-  parseTemplateFields,
-  serializeTemplateFields,
-} from '../utils/character-sheet';
+import {CharacterSheetRenderer} from '../components/CharacterSheetRenderer';
+import {CampaignWidgetsConfig} from '../components/CampaignWidgetsConfig';
+import {parseWidgets, serializeWidgets} from '../utils/widgets';
+import {parseTemplateFields, serializeTemplateFields, TemplateField,} from '../utils/character-sheet';
 
 interface CampaignFormPageProps {
   mode?: 'create' | 'edit';
@@ -638,17 +632,6 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
       {/* Navigation Breadcrumb */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-sm text-slate-500">
-          <button
-            onClick={handleCancel}
-            className="inline-flex items-center gap-1.5 text-slate-600 hover:text-indigo-600 font-medium transition cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>{isEditMode ? 'Retour à la campagne' : 'Retour à mes campagnes'}</span>
-          </button>
-          <span>/</span>
-          <span className="text-slate-900 font-semibold">
-            {isEditMode ? `Configuration : ${name || 'Campagne'}` : 'Nouvelle Campagne'}
-          </span>
         </div>
 
         <div className="flex items-center gap-3">
