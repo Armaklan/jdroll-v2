@@ -18,6 +18,7 @@ import {
   Link as LinkIcon,
   X,
   FileImage,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 export const CampaignCartesPage: React.FC = () => {
@@ -46,10 +47,8 @@ export const CampaignCartesPage: React.FC = () => {
   const [carteToDelete, setCarteToDelete] = useState<CarteSummary | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
 
-  // Tour à dés & bannière
+  // Tour à dés
   const [isDiceTowerOpen, setIsDiceTowerOpen] = useState<boolean>(false);
-  const [isUploadingBanner, setIsUploadingBanner] = useState<boolean>(false);
-  const [bannerUploadError, setBannerUploadError] = useState<string | null>(null);
 
   const isMj = Boolean(
     user && campaign && (user.id === campaign.mjId || campaign.userRole === 'mj')
@@ -150,56 +149,54 @@ export const CampaignCartesPage: React.FC = () => {
     }
   };
 
-  const handleBannerUpload = async (file: File) => {
-    if (!campaign) return;
-    setIsUploadingBanner(true);
-    setBannerUploadError(null);
-    try {
-      const res = await campaignsApi.uploadCampaignBanner(campaign.id, file);
-      setCampaign((prev) => (prev ? { ...prev, banniere: res.url } : null));
-    } catch (err: any) {
-      setBannerUploadError(err.message || 'Erreur lors du téléversement de la bannière');
-    } finally {
-      setIsUploadingBanner(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {campaign && (
-        <CampaignHeader
-          campaign={campaign}
-          activeTab="cartes"
-          onOpenDiceTower={() => setIsDiceTowerOpen(true)}
-          onBannerUpload={handleBannerUpload}
-          isUploadingBanner={isUploadingBanner}
-          bannerUploadError={bannerUploadError}
-          onClearBannerUploadError={() => setBannerUploadError(null)}
-        />
+        <>
+          {/* Actions Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-4 max-w-7xl w-full mx-auto px-4">
+            <div className="flex items-center gap-2 text-sm text-slate-500"></div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {isMj && (
+                <>
+                  <button
+                    onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+                    title="Modifier la configuration générale de la campagne"
+                  >
+                    <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+                    <span>Configurer</span>
+                  </button>
+                  <button
+                    onClick={handleOpenCreateModal}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Créer une carte</span>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          
+          <CampaignHeader
+            campaign={campaign}
+            activeTab="cartes"
+            onOpenDiceTower={() => setIsDiceTowerOpen(true)}
+          />
+        </>
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-6">
-        {/* Titre & Action MJ */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-              <Map className="w-6 h-6 text-indigo-600" />
-              <span>Cartes tactiques & géographiques</span>
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Visualisez le monde, explorez les zones de jeu et déplacez vos personnages.
-            </p>
-          </div>
-
-          {isMj && (
-            <button
-              onClick={handleOpenCreateModal}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium text-sm shadow-sm transition cursor-pointer self-start sm:self-auto"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Créer une carte</span>
-            </button>
-          )}
+        {/* Titre */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
+            <Map className="w-6 h-6 text-indigo-600" />
+            <span>Cartes tactiques & géographiques</span>
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Visualisez le monde, explorez les zones de jeu et déplacez vos personnages.
+          </p>
         </div>
 
         {/* Chargement */}

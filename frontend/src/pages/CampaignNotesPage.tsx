@@ -22,6 +22,7 @@ import {
   Trash2,
   FileText,
   AlertTriangle,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 interface CampaignNotesPageProps {
@@ -57,10 +58,6 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
 
   // Dice tower modal state
   const [isDiceTowerOpen, setIsDiceTowerOpen] = useState<boolean>(false);
-
-  // Banner upload state
-  const [isUploadingBanner, setIsUploadingBanner] = useState<boolean>(false);
-  const [bannerUploadError, setBannerUploadError] = useState<string | null>(null);
 
   const isDirty = content !== savedContent;
 
@@ -243,26 +240,6 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleSave]);
 
-  const handleBannerUpload = async (file: File) => {
-    if (effectiveCampaignId === undefined || effectiveCampaignId === null || !data?.campaign) return;
-    setIsUploadingBanner(true);
-    setBannerUploadError(null);
-    try {
-      const res = await campaignsApi.uploadCampaignBanner(effectiveCampaignId, file);
-      setData({
-        ...data,
-        campaign: {
-          ...data.campaign,
-          banniere: res.url,
-        },
-      });
-    } catch (err: any) {
-      setBannerUploadError(err.message || 'Erreur lors du téléversement de la bannière');
-    } finally {
-      setIsUploadingBanner(false);
-    }
-  };
-
   // Helper to extract clean text from html
   const extractNoteText = (html: string) => {
     if (!html) return '';
@@ -329,27 +306,32 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Global Floating Search - Affiché pour campaign_id = 0 (notes globales) */}
       {effectiveCampaignId === 0 && user && <GlobalFloatingSearch activeTab="notes" />}
+      
+      {/* Actions Bar */}
+      {effectiveCampaignId !== 0 && data?.campaign && (
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+          <div className="flex items-center gap-2 text-sm text-slate-500"></div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            {isMj && (
+              <button
+                onClick={() => navigate(`/campaigns/${effectiveCampaignId}/edit`)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-slate-700 hover:text-indigo-600 hover:bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold transition shadow-xs cursor-pointer"
+                title="Modifier la configuration générale de la campagne"
+              >
+                <SlidersHorizontal className="w-4 h-4 text-indigo-600" />
+                <span>Configurer</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* Campaign Header - Masqué pour campaign_id = 0 (notes globales) */}
       {effectiveCampaignId !== 0 && data?.campaign && 
         <CampaignHeader
           campaign={data.campaign!}
           activeTab="notes"
-          isAdminMode={isMj}
           onOpenDiceTower={() => setIsDiceTowerOpen(true)}
-          onBannerUpload={handleBannerUpload}
-          isUploadingBanner={isUploadingBanner}
-          bannerUploadError={bannerUploadError}
-          onClearBannerUploadError={() => setBannerUploadError(null)}
-          onObserveChange={(isObserving) => {
-            setData((prev) =>
-              prev && prev.campaign ? { ...prev, campaign: { ...prev.campaign, isObserving } } : null
-            );
-          }}
-          onAlertChange={(hasAlert) => {
-            setData((prev) =>
-              prev && prev.campaign ? { ...prev, campaign: { ...prev.campaign, hasAlert } } : null
-            );
-          }}
         />
       }
 
