@@ -608,6 +608,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
     '--color-dialogue': campaign.dialogueColor || '#4488CC',
     '--color-rp1': campaign.rp1Color || '#ff6600',
     '--color-rp2': campaign.rp2Color || '#5EFF6C',
+    '--hr-image': campaign.hr ? `url(${campaign.hr})` : 'none',
   } as React.CSSProperties;
 
   // Filter categories and characters by search query

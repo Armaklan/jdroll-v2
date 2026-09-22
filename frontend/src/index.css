@@ -9,6 +9,7 @@
     --rp1-color: #ff6600;
     --rp2-color: #5EFF6C;
     --hrp-color: #64748b;
+    --hr-image: none;
 
     --color-pensee: var(--pensee-color);
     --color-dialogue: var(--dialogue-color);
@@ -125,7 +126,11 @@
   margin-top: 1rem;
   margin-bottom: 1rem;
   border: 0;
-  border-top: 1px solid #cbd5e1;
+  height: 60px;
+  background-image: var(--hr-image);
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 /* Styles pour les tableaux dans le contenu riche et le WYSIWYG */

@@ -129,6 +129,14 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const [linkColor, setLinkColor] = useState<string>('');
   const [linkSidebarColor, setLinkSidebarColor] = useState<string>('');
   const [width, setWidth] = useState<string>('800px');
+  
+  // Separator Image Configuration
+  const [hrMode, setHrMode] = useState<'upload' | 'url'>('url');
+  const [hrUrl, setHrUrl] = useState<string>('');
+  const [hrFile, setHrFile] = useState<File | null>(null);
+  const [hrPreview, setHrPreview] = useState<string | null>(null);
+  const [isDraggingHr, setIsDraggingHr] = useState<boolean>(false);
+  const hrInputRef = useRef<HTMLInputElement>(null);
 
   // Character Sheet Configuration
   const [template, setTemplate] = useState<string>('');
@@ -212,6 +220,11 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         setLinkColor(campaign.linkColor || '');
         setLinkSidebarColor(campaign.linkSidebarColor || '');
         setWidth(campaign.width || '800px');
+        
+        // Separator Image
+        setHrUrl(campaign.hr || '');
+        setHrPreview(campaign.hr || null);
+        setHrMode(campaign.hr?.startsWith('/files/') ? 'upload' : 'url');
 
         // Character Sheet
         setTemplate(campaign.template || '');
@@ -341,6 +354,40 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
     }
   };
 
+  // Handlers for Separator Image
+  const handleHrFileSelect = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setFormError("Le fichier de l'image de séparation doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).");
+      return;
+    }
+    setFormError(null);
+    setHrFile(file);
+    const objectUrl = URL.createObjectURL(file);
+    setHrPreview(objectUrl);
+    setHrMode('upload');
+  };
+
+  const handleHrDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingHr(true);
+  };
+
+  const handleHrDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingHr(false);
+  };
+
+  const handleHrDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingHr(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleHrFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
   const handleResetColors = () => {
     setDialogueColor(DEFAULT_DIALOGUE_COLOR);
     setPenseeColor(DEFAULT_PENSEE_COLOR);
@@ -467,6 +514,23 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
             ? (finalSheetImgValue ? `<img id="zoneImg" src="${finalSheetImgValue}" style="width: 800px">` : '')
             : sheetHtml;
 
+        // Handle separator image upload
+        let finalHr =
+          hrMode === 'url'
+            ? hrUrl.trim()
+            : !hrFile
+            ? hrUrl
+            : '';
+
+        if (hrFile) {
+          try {
+            const hrRes = await campaignsApi.uploadCampaignImage(campaignId, hrFile);
+            finalHr = hrRes.url;
+          } catch (uploadErr) {
+            console.error("Erreur lors du téléversement de l'image de séparation:", uploadErr);
+          }
+        }
+
         // Update payload
         const payload: UpdateCampaignPayload = {
           name: trimmedName,
@@ -494,6 +558,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           textColor: textColor || null,
           linkColor: linkColor || null,
           linkSidebarColor: linkSidebarColor || null,
+          hr: finalHr || null,
           width: width || '800px',
           template: template || '',
           templateImg: finalSheetImgValue,
@@ -540,6 +605,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           textColor: textColor || null,
           linkColor: linkColor || null,
           linkSidebarColor: linkSidebarColor || null,
+          hr: hrMode === 'url' ? hrUrl.trim() || null : !hrFile ? hrUrl || null : null,
           template: template || '',
           templateImg: sheetBgType === 'image' ? initialSheetImg : '',
           templateHtml: initialTemplateHtml,
@@ -578,6 +644,16 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
             });
           } catch (uploadErr) {
             console.error("Erreur lors du téléversement de l'image de fond de la feuille:", uploadErr);
+          }
+        }
+
+        // Upload separator image file if provided
+        if (hrFile) {
+          try {
+            const hrRes = await campaignsApi.uploadCampaignImage(created.id, hrFile);
+            await campaignsApi.updateCampaign(created.id, { hr: hrRes.url });
+          } catch (uploadErr) {
+            console.error("Erreur lors du téléversement de l'image de séparation:", uploadErr);
           }
         }
 
@@ -1779,6 +1855,125 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                         className="w-full px-2.5 py-1.5 text-xs font-mono font-semibold rounded-lg border border-slate-200 bg-white"
                       />
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Separator Image Configuration */}
+              <div className="pt-4 border-t border-slate-100 space-y-4">
+                <div className="border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 font-bold text-xs border border-amber-200">
+                      Barre de Séparation
+                    </span>
+                    <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <ImageIcon className="w-5 h-5 text-amber-600" />
+                      <span>Image de Séparation (HR)</span>
+                    </h2>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Configurez une image personnalisée pour les barres de séparation (balises &lt;hr&gt;) dans les messages de la campagne.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                  {/* Preview */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
+                      Aperçu
+                    </span>
+                    <div className="border border-slate-200 rounded-2xl p-4 bg-white shadow-xs">
+                      <div className="space-y-2">
+                        <p className="text-sm text-slate-600">Exemple de texte au-dessus</p>
+                        {hrPreview || (hrMode === 'url' && hrUrl) ? (
+                          <hr style={{ backgroundImage: `url(${hrPreview || hrUrl})`, height: '60px', border: 'none', backgroundSize: 'contain', backgroundPosition: 'center' }} />
+                        ) : (
+                          <hr className="border-slate-300" />
+                        )}
+                        <p className="text-sm text-slate-600">Exemple de texte en-dessous</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Source Selector */}
+                  <div className="space-y-4">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Source de l'image
+                    </label>
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setHrMode('upload')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition cursor-pointer ${
+                          hrMode === 'upload'
+                            ? 'bg-white text-indigo-600 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Téléverser</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHrMode('url')}
+                        className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition cursor-pointer ${
+                          hrMode === 'url'
+                            ? 'bg-white text-indigo-600 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <LinkIcon className="w-3.5 h-3.5" />
+                        <span>URL externe</span>
+                      </button>
+                    </div>
+
+                    {hrMode === 'upload' ? (
+                      <div>
+                        <input
+                          ref={hrInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              handleHrFileSelect(e.target.files[0]);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                        <div
+                          onDragOver={handleHrDragOver}
+                          onDragLeave={handleHrDragLeave}
+                          onDrop={handleHrDrop}
+                          onClick={() => hrInputRef.current?.click()}
+                          className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition ${
+                            isDraggingHr
+                              ? 'border-indigo-500 bg-indigo-50/50'
+                              : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-slate-50'
+                          }`}
+                        >
+                          <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                          <p className="text-sm font-semibold text-slate-700">
+                            {hrFile ? hrFile.name : 'Cliquez ou glissez une image ici'}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            PNG, JPG, WebP jusqu'à 10 Mo
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <input
+                          type="url"
+                          value={hrUrl}
+                          onChange={(e) => {
+                            setHrUrl(e.target.value);
+                            setHrPreview(e.target.value);
+                          }}
+                          placeholder="https://exemple.com/barre-separation.png"
+                          className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

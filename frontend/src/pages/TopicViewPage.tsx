@@ -691,6 +691,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     '--color-dialogue': topicDetail.dialogueColor || '#4488CC',
     '--color-rp1': topicDetail.rp1Color || '#ff6600',
     '--color-rp2': topicDetail.rp2Color || '#5EFF6C',
+    '--hr-image': topicDetail.campaign?.hr ? `url(${topicDetail.campaign?.hr})` : 'none',
   } as React.CSSProperties;
 
   return (

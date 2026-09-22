@@ -302,8 +302,20 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
 
   const isMj = Boolean(user && data?.campaign && (user.id === data.campaign.mjId || data.campaign.userRole === 'mj'));
 
+  const campaignStyles = {
+    '--pensee-color': data?.campaign?.penseeColor || '#8844CC',
+    '--dialogue-color': data?.campaign?.dialogueColor || '#4488CC',
+    '--rp1-color': data?.campaign?.rp1Color || '#ff6600',
+    '--rp2-color': data?.campaign?.rp2Color || '#5EFF6C',
+    '--color-pensee': data?.campaign?.penseeColor || '#8844CC',
+    '--color-dialogue': data?.campaign?.dialogueColor || '#4488CC',
+    '--color-rp1': data?.campaign?.rp1Color || '#ff6600',
+    '--color-rp2': data?.campaign?.rp2Color || '#5EFF6C',
+    '--hr-image': data?.campaign?.hr ? `url(${data?.campaign?.hr})` : 'none',
+  } as React.CSSProperties;
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 max-w-7xl mx-auto" style={campaignStyles}>
       {/* Global Floating Search - Affiché pour campaign_id = 0 (notes globales) */}
       {effectiveCampaignId === 0 && user && <GlobalFloatingSearch activeTab="notes" />}
       
