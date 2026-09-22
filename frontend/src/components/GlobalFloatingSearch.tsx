@@ -363,6 +363,11 @@ export const GlobalFloatingSearch: React.FC<GlobalFloatingSearchProps> = ({
 
   return (
     <>
+      {/* Indicateur mobile - poignée de tirage pour signaler le panel à tirer */}
+      <div className="md:hidden fixed right-2 top-1/2 -translate-y-1/2 z-40 pointer-events-none">
+        <div className="w-1.5 h-12 bg-indigo-500 rounded-full shadow-md" />
+      </div>
+
       {/* Bouton de recherche flottant - Visible uniquement sur desktop */}
       <div className="hidden md:flex fixed bottom-6 right-6 z-40">
         <button
