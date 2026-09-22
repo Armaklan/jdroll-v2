@@ -121,4 +121,17 @@ describe('CreateNoteUseCase', () => {
       CampaignNotFoundError
     );
   });
+
+  it('should create note for general section (campaignId = 0) for any authenticated user', async () => {
+    const note = await useCase.execute({
+      campaignId: 0,
+      userId: 1,
+      content: '<p>Note générale</p>',
+    });
+
+    assert.equal(note.campaignId, 0);
+    assert.equal(note.userId, 1);
+    assert.equal(note.content, '<p>Note générale</p>');
+    assert.equal(storedNotes.length, 1);
+  });
 });

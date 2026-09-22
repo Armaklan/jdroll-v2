@@ -72,7 +72,7 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
   }, [notes, selectedNoteId]);
 
   const loadData = useCallback(async () => {
-    if (!effectiveCampaignId) {
+    if (effectiveCampaignId === undefined || effectiveCampaignId === null) {
       setError('Identifiant de campagne manquant');
       setIsLoading(false);
       return;
@@ -130,7 +130,7 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
 
   // Create a new note
   const handleCreateNote = async () => {
-    if (!effectiveCampaignId || isCreating) return;
+    if (effectiveCampaignId === undefined || effectiveCampaignId === null || isCreating) return;
 
     if (isDirty) {
       const confirmCreate = window.confirm(
@@ -165,7 +165,7 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
 
   // Save current note
   const handleSave = async () => {
-    if (!effectiveCampaignId || !selectedNoteId || isSaving) return;
+    if (effectiveCampaignId === undefined || effectiveCampaignId === null || !selectedNoteId || isSaving) return;
 
     setIsSaving(true);
     setSaveToast(null);
@@ -193,7 +193,7 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
 
   // Delete note
   const confirmDeleteNote = async () => {
-    if (!effectiveCampaignId || !noteToDelete || isDeleting) return;
+    if (effectiveCampaignId === undefined || effectiveCampaignId === null || !noteToDelete || isDeleting) return;
 
     setIsDeleting(true);
     try {
@@ -243,20 +243,18 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
   }, [handleSave]);
 
   const handleBannerUpload = async (file: File) => {
-    if (!effectiveCampaignId) return;
+    if (effectiveCampaignId === undefined || effectiveCampaignId === null || !data?.campaign) return;
     setIsUploadingBanner(true);
     setBannerUploadError(null);
     try {
       const res = await campaignsApi.uploadCampaignBanner(effectiveCampaignId, file);
-      if (data) {
-        setData({
-          ...data,
-          campaign: {
-            ...data.campaign,
-            banniere: res.url,
-          },
-        });
-      }
+      setData({
+        ...data,
+        campaign: {
+          ...data.campaign,
+          banniere: res.url,
+        },
+      });
     } catch (err: any) {
       setBannerUploadError(err.message || 'Erreur lors du téléversement de la bannière');
     } finally {
@@ -324,31 +322,33 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
     );
   }
 
-  const isMj = Boolean(user && (user.id === data.campaign.mjId || data.campaign.userRole === 'mj'));
+  const isMj = Boolean(user && data?.campaign && (user.id === data.campaign.mjId || data.campaign.userRole === 'mj'));
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Campaign Header */}
-      <CampaignHeader
-        campaign={data.campaign}
-        activeTab="notes"
-        isAdminMode={isMj}
-        onOpenDiceTower={() => setIsDiceTowerOpen(true)}
-        onBannerUpload={handleBannerUpload}
-        isUploadingBanner={isUploadingBanner}
-        bannerUploadError={bannerUploadError}
-        onClearBannerUploadError={() => setBannerUploadError(null)}
-        onObserveChange={(isObserving) => {
-          setData((prev) =>
-            prev ? { ...prev, campaign: { ...prev.campaign, isObserving } } : null
-          );
-        }}
-        onAlertChange={(hasAlert) => {
-          setData((prev) =>
-            prev ? { ...prev, campaign: { ...prev.campaign, hasAlert } } : null
-          );
-        }}
-      />
+      {/* Campaign Header - Masqué pour campaign_id = 0 (notes globales) */}
+      {effectiveCampaignId !== 0 && data?.campaign && 
+        <CampaignHeader
+          campaign={data.campaign!}
+          activeTab="notes"
+          isAdminMode={isMj}
+          onOpenDiceTower={() => setIsDiceTowerOpen(true)}
+          onBannerUpload={handleBannerUpload}
+          isUploadingBanner={isUploadingBanner}
+          bannerUploadError={bannerUploadError}
+          onClearBannerUploadError={() => setBannerUploadError(null)}
+          onObserveChange={(isObserving) => {
+            setData((prev) =>
+              prev && prev.campaign ? { ...prev, campaign: { ...prev.campaign, isObserving } } : null
+            );
+          }}
+          onAlertChange={(hasAlert) => {
+            setData((prev) =>
+              prev && prev.campaign ? { ...prev, campaign: { ...prev.campaign, hasAlert } } : null
+            );
+          }}
+        />
+      }
 
       {/* Main Multi-Note Container */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -654,8 +654,8 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
         </div>
       )}
 
-      {/* Dice Tower Modal */}
-      {isDiceTowerOpen && (
+      {/* Dice Tower Modal - Masqué pour campaign_id = 0 */}
+      {effectiveCampaignId !== 0 && data?.campaign && isDiceTowerOpen && (
         <DiceTowerModal
           campaignId={data.campaign.id}
           isOpen={isDiceTowerOpen}

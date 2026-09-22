@@ -8,6 +8,7 @@ import {CampaignDetailModal} from '../components/CampaignDetailModal';
 import {CampaignCard} from '../components/CampaignCard';
 import {CampaignGridSkeleton} from '../components/CampaignCardSkeleton';
 import {EmptyState} from '../components/EmptyState';
+import {GlobalFloatingSearch} from '../components/GlobalFloatingSearch';
 import {AppView, viewToPath} from '../components/Navbar';
 import {AlertCircle, Archive, Crown, Eye, Gamepad2, Layers, Lock, LogIn, Plus, Search, Sparkles, Users, X,} from 'lucide-react';
 
@@ -121,6 +122,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
 
   return (
     <div className="space-y-6">
+      <GlobalFloatingSearch activeTab="my-campaigns" />
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>

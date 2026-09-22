@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../api/auth';
 import { ArrowRight } from 'lucide-react';
 import { AppView, viewToPath } from '../components/Navbar';
+import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
 
 interface HomePageProps {
   onNavigateLogin?: () => void;
@@ -40,6 +41,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   return (
       <div className="max-w-5xl mx-auto space-y-8">
+        {isAuthenticated && <GlobalFloatingSearch activeTab="none" />}
         {/* Hero section */}
         <div
             className="bg-gradient-to-br from-indigo-50/60 via-white to-slate-50 border border-slate-200 p-8 sm:p-10 rounded-3xl shadow-sm">

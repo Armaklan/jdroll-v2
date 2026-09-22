@@ -130,4 +130,22 @@ describe('DeleteNoteUseCase', () => {
       CampaignNotFoundError
     );
   });
+
+  it('should delete note for general section (campaignId = 0) for any authenticated user', async () => {
+    storedNotes.set(300, {
+      id: 300,
+      campaignId: 0,
+      userId: 1,
+      content: '<p>Note générale à supprimer</p>',
+      lastUpdate: '2026-09-16T10:00:00Z',
+    });
+
+    await useCase.execute({
+      id: 300,
+      campaignId: 0,
+      userId: 1,
+    });
+
+    assert.equal(storedNotes.has(300), false);
+  });
 });

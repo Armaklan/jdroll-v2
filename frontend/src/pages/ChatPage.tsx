@@ -9,6 +9,7 @@ import {
 } from '../types/chat';
 import { getUserColorClass } from '../utils/user';
 import { SmileyPicker } from '../components/SmileyPicker';
+import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
 import { replaceEmoticons, convertEmoticonsOnType } from '../utils/emoticons';
 import { formatTime, formatDateLabel } from '../utils/date';
 import {
@@ -468,6 +469,7 @@ export function ChatPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-10rem)] min-h-[550px] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+      <GlobalFloatingSearch activeTab="chat" />
       {/* Top Bar / Header */}
       <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-800 shadow-sm">
         <div className="flex items-center space-x-3">

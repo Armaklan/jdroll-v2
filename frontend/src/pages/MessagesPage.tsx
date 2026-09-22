@@ -30,6 +30,7 @@ import {
   Loader2,
   Check,
 } from 'lucide-react';
+import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
 
 type TabType = 'inbox' | 'sent' | 'compose';
 
@@ -350,6 +351,7 @@ export const MessagesPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <GlobalFloatingSearch activeTab="messages" />
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">
         <div>

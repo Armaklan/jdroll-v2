@@ -144,4 +144,26 @@ describe('UpdateNoteUseCase', () => {
       CampaignNotFoundError
     );
   });
+
+  it('should update note for general section (campaignId = 0) for any authenticated user', async () => {
+    storedNotes.set(200, {
+      id: 200,
+      campaignId: 0,
+      userId: 1,
+      content: '<p>Note générale initiale</p>',
+      lastUpdate: '2026-09-16T10:00:00Z',
+    });
+
+    const updated = await useCase.execute({
+      id: 200,
+      campaignId: 0,
+      userId: 1,
+      content: '<p>Note générale modifiée</p>',
+    });
+
+    assert.equal(updated.id, 200);
+    assert.equal(updated.campaignId, 0);
+    assert.equal(updated.userId, 1);
+    assert.equal(updated.content, '<p>Note générale modifiée</p>');
+  });
 });

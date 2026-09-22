@@ -19,16 +19,19 @@ export class UpdateNoteUseCase {
   ) {}
 
   async execute(input: UpdateNoteInput): Promise<Note> {
-    const campaign = await this.campaignRepo.findById(input.campaignId);
-    if (!campaign) {
-      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${input.campaignId} n'existe pas`);
-    }
+    // Pour la partie générale (campaignId = 0), on autorise tous les utilisateurs
+    if (input.campaignId !== 0) {
+      const campaign = await this.campaignRepo.findById(input.campaignId);
+      if (!campaign) {
+        throw new CampaignNotFoundError(`La campagne avec l'identifiant ${input.campaignId} n'existe pas`);
+      }
 
-    const isMj = campaign.mjId === input.userId;
-    const isParticipant = isMj ? false : await this.forumRepo.isUserCampaignParticipant(input.campaignId, input.userId);
+      const isMj = campaign.mjId === input.userId;
+      const isParticipant = isMj ? false : await this.forumRepo.isUserCampaignParticipant(input.campaignId, input.userId);
 
-    if (!isMj && !isParticipant) {
-      throw new ForbiddenError('Vous devez être joueur ou MJ de la campagne pour modifier vos notes');
+      if (!isMj && !isParticipant) {
+        throw new ForbiddenError('Vous devez être joueur ou MJ de la campagne pour modifier vos notes');
+      }
     }
 
     const existingNote = await this.noteRepo.findById(input.id);

@@ -7,6 +7,7 @@ import {CampaignCard} from '../components/CampaignCard';
 import {CampaignGridSkeleton} from '../components/CampaignCardSkeleton';
 import {FeedbackAlert} from '../components/FeedbackAlert';
 import {EmptyState} from '../components/EmptyState';
+import {GlobalFloatingSearch} from '../components/GlobalFloatingSearch';
 import {useAuth} from '../contexts/AuthContext';
 import {isUserAdmin} from '../utils/user';
 import {AppView} from '../components/Navbar';
@@ -180,6 +181,7 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = ({ onNavigate }
 
   return (
     <div className="space-y-6">
+      <GlobalFloatingSearch activeTab="join-campaign" />
       {/* Header section */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-slate-200">
         <div>

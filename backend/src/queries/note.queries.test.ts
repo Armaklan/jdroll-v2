@@ -107,4 +107,11 @@ describe('NoteQueries', () => {
       CampaignNotFoundError
     );
   });
+
+  it('should return notes for general section (campaignId = 0) for any authenticated user', async () => {
+    const result = await queries.getCampaignNotes(0, 1);
+
+    assert.equal(result.campaign, null);
+    assert.deepEqual(result.notes, []);
+  });
 });

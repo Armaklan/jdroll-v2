@@ -87,7 +87,7 @@ const getAllCampaignsSchema = z.object({
 });
 
 const getCampaignParamsSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().nonnegative(),
 });
 
 const participantActionParamsSchema = z.object({
@@ -297,7 +297,7 @@ const updatePnjCategoryBodySchema = z.object({
 });
 
 const noteParamsSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.coerce.number().int().nonnegative(),
   noteId: z.coerce.number().int().positive(),
 });
 

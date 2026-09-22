@@ -324,7 +324,7 @@ export interface Note {
 }
 
 export interface CampaignNotesData {
-  campaign: CampaignSummary;
+  campaign: CampaignSummary | null;
   notes: Note[];
 }
 
