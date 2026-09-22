@@ -136,10 +136,10 @@ export const GlobalFloatingSearch: React.FC<GlobalFloatingSearchProps> = ({
 
   const filteredCampaigns = useMemo(() => {
     if (!myCampaigns.length) return [];
-    let result = myCampaigns;
+    let result = myCampaigns.filter(c => !c.isArchived && c.statut !== 2);
     if (query.trim()) {
       const q = query.toLowerCase().trim();
-      result = myCampaigns.filter(
+      result = result.filter(
         (c) =>
           c.name.toLowerCase().includes(q) ||
           (c.systeme && c.systeme.toLowerCase().includes(q)) ||
