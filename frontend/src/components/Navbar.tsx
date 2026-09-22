@@ -213,7 +213,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                 }`}
             >
               <Gamepad2 className="w-4 h-4" />
-              <span>Jouer</span>
+              <span>Campagnes</span>
             </button>
 
             {/* Forum */}

@@ -1,25 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { campaignsApi } from '../api/campaigns';
-import { CampaignSummary } from '../types/campaign';
-import { CampaignDetailModal } from '../components/CampaignDetailModal';
-import { CampaignCard } from '../components/CampaignCard';
-import { CampaignGridSkeleton } from '../components/CampaignCardSkeleton';
-import { FeedbackAlert } from '../components/FeedbackAlert';
-import { EmptyState } from '../components/EmptyState';
-import { useAuth } from '../contexts/AuthContext';
-import { isUserAdmin } from '../utils/user';
-import { AppView } from '../components/Navbar';
-import {
-  Sparkles,
-  Search,
-  RefreshCw,
-  AlertCircle,
-  X,
-  Layers,
-  Archive,
-  Clock,
-} from 'lucide-react';
+import React, {useEffect, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {campaignsApi} from '../api/campaigns';
+import {CampaignSummary} from '../types/campaign';
+import {CampaignDetailModal} from '../components/CampaignDetailModal';
+import {CampaignCard} from '../components/CampaignCard';
+import {CampaignGridSkeleton} from '../components/CampaignCardSkeleton';
+import {FeedbackAlert} from '../components/FeedbackAlert';
+import {EmptyState} from '../components/EmptyState';
+import {useAuth} from '../contexts/AuthContext';
+import {isUserAdmin} from '../utils/user';
+import {AppView} from '../components/Navbar';
+import {AlertCircle, Archive, Clock, Layers, Search, Sparkles, X,} from 'lucide-react';
 
 interface JoinCampaignPageProps {
   onNavigate?: (view: AppView) => void;
@@ -202,15 +193,6 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = () => {
           </p>
         </div>
 
-        <button
-          onClick={fetchCampaigns}
-          disabled={isLoading}
-          className="inline-flex items-center gap-2 self-start md:self-auto px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-medium transition shadow-2xs disabled:opacity-50 cursor-pointer"
-          title="Actualiser la liste"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
-          <span>Actualiser</span>
-        </button>
       </div>
 
       {/* Global Action Feedback Alert */}

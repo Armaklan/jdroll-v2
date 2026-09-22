@@ -1,57 +1,53 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { campaignsApi } from '../api/campaigns';
-import { WysiwygEditor } from '../components/WysiwygEditor';
-import { DiceTowerModal } from '../components/DiceTowerModal';
-import { CampaignHeader } from '../components/CampaignHeader';
-import { CharacterSheetRenderer } from '../components/CharacterSheetRenderer';
-import { CharacterWidgetsRenderer } from '../components/CharacterWidgetsRenderer';
-import { CharacterWidgetsEditor } from '../components/CharacterWidgetsEditor';
-import { CampaignWidget } from '../types/campaign';
+import React, {useEffect, useRef, useState} from 'react';
+import {useNavigate, useParams, useSearchParams} from 'react-router-dom';
+import {useAuth} from '../contexts/AuthContext';
+import {campaignsApi} from '../api/campaigns';
+import {WysiwygEditor} from '../components/WysiwygEditor';
+import {DiceTowerModal} from '../components/DiceTowerModal';
+import {CampaignHeader} from '../components/CampaignHeader';
+import {CharacterSheetRenderer} from '../components/CharacterSheetRenderer';
+import {CharacterWidgetsRenderer} from '../components/CharacterWidgetsRenderer';
+import {CharacterWidgetsEditor} from '../components/CharacterWidgetsEditor';
 import {
-  serializeWidgets,
-  mergeCharacterWidgets,
-  changeWidgetValue,
-} from '../utils/widgets';
-import { parsePersoFields, serializePersoFields } from '../utils/character-sheet';
-import { getUserColorClass } from '../utils/user';
-import {
-  CampaignCharactersData,
   CampaignCharacter,
+  CampaignCharactersData,
   CampaignParticipant,
+  CampaignWidget,
   CreateCharacterPayload,
-  UpdateCharacterPayload,
+  UpdateCharacterPayload
 } from '../types/campaign';
+import {changeWidgetValue, mergeCharacterWidgets, serializeWidgets,} from '../utils/widgets';
+import {parsePersoFields, serializePersoFields} from '../utils/character-sheet';
+import {getUserColorClass} from '../utils/user';
 import {
+  Activity,
+  AlertCircle,
   ArrowLeft,
-  Users,
+  Check,
   ChevronDown,
   ChevronUp,
-  RefreshCw,
-  AlertCircle,
-  FolderOpen,
-  X,
-  User,
-  Search,
-  Sparkles,
-  FileText,
-  Lock,
-  Eye,
-  Plus,
   Edit2,
-  Save,
+  Eye,
+  FileText,
+  FolderOpen,
   Image as ImageIcon,
-  Check,
-  Tag,
-  Upload,
+  LayoutTemplate,
   Link as LinkIcon,
   Loader2,
-  LayoutTemplate,
-  Trash2,
-  SlidersHorizontal,
+  Lock,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
   Shield,
-  Activity,
+  SlidersHorizontal,
+  Sparkles,
+  Tag,
+  Trash2,
+  Upload,
+  User,
+  Users,
+  X,
 } from 'lucide-react';
 
 interface CampaignCharactersPageProps {
@@ -716,16 +712,6 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
               </button>
             </>
           )}
-
-          <button
-            onClick={fetchCharacters}
-            disabled={isLoading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-medium transition shadow-2xs"
-            title="Actualiser les personnages"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
-            <span>Actualiser</span>
-          </button>
         </div>
       </div>
 

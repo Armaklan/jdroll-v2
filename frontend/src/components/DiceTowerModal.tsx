@@ -269,16 +269,6 @@ export const DiceTowerModal: React.FC<DiceTowerModalProps> = ({
                   </span>
                 )}
               </div>
-
-              <button
-                onClick={fetchRolls}
-                disabled={isLoading}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 hover:text-indigo-600 text-xs font-semibold transition shadow-2xs cursor-pointer"
-                title="Actualiser la liste des jets"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
-                <span>Actualiser</span>
-              </button>
             </div>
 
             {isLoading && rolls.length === 0 ? (

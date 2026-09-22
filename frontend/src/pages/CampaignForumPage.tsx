@@ -1,40 +1,46 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { campaignsApi } from '../api/campaigns';
-import { CampaignForumData, ForumSectionSummary, ForumTopicSummary, CampaignParticipant, TopicUserSummary } from '../types/campaign';
-import { AppView } from '../components/Navbar';
-import { useAuth } from '../contexts/AuthContext';
-import { DiceTowerModal } from '../components/DiceTowerModal';
-import { CampaignHeader } from '../components/CampaignHeader';
-import { formatDate } from '../utils/date';
+import React, {useEffect, useRef, useState} from 'react';
+import {useNavigate, useParams} from 'react-router-dom';
+import {campaignsApi} from '../api/campaigns';
 import {
+  CampaignForumData,
+  CampaignParticipant,
+  ForumSectionSummary,
+  ForumTopicSummary,
+  TopicUserSummary
+} from '../types/campaign';
+import {AppView} from '../components/Navbar';
+import {useAuth} from '../contexts/AuthContext';
+import {DiceTowerModal} from '../components/DiceTowerModal';
+import {CampaignHeader} from '../components/CampaignHeader';
+import {formatDate} from '../utils/date';
+import {
+  AlertCircle,
   ArrowLeft,
-  MessageSquare,
-  Pin,
-  Lock,
-  EyeOff,
-  Clock,
+  Check,
   ChevronDown,
   ChevronUp,
-  RefreshCw,
-  AlertCircle,
-  FolderOpen,
-  SlidersHorizontal,
-  Plus,
-  GripVertical,
-  X,
-  Check,
+  Clock,
+  EyeOff,
   FilePlus,
-  Shield,
-  Loader2,
-  Upload,
-  Link as LinkIcon,
-  Pencil,
-  Trash2,
-  Image as ImageIcon,
+  FolderOpen,
   Globe,
-  Users,
+  GripVertical,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Loader2,
+  Lock,
+  MessageSquare,
+  Pencil,
+  Pin,
+  Plus,
+  RefreshCw,
+  Shield,
+  SlidersHorizontal,
+  Trash2,
+  Upload,
   UserCheck,
+  Users,
+  X,
 } from 'lucide-react';
 
 interface CampaignForumPageProps {
@@ -958,18 +964,6 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
               </button>
             </>
           )}
-
-          <button
-            onClick={fetchForum}
-            disabled={isLoading || isSavingOrder}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-medium transition shadow-2xs"
-            title="Actualiser le forum"
-          >
-            <RefreshCw
-              className={`w-3.5 h-3.5 ${isLoading || isSavingOrder ? 'animate-spin text-indigo-600' : ''}`}
-            />
-            <span>Actualiser</span>
-          </button>
         </div>
       </div>
 

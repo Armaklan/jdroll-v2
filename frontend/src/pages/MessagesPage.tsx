@@ -443,18 +443,6 @@ export const MessagesPage: React.FC = () => {
             <PenSquare className="w-4 h-4" />
             <span>Rédiger un message</span>
           </button>
-
-          {/* Refresh Button */}
-          <div className="pt-4 mt-4 border-t border-slate-200/80">
-            <button
-              onClick={loadAll}
-              disabled={isLoadingList}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 rounded-lg transition disabled:opacity-50"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoadingList ? 'animate-spin' : ''}`} />
-              <span>Actualiser</span>
-            </button>
-          </div>
         </div>
 
         {/* Content Area */}

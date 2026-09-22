@@ -1,29 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import { campaignsApi } from '../api/campaigns';
-import { CampaignSummary, CampaignRole } from '../types/campaign';
-import { compareCampaignsForMyCampaigns } from '../utils/campaign-helpers';
-import { CampaignDetailModal } from '../components/CampaignDetailModal';
-import { CampaignCard } from '../components/CampaignCard';
-import { CampaignGridSkeleton } from '../components/CampaignCardSkeleton';
-import { EmptyState } from '../components/EmptyState';
-import { AppView, viewToPath } from '../components/Navbar';
-import {
-  Archive,
-  AlertCircle,
-  RefreshCw,
-  LogIn,
-  Search,
-  Lock,
-  Plus,
-  Sparkles,
-  Gamepad2,
-  X,
-  Eye,
-  Crown,
-  Users,
-} from 'lucide-react';
+import React, {useEffect, useMemo, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {useAuth} from '../contexts/AuthContext';
+import {campaignsApi} from '../api/campaigns';
+import {CampaignRole, CampaignSummary} from '../types/campaign';
+import {compareCampaignsForMyCampaigns} from '../utils/campaign-helpers';
+import {CampaignDetailModal} from '../components/CampaignDetailModal';
+import {CampaignCard} from '../components/CampaignCard';
+import {CampaignGridSkeleton} from '../components/CampaignCardSkeleton';
+import {EmptyState} from '../components/EmptyState';
+import {AppView, viewToPath} from '../components/Navbar';
+import {AlertCircle, Archive, Crown, Eye, Gamepad2, Lock, LogIn, Plus, Search, Sparkles, Users, X,} from 'lucide-react';
 
 interface MyCampaignsPageProps {
   onNavigate?: (view: AppView) => void;
@@ -161,16 +147,6 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
           >
             <Sparkles className="w-4 h-4 text-indigo-600" />
             <span>Rejoindre une campagne</span>
-          </button>
-
-          <button
-            onClick={fetchCampaigns}
-            disabled={isLoading}
-            className="inline-flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-medium transition shadow-2xs disabled:opacity-50 cursor-pointer"
-            title="Actualiser la liste"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin text-indigo-600' : ''}`} />
-            <span>Actualiser</span>
           </button>
         </div>
       </div>
