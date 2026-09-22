@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
+import { useAuth } from '../contexts/AuthContext';
 import { CampaignSummary, CampaignSearchResults } from '../types/campaign';
+import { compareCampaignsForMyCampaigns } from '../utils/campaign-helpers';
 import {
   Search,
   MessageCircle,
@@ -14,6 +16,11 @@ import {
   Loader2,
   Lock,
   ChevronRight,
+  Compass,
+  Crown,
+  Eye,
+  Archive,
+  BookOpen,
 } from 'lucide-react';
 
 export interface CampaignFloatingSearchProps {
@@ -26,7 +33,7 @@ export interface CampaignFloatingSearchProps {
 }
 
 type FlattenedSearchResult = {
-  type: 'topic' | 'carte' | 'character';
+  type: 'campaign' | 'topic' | 'carte' | 'character';
   id: number;
   title: string;
   subtitle?: string;
@@ -35,6 +42,10 @@ type FlattenedSearchResult = {
   image?: string | null;
   isPrivate?: boolean;
   badge?: string;
+  role?: 'mj' | 'player' | 'observer';
+  hasAlert?: boolean;
+  hasUnread?: boolean;
+  isArchived?: boolean;
 };
 
 export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
@@ -46,8 +57,11 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
   isAlertLoading = false,
 }) => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [query, setQuery] = useState<string>('');
+  const [myCampaigns, setMyCampaigns] = useState<CampaignSummary[]>([]);
+  const [isMyCampaignsLoading, setIsMyCampaignsLoading] = useState<boolean>(false);
   const [results, setResults] = useState<CampaignSearchResults>({
     topics: [],
     cartes: [],
@@ -64,9 +78,77 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
   const isPlayer = campaign.userRole === 'player';
   const isCampaignMember = isMj || isPlayer;
 
+  const fetchMyCampaigns = async () => {
+    if (!isAuthenticated) return;
+    setIsMyCampaignsLoading(true);
+    try {
+      const data = await campaignsApi.getMyCampaigns('all', true);
+      setMyCampaigns(data);
+    } catch (err) {
+      console.error('Erreur lors de la récupération des campagnes de l\'utilisateur:', err);
+    } finally {
+      setIsMyCampaignsLoading(false);
+    }
+  };
+
+  const filteredCampaigns = useMemo(() => {
+    if (!myCampaigns.length) return [];
+    let result = myCampaigns;
+    if (query.trim()) {
+      const q = query.toLowerCase().trim();
+      result = myCampaigns.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.systeme && c.systeme.toLowerCase().includes(q)) ||
+          (c.univers && c.univers.toLowerCase().includes(q)) ||
+          (c.mjUsername && c.mjUsername.toLowerCase().includes(q)) ||
+          (c.characterName && c.characterName.toLowerCase().includes(q))
+      );
+    }
+    return [...result].sort(compareCampaignsForMyCampaigns);
+  }, [myCampaigns, query]);
+
   // Flattened items for easy keyboard navigation
   const flattenedResults = useMemo<FlattenedSearchResult[]>(() => {
     const list: FlattenedSearchResult[] = [];
+
+    filteredCampaigns.forEach((c) => {
+      let role: 'mj' | 'player' | 'observer' = 'player';
+      let roleLabel = 'Joueur';
+      if (user && user.id === c.mjId) {
+        role = 'mj';
+        roleLabel = 'MJ';
+      } else if (c.userRole === 'observer' || c.isObserving) {
+        role = 'observer';
+        roleLabel = 'Observateur';
+      } else if (c.userRole === 'player' || c.characterName) {
+        role = 'player';
+        roleLabel = 'Joueur';
+      }
+
+      const subtitleParts: string[] = [];
+      if (c.characterName) {
+        subtitleParts.push(`Perso : ${c.characterName}`);
+      } else if (user && user.id !== c.mjId && c.mjUsername) {
+        subtitleParts.push(`MJ : ${c.mjUsername}`);
+      }
+      if (c.systeme) subtitleParts.push(c.systeme);
+      if (c.univers) subtitleParts.push(c.univers);
+
+      list.push({
+        type: 'campaign',
+        id: c.id,
+        title: c.name,
+        subtitle: subtitleParts.length > 0 ? subtitleParts.join(' • ') : undefined,
+        url: `/forum/${c.id}`,
+        image: c.banniere || c.banniereForum || null,
+        badge: roleLabel,
+        role,
+        hasAlert: c.hasAlert,
+        hasUnread: c.hasUnread,
+        isArchived: Boolean(c.isArchived || c.statut === 2),
+      });
+    });
 
     results.topics.forEach((t) => {
       list.push({
@@ -105,7 +187,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
     });
 
     return list;
-  }, [results]);
+  }, [filteredCampaigns, results, user]);
 
   // Handle Ctrl+Space shortcut to toggle modal
   useEffect(() => {
@@ -212,11 +294,14 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
       setQuery('');
       setSelectedIndex(0);
       fetchResults('');
+      if (isAuthenticated) {
+        fetchMyCampaigns();
+      }
       setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
     }
-  }, [isOpen]);
+  }, [isOpen, isAuthenticated]);
 
   const fetchResults = async (searchQuery: string) => {
     if (!campaign.id) return;
@@ -452,7 +537,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                 type="text"
                 value={query}
                 onChange={handleQueryChange}
-                placeholder="Rechercher par nom (topic, carte, personnage)..."
+                placeholder="Rechercher par nom (campagne, topic, carte, personnage)..."
                 className="w-full pl-12 pr-12 py-3.5 text-base text-slate-800 placeholder-slate-400 bg-transparent focus:outline-none"
               />
               {query && (
@@ -472,7 +557,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
 
             {/* Résultats de recherche */}
             <div ref={listRef} className="overflow-y-auto max-h-96 p-2 space-y-4">
-              {isLoading && flattenedResults.length === 0 ? (
+              {(isLoading || isMyCampaignsLoading) && flattenedResults.length === 0 ? (
                 <div className="flex items-center justify-center py-10 text-slate-400 text-sm gap-2">
                   <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
                   <span>Recherche en cours...</span>
@@ -483,12 +568,116 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                   <p className="text-sm font-semibold text-slate-700">Aucun résultat trouvé</p>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {query.trim()
-                      ? `Aucun topic, carte ou personnage ne correspond à « ${query} »`
+                      ? `Aucune campagne, topic, carte ou personnage ne correspond à « ${query} »`
                       : 'Aucun contenu accessible trouvé dans cette campagne'}
                   </p>
                 </div>
               ) : (
                 <>
+                  {/* Catégorie: Mes Campagnes */}
+                  {filteredCampaigns.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-blue-700 uppercase tracking-wider">
+                        <Compass className="w-3.5 h-3.5" />
+                        <span>Mes campagnes ({filteredCampaigns.length})</span>
+                      </div>
+                      <div className="mt-1 space-y-1">
+                        {filteredCampaigns.map((c) => {
+                          const itemIndex = flattenedResults.findIndex(
+                            (it) => it.type === 'campaign' && it.id === c.id
+                          );
+                          const isSelected = itemIndex === selectedIndex;
+                          const item = flattenedResults[itemIndex];
+                          const isCurrentCampaign = c.id === campaign.id;
+
+                          return (
+                            <button
+                              key={`campaign-${c.id}`}
+                              data-index={itemIndex}
+                              type="button"
+                              onClick={() => handleNavigate(item?.url || `/forum/${c.id}`)}
+                              onMouseEnter={() => setSelectedIndex(itemIndex)}
+                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
+                                isSelected
+                                  ? 'bg-blue-50 border border-blue-200'
+                                  : 'hover:bg-slate-50 border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0 overflow-hidden border border-blue-200">
+                                  {c.banniere || c.banniereForum ? (
+                                    <img
+                                      src={c.banniere || c.banniereForum || ''}
+                                      alt={c.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <BookOpen className="w-4 h-4 text-blue-600" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm font-semibold text-slate-800 truncate">
+                                      {c.name}
+                                    </span>
+                                    {isCurrentCampaign && (
+                                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-600 rounded border border-slate-200">
+                                        Actuelle
+                                      </span>
+                                    )}
+                                    {item?.badge && (
+                                      <span
+                                        className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                          item.role === 'mj'
+                                            ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                            : item.role === 'observer'
+                                            ? 'bg-sky-100 text-sky-800 border border-sky-200'
+                                            : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                                        }`}
+                                      >
+                                        {item.role === 'mj' && <Crown className="w-2.5 h-2.5 mr-0.5" />}
+                                        {item.role === 'observer' && <Eye className="w-2.5 h-2.5 mr-0.5" />}
+                                        {item.badge}
+                                      </span>
+                                    )}
+                                    {c.hasAlert && (
+                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold bg-amber-500 text-white rounded">
+                                        <AlertCircle className="w-2.5 h-2.5" />
+                                        À traiter
+                                      </span>
+                                    )}
+                                    {c.hasUnread && (
+                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-700 rounded border border-rose-200">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-600 animate-pulse" />
+                                        Non-lus
+                                      </span>
+                                    )}
+                                    {item?.isArchived && (
+                                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-bold bg-slate-100 text-slate-600 rounded">
+                                        <Archive className="w-2.5 h-2.5" />
+                                        Archivée
+                                      </span>
+                                    )}
+                                  </div>
+                                  {item?.subtitle && (
+                                    <p className="text-xs text-slate-500 truncate">
+                                      {item.subtitle}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight
+                                className={`w-4 h-4 shrink-0 ml-2 transition ${
+                                  isSelected ? 'text-blue-600 translate-x-0.5' : 'text-slate-300'
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Catégorie: Topics */}
                   {results.topics.length > 0 && (
                     <div>
