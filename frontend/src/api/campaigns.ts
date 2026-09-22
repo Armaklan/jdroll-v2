@@ -277,7 +277,7 @@ export const campaignsApi = {
   },
 
   async getTopicPosts(topicId: number, page?: number): Promise<TopicDetail> {
-    const url = page ? `/api/topics/${topicId}?page=${page}` : `/api/topics/${topicId}`;
+    const url = page !== undefined ? `/api/topics/${topicId}?page=${page}` : `/api/topics/${topicId}`;
     return request<TopicDetail>(url);
   },
 

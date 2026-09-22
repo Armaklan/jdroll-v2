@@ -146,7 +146,7 @@ const getTopicPostsParamsSchema = z.object({
 });
 
 const getTopicPostsQuerySchema = z.object({
-  page: z.coerce.number().int().positive().optional(),
+  page: z.coerce.number().int().nonnegative().optional(),
 });
 
 const createPostParamsSchema = z.object({

@@ -117,8 +117,21 @@ export class ForumQueries {
     let targetPage = 1;
     let firstUnreadPostId: number | null = null;
     let allRead = false;
+    let showAllPosts = false;
 
-    if (requestedPage !== undefined && requestedPage !== null && !isNaN(requestedPage)) {
+    // Si page = 0, on affiche tous les messages
+    if (requestedPage === 0) {
+      showAllPosts = true;
+      targetPage = 0;
+      if (userId && lastReadPostId !== null) {
+        const firstUnread = await this.forumRepo.findFirstUnreadPost(topicId, lastReadPostId);
+        if (firstUnread) {
+          firstUnreadPostId = firstUnread.id;
+        } else {
+          allRead = true;
+        }
+      }
+    } else if (requestedPage !== undefined && requestedPage !== null && !isNaN(requestedPage)) {
       targetPage = Math.max(1, Math.min(requestedPage, totalPages));
       if (userId && lastReadPostId !== null) {
         const firstUnread = await this.forumRepo.findFirstUnreadPost(topicId, lastReadPostId);
@@ -164,16 +177,26 @@ export class ForumQueries {
     let limit = 0;
 
     if (totalPosts > 0) {
-      offset = Math.max(0, totalPosts - targetPage * pageSize);
-      limit = Math.min(pageSize, totalPosts - (targetPage - 1) * pageSize);
+      if (showAllPosts) {
+        // Afficher tous les messages (ordres chronologiques normaux)
+        offset = 0;
+        limit = totalPosts;
+      } else {
+        // Pagination normale (inversée : page 1 = messages récents)
+        offset = Math.max(0, totalPosts - targetPage * pageSize);
+        limit = Math.min(pageSize, totalPosts - (targetPage - 1) * pageSize);
+      }
     }
 
     const posts = await this.forumRepo.findPostsByTopicId(topicId, offset, limit, userId);
+    
+    // Garder l'ordre chronologique pour tous les modes (plus vieux en premier)
+    const orderedPosts = posts;
 
     let currentLastReadPostId = lastReadPostId;
 
-    if (userId && posts.length > 0) {
-      const lastVisiblePost = posts[posts.length - 1];
+    if (userId && orderedPosts.length > 0) {
+      const lastVisiblePost = orderedPosts[orderedPosts.length - 1];
       if (lastVisiblePost) {
         await this.forumRepo.markTopicAsRead(topicId, userId, lastVisiblePost.id);
         currentLastReadPostId =
@@ -229,7 +252,7 @@ export class ForumQueries {
     }
 
     const isCampaignMj = userRole === 'mj';
-    const mappedPosts = posts.map((p) => {
+    const mappedPosts = orderedPosts.map((p) => {
       let perso = p.perso;
       if (perso) {
         const canSeeWidgets = isCampaignMj || Boolean(userId && perso.userId && perso.userId === userId);
@@ -278,9 +301,9 @@ export class ForumQueries {
       isClosed,
       ordre: topic.ordre,
       totalPosts,
-      page: targetPage,
-      totalPages,
-      pageSize,
+      page: showAllPosts ? 0 : targetPage,
+      totalPages: showAllPosts ? 1 : totalPages,
+      pageSize: showAllPosts ? totalPosts : pageSize,
       lastReadPostId: currentLastReadPostId,
       firstUnreadPostId,
       allRead,

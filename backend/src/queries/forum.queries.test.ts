@@ -613,6 +613,21 @@ describe('ForumQueries', () => {
     assert.equal(result.canPost, false);
   });
 
+  it('should return all posts in chronological order (oldest first) when page is 0', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo);
+
+    const result = await queries.getTopicPosts(101, 0);
+
+    assert.equal(result.totalPosts, 25);
+    assert.equal(result.page, 0);
+    assert.equal(result.posts.length, 25);
+    // Should be in chronological order: oldest (id=1) first, newest (id=25) last
+    assert.equal(result.posts[0].id, 1);
+    assert.equal(result.posts[24].id, 25);
+  });
+
   it('should return canPost=true with userRole=mj and all campaign characters for GM user', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 5, null);
