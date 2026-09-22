@@ -1245,7 +1245,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     Aperçu sur carte de campagne
                   </span>
                   <div className="w-full max-w-sm border border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-white">
-                    <div className="h-36 relative overflow-hidden bg-gradient-to-r from-slate-800 to-indigo-950">
+                    <div className="h-32 relative overflow-hidden bg-gradient-to-r from-slate-800 to-indigo-950">
                       {vignettePreview || (vignetteMode === 'url' && vignetteUrl) ? (
                         <img
                           src={vignettePreview || vignetteUrl}

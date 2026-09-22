@@ -210,7 +210,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
         </div>
 
         {/* Body Content */}
-        <div className="p-5 space-y-3">
+        <div className="p-3 pl-5 pr-5 space-y-2">
           {/* Tags : Système & Univers */}
           <div className="flex flex-wrap items-center gap-1.5">
             {campaign.hasAlert && (
@@ -255,7 +255,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="p-5 pt-0 border-t border-slate-100 mt-3 flex flex-wrap items-center justify-between gap-2 pt-3">
+      <div className="p-5 pt-0 border-t border-slate-100 mt-0 flex flex-wrap items-center justify-between gap-2 pt-3">
         {/* Fiche détail */}
         {onOpenDetail && (
           <button

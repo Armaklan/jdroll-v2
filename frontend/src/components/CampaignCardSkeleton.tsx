@@ -8,8 +8,8 @@ export const CampaignCardSkeleton: React.FC = () => {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs animate-pulse flex flex-col justify-between">
       <div>
-        <div className="h-36 bg-slate-200" />
-        <div className="p-5 space-y-3">
+        <div className="h-32 bg-slate-200" />
+        <div className="p-3 space-y-2">
           <div className="flex gap-2">
             <div className="h-4 bg-slate-200 rounded w-20" />
             <div className="h-4 bg-slate-100 rounded w-16" />
