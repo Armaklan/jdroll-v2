@@ -318,11 +318,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                 />
               </div>
 
-              <div className="flex items-center gap-2 bg-slate-100/80 border border-slate-200 px-3 py-1.5 rounded-xl">
+              <a
+                href="/settings"
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigate('/settings');
+                }}
+                className="flex items-center gap-1.5 bg-slate-100/80 border border-slate-200 px-3 py-1.5 rounded-xl hover:bg-slate-200 transition cursor-pointer"
+                title="Paramètres"
+              >
+                <UserIcon className="w-4 h-4" />
                 <span className={`text-sm ${getUserColorClass(user.profil, 'text-slate-800 font-semibold')}`}>
                   {user.username}
                 </span>
-              </div>
+              </a>
               <button
                 onClick={handleLogout}
                 className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-red-600 px-3 py-1.5 rounded-xl hover:bg-red-50 border border-transparent hover:border-red-100 transition"
@@ -489,8 +498,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
           <div className="pt-3 border-t border-slate-200">
             {isAuthenticated && user ? (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                <a
+                  href="/settings"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMobileMenuOpen(false);
+                    navigate('/settings');
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
                   <UserIcon className="w-4 h-4 text-indigo-600" />
+                  <span>Paramètres</span>
+                </a>
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
                   <span className={`text-sm ${getUserColorClass(user.profil, 'text-slate-800 font-semibold')}`}>
                     {user.username}
                   </span>

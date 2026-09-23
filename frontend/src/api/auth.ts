@@ -1,4 +1,4 @@
-import { User, AuthResponse } from '../types/auth';
+import { User, AuthResponse, UpdateProfileData, NotificationSettings } from '../types/auth';
 
 const TOKEN_KEY = 'jdroll_token';
 
@@ -63,5 +63,26 @@ export const authApi = {
 
   async checkHealth(): Promise<{ status: string; service: string }> {
     return request<{ status: string; service: string }>('/api/health');
+  },
+
+  async updateProfile(data: UpdateProfileData): Promise<{ user: User }> {
+    return request<{ user: User }>('/api/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateNotificationSettings(data: NotificationSettings): Promise<{ user: User }> {
+    return request<{ user: User }>('/api/auth/notification-settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updatePassword(data: { currentPassword: string; newPassword: string }): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>('/api/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   },
 };

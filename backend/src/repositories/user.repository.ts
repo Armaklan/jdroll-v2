@@ -1,5 +1,5 @@
 import { query, queryOne, execute } from '../db/mysql.js';
-import { User, UserWithPassword, CreateUserData } from '../types/index.js';
+import { User, UserWithPassword, CreateUserData, UpdateUserProfileData, NotificationSettings } from '../types/index.js';
 
 export interface IUserRepository {
   findById(id: number): Promise<User | null>;
@@ -8,12 +8,15 @@ export interface IUserRepository {
   searchByUsername(query: string, excludeId?: number): Promise<{ id: number; username: string; avatar: string }[]>;
   existsByUsernameOrEmail(username: string, mail: string): Promise<boolean>;
   create(data: CreateUserData): Promise<User>;
+  updateProfile(id: number, data: UpdateUserProfileData): Promise<User>;
+  updateNotificationSettings(id: number, settings: NotificationSettings): Promise<User>;
+  updatePassword(id: number, currentPasswordHash: string, newPasswordHash: string): Promise<void>;
 }
 
 export class MysqlUserRepository implements IUserRepository {
   async findById(id: number): Promise<User | null> {
     const user = await queryOne<User>(
-      `SELECT id, username, mail, avatar, description, profil, titre, subscribe_date, birthDate
+      `SELECT id, username, mail, avatar, description, profil, titre, subscribe_date, birthDate, notif_mp, notif_inscription, notif_perso, notif_message, mail_mp, mail_inscription, mail_perso, mail_message
        FROM user
        WHERE id = ?
        LIMIT 1`,
@@ -24,7 +27,7 @@ export class MysqlUserRepository implements IUserRepository {
 
   async findByUsernameOrEmail(identifier: string): Promise<UserWithPassword | null> {
     const user = await queryOne<UserWithPassword>(
-      `SELECT id, username, mail, password, avatar, description, profil, titre, subscribe_date, birthDate
+      `SELECT id, username, mail, password, avatar, description, profil, titre, subscribe_date, birthDate, notif_mp, notif_inscription, notif_perso, notif_message, mail_mp, mail_inscription, mail_perso, mail_message
        FROM user
        WHERE username = ? OR mail = ?
        LIMIT 1`,
@@ -37,7 +40,7 @@ export class MysqlUserRepository implements IUserRepository {
     if (usernames.length === 0) return [];
     const placeholders = usernames.map(() => '?').join(',');
     return query<User>(
-      `SELECT id, username, mail, avatar, description, profil, titre, subscribe_date, birthDate
+      `SELECT id, username, mail, avatar, description, profil, titre, subscribe_date, birthDate, notif_mp, notif_inscription, notif_perso, notif_message, mail_mp, mail_inscription, mail_perso, mail_message
        FROM user
        WHERE username IN (${placeholders})`,
       usernames
@@ -82,6 +85,117 @@ export class MysqlUserRepository implements IUserRepository {
     }
 
     return createdUser;
+  }
+
+  async updateProfile(id: number, data: UpdateUserProfileData): Promise<User> {
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (data.mail !== undefined) {
+      updates.push('mail = ?');
+      params.push(data.mail);
+    }
+    if (data.avatar !== undefined) {
+      updates.push('avatar = ?');
+      params.push(data.avatar);
+    }
+    if (data.description !== undefined) {
+      updates.push('description = ?');
+      params.push(data.description);
+    }
+    if (data.titre !== undefined) {
+      updates.push('titre = ?');
+      params.push(data.titre);
+    }
+    if (data.birthDate !== undefined) {
+      updates.push('birthDate = ?');
+      params.push(data.birthDate);
+    }
+
+    if (updates.length === 0) {
+      const user = await this.findById(id);
+      if (!user) {
+        throw new Error(`Utilisateur avec l'ID ${id} introuvable`);
+      }
+      return user;
+    }
+
+    params.push(id);
+    const sql = `UPDATE user SET ${updates.join(', ')} WHERE id = ?`;
+    await execute(sql, params);
+
+    const updatedUser = await this.findById(id);
+    if (!updatedUser) {
+      throw new Error(`Utilisateur avec l'ID ${id} introuvable`);
+    }
+
+    return updatedUser;
+  }
+
+  async updateNotificationSettings(id: number, settings: NotificationSettings): Promise<User> {
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (settings.notif_mp !== undefined) {
+      updates.push('notif_mp = ?');
+      params.push(settings.notif_mp);
+    }
+    if (settings.notif_inscription !== undefined) {
+      updates.push('notif_inscription = ?');
+      params.push(settings.notif_inscription);
+    }
+    if (settings.notif_perso !== undefined) {
+      updates.push('notif_perso = ?');
+      params.push(settings.notif_perso);
+    }
+    if (settings.notif_message !== undefined) {
+      updates.push('notif_message = ?');
+      params.push(settings.notif_message);
+    }
+    if (settings.mail_mp !== undefined) {
+      updates.push('mail_mp = ?');
+      params.push(settings.mail_mp);
+    }
+    if (settings.mail_inscription !== undefined) {
+      updates.push('mail_inscription = ?');
+      params.push(settings.mail_inscription);
+    }
+    if (settings.mail_perso !== undefined) {
+      updates.push('mail_perso = ?');
+      params.push(settings.mail_perso);
+    }
+    if (settings.mail_message !== undefined) {
+      updates.push('mail_message = ?');
+      params.push(settings.mail_message);
+    }
+
+    if (updates.length === 0) {
+      const user = await this.findById(id);
+      if (!user) {
+        throw new Error(`Utilisateur avec l'ID ${id} introuvable`);
+      }
+      return user;
+    }
+
+    params.push(id);
+    const sql = `UPDATE user SET ${updates.join(', ')} WHERE id = ?`;
+    await execute(sql, params);
+
+    const updatedUser = await this.findById(id);
+    if (!updatedUser) {
+      throw new Error(`Utilisateur avec l'ID ${id} introuvable`);
+    }
+
+    return updatedUser;
+  }
+
+  async updatePassword(id: number, currentPasswordHash: string, newPasswordHash: string): Promise<void> {
+    const sql = `UPDATE user SET password = ? WHERE id = ? AND password = ?`;
+    const result = await execute(sql, [newPasswordHash, id, currentPasswordHash]);
+    
+    if (result.affectedRows === 0) {
+      throw new Error('Mot de passe actuel incorrect ou utilisateur introuvable');
+    }
   }
 }
 
