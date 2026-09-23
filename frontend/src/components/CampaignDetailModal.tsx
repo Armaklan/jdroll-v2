@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
-import { CampaignSummary } from '../types/campaign';
+import { CampaignSummary, CampaignParticipant } from '../types/campaign';
 import { getRythmeLabel, getRpLabel } from '../utils/campaign-helpers';
 import { getUserColorClass } from '../utils/user';
 import {
@@ -51,6 +51,8 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
   const [isObservingLoading, setIsObservingLoading] = useState<boolean>(false);
   const [observeError, setObserveError] = useState<string | null>(null);
   const [observeSuccessMessage, setObserveSuccessMessage] = useState<string | null>(null);
+  const [participants, setParticipants] = useState<CampaignParticipant[]>([]);
+  const [isLoadingParticipants, setIsLoadingParticipants] = useState<boolean>(false);
 
   useEffect(() => {
     if (campaign) {
@@ -61,6 +63,23 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
       setObserveSuccessMessage(null);
     }
   }, [campaign]);
+
+  useEffect(() => {
+    if (campaign && isOpen) {
+      const loadParticipants = async () => {
+        setIsLoadingParticipants(true);
+        try {
+          const participantsData = await campaignsApi.getCampaignParticipants(campaign.id);
+          setParticipants(participantsData);
+        } catch (err: any) {
+          console.error('Failed to load participants:', err);
+        } finally {
+          setIsLoadingParticipants(false);
+        }
+      };
+      loadParticipants();
+    }
+  }, [campaign?.id, isOpen]);
 
   if (!isOpen || !campaign) return null;
 
@@ -321,6 +340,48 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Participants Section - Joueurs validés */}
+          {participants.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-600" />
+                <span>Joueurs inscrits ({participants.length})</span>
+              </h3>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                {isLoadingParticipants ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600"></div>
+                    <span className="ml-2 text-sm text-slate-500">Chargement des joueurs...</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3">
+                    {participants.map((participant) => (
+                      <div
+                        key={participant.id}
+                        className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-xs"
+                        title={participant.username}
+                      >
+                        {participant.avatar && (
+                          <img
+                            src={participant.avatar}
+                            alt={participant.username}
+                            className="w-7 h-7 rounded-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <span className={`text-sm font-medium ${getUserColorClass(participant.profil, 'text-slate-700')}`}>
+                          {participant.username}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Description / Synopsis Section */}
           <div className="space-y-3">
