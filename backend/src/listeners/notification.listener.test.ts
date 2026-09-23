@@ -43,10 +43,10 @@ describe('NotificationListener', () => {
   ];
 
   const mockUsers = {
-    1: { id: 1, username: 'MJ_User', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null },
-    2: { id: 2, username: 'Player2', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null },
-    3: { id: 3, username: 'Player3', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null },
-    4: { id: 4, username: 'Observer4', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null },
+    1: { id: 1, username: 'MJ_User', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null, notif_mp: 1, notif_inscription: 1, notif_perso: 1, notif_message: 1 },
+    2: { id: 2, username: 'Player2', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null, notif_mp: 1, notif_inscription: 1, notif_perso: 1, notif_message: 1 },
+    3: { id: 3, username: 'Player3', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null, notif_mp: 1, notif_inscription: 1, notif_perso: 1, notif_message: 1 },
+    4: { id: 4, username: 'Observer4', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null, notif_mp: 1, notif_inscription: 1, notif_perso: 1, notif_message: 1 },
   };
 
   beforeEach(() => {
@@ -81,7 +81,20 @@ describe('NotificationListener', () => {
       updateNotification: async () => {},
     };
 
-    const notifUseCase = new CreateOrUpdateNotificationUseCase(mockNotifRepo as INotificationRepository);
+    const mockNotifWsService: any = {
+      sendNotification: () => {},
+      handleConnection: async () => {},
+      sendNotificationDeleted: () => {},
+      sendNotificationsCleared: () => {},
+      sendNotificationsUpdate: () => {},
+      getConnectedUserCount: () => 0,
+    };
+
+    const notifUseCase = new CreateOrUpdateNotificationUseCase(
+      mockNotifRepo as INotificationRepository,
+      mockNotifWsService,
+      mockUserRepo as IUserRepository
+    );
 
     listener = new NotificationListener(
       eventBus,

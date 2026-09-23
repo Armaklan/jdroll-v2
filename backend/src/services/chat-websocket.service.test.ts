@@ -38,7 +38,42 @@ describe('ChatWebSocketService', () => {
       deleteAllByUserId: async () => 0,
     };
 
-    const notifUseCase = new CreateOrUpdateNotificationUseCase(mockNotifRepo);
+    const mockNotifWsService: any = {
+      sendNotification: () => {},
+      handleConnection: async () => {},
+      sendNotificationDeleted: () => {},
+      sendNotificationsCleared: () => {},
+      sendNotificationsUpdate: () => {},
+      getConnectedUserCount: () => 0,
+    };
+
+    const mockUserRepoForNotif: IUserRepository = {
+      findById: async (id) => ({
+        id,
+        username: id === 1 ? 'Alice' : id === 2 ? 'Bob' : 'Charlie',
+        mail: 'user@test.com',
+        avatar: '',
+        description: '',
+        profil: 1,
+        titre: '',
+        subscribe_date: '',
+        notif_mp: 1,
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async () => ({} as any),
+      updateProfile: async () => ({} as any),
+      updateNotificationSettings: async () => ({} as any),
+      updatePassword: async () => {},
+    };
+
+    const notifUseCase = new CreateOrUpdateNotificationUseCase(
+      mockNotifRepo,
+      mockNotifWsService,
+      mockUserRepoForNotif
+    );
 
     const mockChatRepo: IChatRepository = {
       createMessage: async (d) => ({

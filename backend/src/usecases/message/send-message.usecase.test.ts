@@ -52,7 +52,26 @@ describe('SendMessageUseCase', () => {
       updateNotification: async () => {},
     };
 
-    const mockNotifUseCase = new CreateOrUpdateNotificationUseCase(mockNotifRepo);
+    const mockNotifWsService: any = {
+      sendNotification: () => {},
+      handleConnection: async () => {},
+      sendNotificationDeleted: () => {},
+      sendNotificationsCleared: () => {},
+      sendNotificationsUpdate: () => {},
+      getConnectedUserCount: () => 0,
+    };
+
+    const mockUserRepoForNotif: IUserRepository = {
+      ...mockUserRepo,
+      findById: async (id: number) => {
+        return existingUsers.find((u) => u.id === id) || null;
+      },
+      updateProfile: async () => ({} as any),
+      updateNotificationSettings: async () => ({} as any),
+      updatePassword: async () => {},
+    };
+
+    const mockNotifUseCase = new CreateOrUpdateNotificationUseCase(mockNotifRepo, mockNotifWsService, mockUserRepoForNotif);
 
     return {
       messageRepo: mockMessageRepo,
@@ -136,8 +155,8 @@ describe('SendMessageUseCase', () => {
 
   it('envoie un message avec succès à plusieurs destinataires et génère les notifications', async () => {
     const users: User[] = [
-      { id: 2, username: 'Bob', mail: 'bob@test.com', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '' },
-      { id: 3, username: 'Charlie', mail: 'charlie@test.com', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '' },
+      { id: 2, username: 'Bob', mail: 'bob@test.com', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', notif_mp: 1 },
+      { id: 3, username: 'Charlie', mail: 'charlie@test.com', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', notif_mp: 1 },
     ];
     const { messageRepo, userRepo, notifUseCase, createdMessages, notificationsSent } = createMockRepos(users);
     const useCase = new SendMessageUseCase(messageRepo, userRepo, notifUseCase);
