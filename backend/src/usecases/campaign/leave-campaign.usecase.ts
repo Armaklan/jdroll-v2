@@ -1,5 +1,12 @@
+import { IEventBus, domainEventBus } from '../../events/event-bus.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
-import { CampaignNotFoundError, ForbiddenError, ValidationError } from '../../errors/domain.errors.js';
+import {
+  CampaignNotFoundError,
+  ForbiddenError,
+  ValidationError,
+  UserNotFoundError,
+} from '../../errors/domain.errors.js';
 
 export interface LeaveCampaignDTO {
   campaignId: number;
@@ -13,7 +20,11 @@ export interface LeaveCampaignResult {
 }
 
 export class LeaveCampaignUseCase {
-  constructor(private readonly campaignRepo: ICampaignRepository = campaignRepository) {}
+  constructor(
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly userRepo: IUserRepository = userRepository,
+    private readonly eventBus: IEventBus = domainEventBus
+  ) {}
 
   async execute(dto: LeaveCampaignDTO): Promise<LeaveCampaignResult> {
     const campaignId = Number(dto.campaignId);
@@ -42,6 +53,20 @@ export class LeaveCampaignUseCase {
     }
 
     await this.campaignRepo.removeCampaignParticipant(campaignId, userId);
+
+    // Get username for notification
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new UserNotFoundError(`L'utilisateur #${userId} est introuvable`);
+    }
+
+    await this.eventBus.publish({
+      name: 'ParticipantLeft',
+      campaignId,
+      campaignName: campaign.name,
+      targetUserId: userId,
+      targetUsername: user.username,
+    });
 
     return {
       success: true,

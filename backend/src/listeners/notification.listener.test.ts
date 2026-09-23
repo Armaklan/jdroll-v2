@@ -6,6 +6,13 @@ import { ICampaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository } from '../repositories/forum.repository.js';
 import { CreateOrUpdateNotificationUseCase } from '../usecases/notification/create-or-update-notification.usecase.js';
 import { INotificationRepository } from '../repositories/notification.repository.js';
+import {
+  ParticipantValidatedEvent,
+  ParticipantRejectedEvent,
+  ParticipantExcludedEvent,
+  ParticipantJoinedEvent,
+  ParticipantLeftEvent,
+} from '../events/events.js';
 
 describe('NotificationListener', () => {
   let eventBus: DomainEventBus;
@@ -257,6 +264,144 @@ describe('NotificationListener', () => {
         notificationsCreated[0].content,
         'Le personnage <a href="/campaigns/100/characters">Valeros</a> a été mis à jour'
       );
+    });
+  });
+
+  describe('ParticipantValidated event', () => {
+    it('should notify target user when their campaign participation is validated', async () => {
+      // MJ (1) validates Player 2's participation in campaign 100
+      await eventBus.publish({
+        name: 'ParticipantValidated',
+        campaignId: 100,
+        campaignName: 'Campagne des Ombres',
+        mjId: 1,
+        targetUserId: 2,
+        targetUsername: 'Player2',
+      });
+
+      assert.equal(notificationsCreated.length, 1);
+      assert.equal(notificationsCreated[0].userId, 2);
+      assert.equal(
+        notificationsCreated[0].title,
+        'Campagne des Ombres - Inscription validée'
+      );
+      assert.equal(
+        notificationsCreated[0].content,
+        'Votre inscription à la campagne Campagne des Ombres a été validée'
+      );
+      assert.equal(notificationsCreated[0].type, 'campaign');
+      assert.equal(notificationsCreated[0].targetId, 100);
+      assert.equal(notificationsCreated[0].url, '/campaigns/100');
+    });
+  });
+
+  describe('ParticipantRejected event', () => {
+    it('should notify target user when their campaign participation is rejected', async () => {
+      // MJ (1) rejects Player 2's participation in campaign 100
+      await eventBus.publish({
+        name: 'ParticipantRejected',
+        campaignId: 100,
+        campaignName: 'Campagne des Ombres',
+        mjId: 1,
+        targetUserId: 2,
+        targetUsername: 'Player2',
+      });
+
+      assert.equal(notificationsCreated.length, 1);
+      assert.equal(notificationsCreated[0].userId, 2);
+      assert.equal(
+        notificationsCreated[0].title,
+        'Campagne des Ombres - Inscription refusée'
+      );
+      assert.equal(
+        notificationsCreated[0].content,
+        'Votre inscription à la campagne Campagne des Ombres a été refusée'
+      );
+      assert.equal(notificationsCreated[0].type, 'campaign');
+      assert.equal(notificationsCreated[0].targetId, 100);
+      assert.equal(notificationsCreated[0].url, '/campaigns/100');
+    });
+  });
+
+  describe('ParticipantExcluded event', () => {
+    it('should notify target user when they are excluded from a campaign', async () => {
+      // MJ (1) excludes Player 2 from campaign 100
+      await eventBus.publish({
+        name: 'ParticipantExcluded',
+        campaignId: 100,
+        campaignName: 'Campagne des Ombres',
+        mjId: 1,
+        targetUserId: 2,
+        targetUsername: 'Player2',
+      });
+
+      assert.equal(notificationsCreated.length, 1);
+      assert.equal(notificationsCreated[0].userId, 2);
+      assert.equal(
+        notificationsCreated[0].title,
+        'Campagne des Ombres - Exclusion de la campagne'
+      );
+      assert.equal(
+        notificationsCreated[0].content,
+        'Vous avez été exclu de la campagne Campagne des Ombres'
+      );
+      assert.equal(notificationsCreated[0].type, 'campaign');
+      assert.equal(notificationsCreated[0].targetId, 100);
+      assert.equal(notificationsCreated[0].url, '/campaigns/100');
+    });
+  });
+
+  describe('ParticipantJoined event', () => {
+    it('should notify MJ when a player joins the campaign pending validation', async () => {
+      // Player 2 joins campaign 100 (MJ is user 1)
+      await eventBus.publish({
+        name: 'ParticipantJoined',
+        campaignId: 100,
+        campaignName: 'Campagne des Ombres',
+        targetUserId: 2,
+        targetUsername: 'Player2',
+      });
+
+      assert.equal(notificationsCreated.length, 1);
+      assert.equal(notificationsCreated[0].userId, 1); // MJ is user 1
+      assert.equal(
+        notificationsCreated[0].title,
+        'Campagne des Ombres - Nouvelle inscription en attente'
+      );
+      assert.equal(
+        notificationsCreated[0].content,
+        'Player2 souhaite rejoindre votre campagne Campagne des Ombres. Son inscription est en attente de validation.'
+      );
+      assert.equal(notificationsCreated[0].type, 'campaign');
+      assert.equal(notificationsCreated[0].targetId, 100);
+      assert.equal(notificationsCreated[0].url, '/campaigns/100');
+    });
+  });
+
+  describe('ParticipantLeft event', () => {
+    it('should notify MJ when a player leaves the campaign', async () => {
+      // Player 2 leaves campaign 100 (MJ is user 1)
+      await eventBus.publish({
+        name: 'ParticipantLeft',
+        campaignId: 100,
+        campaignName: 'Campagne des Ombres',
+        targetUserId: 2,
+        targetUsername: 'Player2',
+      });
+
+      assert.equal(notificationsCreated.length, 1);
+      assert.equal(notificationsCreated[0].userId, 1); // MJ is user 1
+      assert.equal(
+        notificationsCreated[0].title,
+        'Campagne des Ombres - Un joueur a quitté la campagne'
+      );
+      assert.equal(
+        notificationsCreated[0].content,
+        'Player2 a quitté votre campagne Campagne des Ombres'
+      );
+      assert.equal(notificationsCreated[0].type, 'campaign');
+      assert.equal(notificationsCreated[0].targetId, 100);
+      assert.equal(notificationsCreated[0].url, '/campaigns/100');
     });
   });
 });

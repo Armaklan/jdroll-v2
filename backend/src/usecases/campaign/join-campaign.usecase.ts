@@ -1,5 +1,11 @@
+import { IEventBus, domainEventBus } from '../../events/event-bus.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
-import { CampaignNotFoundError, ValidationError } from '../../errors/domain.errors.js';
+import {
+  CampaignNotFoundError,
+  ValidationError,
+  UserNotFoundError,
+} from '../../errors/domain.errors.js';
 
 export interface JoinCampaignDTO {
   campaignId: number;
@@ -13,7 +19,11 @@ export interface JoinCampaignResult {
 }
 
 export class JoinCampaignUseCase {
-  constructor(private readonly campaignRepo: ICampaignRepository = campaignRepository) {}
+  constructor(
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly userRepo: IUserRepository = userRepository,
+    private readonly eventBus: IEventBus = domainEventBus
+  ) {}
 
   async execute(dto: JoinCampaignDTO): Promise<JoinCampaignResult> {
     const campaignId = Number(dto.campaignId);
@@ -66,6 +76,20 @@ export class JoinCampaignUseCase {
     }
 
     await this.campaignRepo.addCampaignParticipant(campaignId, userId, 0);
+
+    // Get username for notification
+    const user = await this.userRepo.findById(userId);
+    if (!user) {
+      throw new UserNotFoundError(`L'utilisateur #${userId} est introuvable`);
+    }
+
+    await this.eventBus.publish({
+      name: 'ParticipantJoined',
+      campaignId,
+      campaignName: campaign.name,
+      targetUserId: userId,
+      targetUsername: user.username,
+    });
 
     return {
       success: true,

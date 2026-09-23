@@ -1,7 +1,10 @@
+import { IEventBus, domainEventBus } from '../../events/event-bus.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
 import {
   CampaignNotFoundError,
   ForbiddenError,
+  UserNotFoundError,
   ValidationError,
 } from '../../errors/domain.errors.js';
 
@@ -17,7 +20,11 @@ export interface ExcludeParticipantResult {
 }
 
 export class ExcludeParticipantUseCase {
-  constructor(private readonly campaignRepo: ICampaignRepository = campaignRepository) {}
+  constructor(
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly userRepo: IUserRepository = userRepository,
+    private readonly eventBus: IEventBus = domainEventBus
+  ) {}
 
   async execute(dto: ExcludeParticipantDTO): Promise<ExcludeParticipantResult> {
     const campaignId = Number(dto.campaignId);
@@ -52,7 +59,21 @@ export class ExcludeParticipantUseCase {
       throw new ValidationError('L\'utilisateur cible ne fait pas partie de cette campagne');
     }
 
+    const targetUser = await this.userRepo.findById(targetUserId);
+    if (!targetUser) {
+      throw new UserNotFoundError(`L'utilisateur #${targetUserId} est introuvable`);
+    }
+
     await this.campaignRepo.removeCampaignParticipant(campaignId, targetUserId);
+
+    await this.eventBus.publish({
+      name: 'ParticipantExcluded',
+      campaignId,
+      campaignName: campaign.name,
+      mjId,
+      targetUserId,
+      targetUsername: targetUser.username,
+    });
 
     return {
       success: true,

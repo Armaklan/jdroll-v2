@@ -32,4 +32,55 @@ export interface CharacterUpdatedEvent {
   modifierUserId: number;
 }
 
-export type DomainEvent = PostCreatedEvent | RollCreatedEvent | CharacterUpdatedEvent;
+export interface ParticipantValidatedEvent {
+  name: 'ParticipantValidated';
+  campaignId: number;
+  campaignName: string;
+  mjId: number;
+  targetUserId: number;
+  targetUsername: string;
+}
+
+export interface ParticipantRejectedEvent {
+  name: 'ParticipantRejected';
+  campaignId: number;
+  campaignName: string;
+  mjId: number;
+  targetUserId: number;
+  targetUsername: string;
+}
+
+export interface ParticipantExcludedEvent {
+  name: 'ParticipantExcluded';
+  campaignId: number;
+  campaignName: string;
+  mjId: number;
+  targetUserId: number;
+  targetUsername: string;
+}
+
+export interface ParticipantJoinedEvent {
+  name: 'ParticipantJoined';
+  campaignId: number;
+  campaignName: string;
+  targetUserId: number;
+  targetUsername: string;
+}
+
+export interface ParticipantLeftEvent {
+  name: 'ParticipantLeft';
+  campaignId: number;
+  campaignName: string;
+  targetUserId: number;
+  targetUsername: string;
+}
+
+export type DomainEvent =
+  | PostCreatedEvent
+  | RollCreatedEvent
+  | CharacterUpdatedEvent
+  | ParticipantValidatedEvent
+  | ParticipantRejectedEvent
+  | ParticipantExcludedEvent
+  | ParticipantJoinedEvent
+  | ParticipantLeftEvent;

@@ -1,3 +1,4 @@
+import { IEventBus, domainEventBus } from '../../events/event-bus.js';
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
 import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import {
@@ -21,7 +22,8 @@ export interface ValidateParticipantResult {
 export class ValidateParticipantUseCase {
   constructor(
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
-    private readonly userRepo: IUserRepository = userRepository
+    private readonly userRepo: IUserRepository = userRepository,
+    private readonly eventBus: IEventBus = domainEventBus
   ) {}
 
   async execute(dto: ValidateParticipantDTO): Promise<ValidateParticipantResult> {
@@ -68,6 +70,15 @@ export class ValidateParticipantUseCase {
       catId: null,
       persoFields: null,
       widgets: '',
+    });
+
+    await this.eventBus.publish({
+      name: 'ParticipantValidated',
+      campaignId,
+      campaignName: campaign.name,
+      mjId,
+      targetUserId,
+      targetUsername: targetUser.username,
     });
 
     return {
