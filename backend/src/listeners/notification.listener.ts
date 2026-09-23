@@ -1,16 +1,17 @@
-import { IEventBus, domainEventBus } from '../events/event-bus.js';
+import {domainEventBus, IEventBus} from '../events/event-bus.js';
 import {
-  PostCreatedEvent,
-  RollCreatedEvent,
   CharacterUpdatedEvent,
-  ParticipantValidatedEvent,
-  ParticipantRejectedEvent,
   ParticipantExcludedEvent,
   ParticipantJoinedEvent,
   ParticipantLeftEvent,
+  ParticipantRejectedEvent,
+  ParticipantValidatedEvent,
+  PostCreatedEvent,
+  RollCreatedEvent,
 } from '../events/events.js';
-import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
-import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
+import {campaignRepository, ICampaignRepository} from '../repositories/campaign.repository.js';
+import {forumRepository, IForumRepository} from '../repositories/forum.repository.js';
+import {IUserRepository, userRepository} from '../repositories/user.repository.js';
 import {
   CreateOrUpdateNotificationUseCase,
   createOrUpdateNotificationUseCase,
@@ -23,6 +24,7 @@ export class NotificationListener {
     private readonly eventBus: IEventBus = domainEventBus,
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
     private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly userRepo: IUserRepository = userRepository,
     private readonly notifUseCase: CreateOrUpdateNotificationUseCase = createOrUpdateNotificationUseCase
   ) {}
 
@@ -97,11 +99,19 @@ export class NotificationListener {
 
     const postUrl = `/forum/${event.campagneId || 0}/${event.topicId}/page/1#post${event.postId}`;
 
+    let authorName = 'un joueur';
+    if (event.userId) {
+      const author = await this.userRepo.findById(event.userId);
+      if (author) {
+        authorName = author.username;
+      }
+    }
+
     for (const recipientId of recipientIds) {
       await this.notifUseCase.execute({
         userId: recipientId,
         title: `${campaignName} - Nouveau post`,
-        content: `Nouveau message dans le sujet <a href="${postUrl}">${event.topicTitle}</a>`,
+        content: `Nouveau message de ${authorName} dans le sujet <a href="${postUrl}">${event.topicTitle}</a>`,
         url: postUrl,
         type: 'topic',
         targetId: event.topicId,

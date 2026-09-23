@@ -136,13 +136,14 @@ describe('CreateOrUpdateNotificationUseCase', () => {
     });
 
     assert.equal(notifications.length, 1);
-    assert.equal(notifications[0].title, 'Mon Sujet Modifié');
-    assert.equal(notifications[0].content, 'Nouveau message 2');
+    assert.equal(notifications[0].title, 'Mon Sujet');
+    assert.equal(notifications[0].content, 'Nouveau message 1');
     assert.equal(notifications[0].nb, 2);
 
     assert.equal(pushedWsNotifications.length, 2);
     assert.equal(pushedWsNotifications[1].userId, 5);
-    assert.equal(pushedWsNotifications[1].notification.title, 'Mon Sujet Modifié');
+    assert.equal(pushedWsNotifications[1].notification.title, 'Mon Sujet');
+    assert.equal(pushedWsNotifications[1].notification.content, 'Nouveau message 1');
     assert.equal(pushedWsNotifications[1].notification.nb, 2);
   });
 });

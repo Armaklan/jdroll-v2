@@ -1,18 +1,12 @@
-import { describe, it, beforeEach } from 'node:test';
+import {beforeEach, describe, it} from 'node:test';
 import assert from 'node:assert/strict';
-import { NotificationListener } from './notification.listener.js';
-import { DomainEventBus } from '../events/event-bus.js';
-import { ICampaignRepository } from '../repositories/campaign.repository.js';
-import { IForumRepository } from '../repositories/forum.repository.js';
-import { CreateOrUpdateNotificationUseCase } from '../usecases/notification/create-or-update-notification.usecase.js';
-import { INotificationRepository } from '../repositories/notification.repository.js';
-import {
-  ParticipantValidatedEvent,
-  ParticipantRejectedEvent,
-  ParticipantExcludedEvent,
-  ParticipantJoinedEvent,
-  ParticipantLeftEvent,
-} from '../events/events.js';
+import {NotificationListener} from './notification.listener.js';
+import {DomainEventBus} from '../events/event-bus.js';
+import {ICampaignRepository} from '../repositories/campaign.repository.js';
+import {IForumRepository} from '../repositories/forum.repository.js';
+import {IUserRepository} from '../repositories/user.repository.js';
+import {CreateOrUpdateNotificationUseCase} from '../usecases/notification/create-or-update-notification.usecase.js';
+import {INotificationRepository} from '../repositories/notification.repository.js';
 
 describe('NotificationListener', () => {
   let eventBus: DomainEventBus;
@@ -48,6 +42,13 @@ describe('NotificationListener', () => {
     { id: 2, username: 'Player2', avatar: '' },
   ];
 
+  const mockUsers = {
+    1: { id: 1, username: 'MJ_User', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null },
+    2: { id: 2, username: 'Player2', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null },
+    3: { id: 3, username: 'Player3', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null },
+    4: { id: 4, username: 'Observer4', mail: '', avatar: '', description: '', profil: 0, titre: '', subscribe_date: '', birthDate: null },
+  };
+
   beforeEach(() => {
     notificationsCreated = [];
     eventBus = new DomainEventBus();
@@ -60,6 +61,15 @@ describe('NotificationListener', () => {
 
     const mockForumRepo: Partial<IForumRepository> = {
       getTopicCanReadUsers: async (topicId: number) => (topicId === 20 ? mockCanReadUsers : []),
+    };
+
+    const mockUserRepo: Partial<IUserRepository> = {
+      findById: async (id: number) => mockUsers[id] || null,
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async () => mockUsers[1],
     };
 
     const mockNotifRepo: Partial<INotificationRepository> = {
@@ -77,6 +87,7 @@ describe('NotificationListener', () => {
       eventBus,
       mockCampaignRepo as ICampaignRepository,
       mockForumRepo as IForumRepository,
+      mockUserRepo as IUserRepository,
       notifUseCase
     );
 
@@ -103,7 +114,7 @@ describe('NotificationListener', () => {
       assert.equal(notificationsCreated[0].title, 'Campagne des Ombres - Nouveau post');
       assert.equal(
         notificationsCreated[0].content,
-        'Nouveau message dans le sujet <a href="/forum/100/15/page/1#post10">Discussion générale</a>'
+        'Nouveau message de Player2 dans le sujet <a href="/forum/100/15/page/1#post10">Discussion générale</a>'
       );
       assert.equal(notificationsCreated[0].type, 'topic');
       assert.equal(notificationsCreated[0].targetId, 15);
@@ -128,7 +139,7 @@ describe('NotificationListener', () => {
       assert.equal(notificationsCreated[0].title, 'Campagne des Ombres - Nouveau post');
       assert.equal(
         notificationsCreated[0].content,
-        'Nouveau message dans le sujet <a href="/forum/100/20/page/1#post11">Secret du MJ</a>'
+        'Nouveau message de MJ_User dans le sujet <a href="/forum/100/20/page/1#post11">Secret du MJ</a>'
       );
       assert.equal(notificationsCreated[0].url, '/forum/100/20/page/1#post11');
     });
@@ -149,7 +160,7 @@ describe('NotificationListener', () => {
       assert.equal(notificationsCreated[0].title, 'Forum - Nouveau post');
       assert.equal(
         notificationsCreated[0].content,
-        'Nouveau message dans le sujet <a href="/forum/0/20/page/1#post12">Discussion libre</a>'
+        'Nouveau message de MJ_User dans le sujet <a href="/forum/0/20/page/1#post12">Discussion libre</a>'
       );
     });
   });

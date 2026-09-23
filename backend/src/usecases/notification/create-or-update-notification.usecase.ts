@@ -37,16 +37,10 @@ export class CreateOrUpdateNotificationUseCase {
 
     if (existing) {
       await this.notifRepo.updateNotification(existing.id, {
-        title: trimmedTitle,
-        content: trimmedContent,
-        url: trimmedUrl,
         nbIncrement: true,
       });
       notification = {
         ...existing,
-        title: trimmedTitle,
-        content: trimmedContent,
-        url: trimmedUrl,
         nb: existing.nb + 1,
         lastUpdate: new Date().toISOString(),
       };
