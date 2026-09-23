@@ -12,6 +12,7 @@ import { rollDiceTowerUseCase, RollDiceTowerUseCase } from '../usecases/campaign
 import { createCampaignUseCase, CreateCampaignUseCase } from '../usecases/campaign/create-campaign.usecase.js';
 import { updateCampaignUseCase, UpdateCampaignUseCase } from '../usecases/campaign/update-campaign.usecase.js';
 import { joinCampaignUseCase, JoinCampaignUseCase } from '../usecases/campaign/join-campaign.usecase.js';
+import { leaveCampaignUseCase, LeaveCampaignUseCase } from '../usecases/campaign/leave-campaign.usecase.js';
 import { validateParticipantUseCase, ValidateParticipantUseCase } from '../usecases/campaign/validate-participant.usecase.js';
 import { rejectParticipantUseCase, RejectParticipantUseCase } from '../usecases/campaign/reject-participant.usecase.js';
 import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/create-section.usecase.js';
@@ -364,6 +365,7 @@ export class CampaignController {
     private readonly uploadCharacterAvatarUseCaseService: UploadCharacterAvatarUseCase = uploadCharacterAvatarUseCase,
     private readonly uploadCampaignBannerUseCaseService: UploadCampaignBannerUseCase = uploadCampaignBannerUseCase,
     private readonly joinCampaignUseCaseService: JoinCampaignUseCase = joinCampaignUseCase,
+    private readonly leaveCampaignUseCaseService: LeaveCampaignUseCase = leaveCampaignUseCase,
     private readonly validateParticipantUseCaseService: ValidateParticipantUseCase = validateParticipantUseCase,
     private readonly rejectParticipantUseCaseService: RejectParticipantUseCase = rejectParticipantUseCase,
     private readonly observeCampaignUseCaseService: ObserveCampaignUseCase = observeCampaignUseCase,
@@ -1981,6 +1983,43 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/campaigns/:id/leave
+   * Permet à un joueur de quitter une campagne
+   */
+  async leaveCampaign(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.leaveCampaignUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        userId: user.id,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message, details: error.details });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors du départ de la campagne' });
+    }
+  }
+
+  /**
    * POST /api/campaigns/:id/participants/:userId/accept
    * Valide l'inscription d'un joueur en attente (MJ)
    */
@@ -2421,6 +2460,13 @@ export class CampaignController {
       '/api/campaigns/:id/join',
       { preHandler: [app.authenticate] },
       (req, rep) => this.joinCampaign(req, rep)
+    );
+
+    // Route authentifiée pour quitter une campagne
+    app.post(
+      '/api/campaigns/:id/leave',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.leaveCampaign(req, rep)
     );
 
     // Routes authentifiées pour valider / refuser les inscriptions (MJ)

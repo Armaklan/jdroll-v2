@@ -23,6 +23,7 @@ import {
   EyeOff,
   StickyNote,
   Map,
+  DoorOpen,
 } from 'lucide-react';
 import { CampaignFloatingSearch } from './CampaignFloatingSearch';
 
@@ -61,6 +62,8 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
   const [isObservingLoading, setIsObservingLoading] = useState<boolean>(false);
   const [hasAlert, setHasAlert] = useState<boolean>(Boolean(campaign.hasAlert));
   const [isAlertLoading, setIsAlertLoading] = useState<boolean>(false);
+  const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
+  const [isLeaving, setIsLeaving] = useState<boolean>(false);
 
   useEffect(() => {
     setIsObserving(Boolean(campaign.isObserving || campaign.userRole === 'observer'));
@@ -77,6 +80,24 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
   const isCampaignMember = Boolean(
     user && (isMj || isPlayer)
   );
+
+  const handleLeaveCampaign = async () => {
+    if (!user) {
+      navigate('/login', { state: { from: window.location.pathname } });
+      return;
+    }
+    setIsLeaving(true);
+    try {
+      await campaignsApi.leaveCampaign(campaign.id);
+      // Rediriger vers la page d'accueil ou la liste des campagnes
+      navigate('/campaigns');
+    } catch (err) {
+      console.error("Erreur lors du départ de la campagne :", err);
+    } finally {
+      setIsLeaving(false);
+      setShowLeaveModal(false);
+    }
+  };
 
   const handleToggleObserve = async () => {
     if (!user) {
@@ -334,6 +355,58 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
               <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
               <span>Configurer</span>
             </button>
+          )}
+          
+          {/* Quitter button (pour les joueurs uniquement) */}
+          {isPlayer && !isMj && (
+            <>
+              <button
+                onClick={() => setShowLeaveModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold text-xs border border-rose-200 shadow-2xs transition cursor-pointer"
+                title="Quitter la campagne"
+              >
+                <DoorOpen className="w-3.5 h-3.5 text-rose-600" />
+                <span>Quitter</span>
+              </button>
+              
+              {/* Modal de confirmation */}
+              {showLeaveModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+                  <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200">
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">
+                      Quitter la campagne
+                    </h3>
+                    <p className="text-sm text-slate-600 mb-6">
+                      Êtes-vous sûr de vouloir quitter la campagne « <strong className="text-slate-900">{campaign.name}</strong> » ?
+                      Vous ne pourrez plus accéder à son contenu.
+                    </p>
+                    <div className="flex gap-3 justify-end">
+                      <button
+                        onClick={() => setShowLeaveModal(false)}
+                        disabled={isLeaving}
+                        className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={handleLeaveCampaign}
+                        disabled={isLeaving}
+                        className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        {isLeaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Quittance...
+                          </>
+                        ) : (
+                          'Quitter'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Link 1: Forum de la campagne */}

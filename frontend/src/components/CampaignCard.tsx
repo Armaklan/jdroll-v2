@@ -11,6 +11,7 @@ import {
   Clock,
   Crown,
   Dice5,
+  DoorOpen,
   Eye,
   EyeOff,
   FileText,
@@ -30,6 +31,8 @@ export interface CampaignCardProps {
   onJoin?: (campaign: CampaignSummary, e: React.MouseEvent) => void;
   isJoining?: boolean;
   onConfigure?: (campaignId: number) => void;
+  onLeave?: (campaignId: number, e: React.MouseEvent) => void;
+  isLeaving?: boolean;
   onToggleObserve?: (campaign: CampaignSummary, isCurrentlyObserving: boolean, e: React.MouseEvent) => void;
   isObservingLoading?: boolean;
   roleContext?: CampaignRole | null;
@@ -44,6 +47,8 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   onJoin,
   isJoining = false,
   onConfigure,
+  onLeave,
+  isLeaving = false,
   onToggleObserve,
   isObservingLoading = false,
   roleContext,
@@ -51,6 +56,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [showLeaveModal, setShowLeaveModal] = React.useState<boolean>(false);
 
   const isMj = Boolean(user && user.id === campaign.mjId);
   const isPlayer = Boolean(
@@ -124,6 +130,18 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
     e.stopPropagation();
     if (onToggleObserve) {
       onToggleObserve(campaign, isObserver, e);
+    }
+  };
+
+  const handleLeaveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowLeaveModal(true);
+  };
+
+  const confirmLeave = async () => {
+    setShowLeaveModal(false);
+    if (onLeave) {
+      onLeave(campaign.id, {} as React.MouseEvent);
     }
   };
 
@@ -283,6 +301,24 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
             </button>
           )}
 
+          {/* Quitter button (pour les joueurs uniquement) */}
+          {isPlayer && !isMj && onLeave && (
+            <button
+              type="button"
+              onClick={handleLeaveClick}
+              disabled={isLeaving}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold rounded-lg text-xs border border-rose-200 transition cursor-pointer disabled:opacity-50"
+              title="Quitter la campagne"
+            >
+              {isLeaving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
+              ) : (
+                <DoorOpen className="w-3.5 h-3.5 text-rose-600" />
+              )}
+              <span>Quitter</span>
+            </button>
+          )}
+
           {/* Rejoindre button */}
           {onJoin && isRecruitmentOpen && !isMj && (
             <button
@@ -345,6 +381,44 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
           </button>
         </div>
       </div>
+      
+      {/* Modal de confirmation pour quitter la campagne */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowLeaveModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">
+              Quitter la campagne
+            </h3>
+            <p className="text-sm text-slate-600 mb-6">
+              Êtes-vous sûr de vouloir quitter la campagne « <strong className="text-slate-900">{campaign.name}</strong> » ?
+              Vous ne pourrez plus accéder à son contenu.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowLeaveModal(false)}
+                disabled={isLeaving}
+                className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmLeave}
+                disabled={isLeaving}
+                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isLeaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Quittance...
+                  </>
+                ) : (
+                  'Quitter'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

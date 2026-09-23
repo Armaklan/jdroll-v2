@@ -89,6 +89,12 @@ export const campaignsApi = {
     });
   },
 
+  async leaveCampaign(campaignId: number): Promise<{ success: boolean; message: string; campaignId: number }> {
+    return request<{ success: boolean; message: string; campaignId: number }>(`/api/campaigns/${campaignId}/leave`, {
+      method: 'POST',
+    });
+  },
+
   async observeCampaign(campaignId: number): Promise<{ success: boolean; message: string; campaignId: number; isObserving: boolean }> {
     return request<{ success: boolean; message: string; campaignId: number; isObserving: boolean }>(`/api/campaigns/${campaignId}/observe`, {
       method: 'POST',
