@@ -47,6 +47,7 @@ import {
   Trash2,
   X,
   Check,
+  Quote,
 } from 'lucide-react';
 
 interface TopicViewPageProps {
@@ -424,6 +425,12 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     setEditPostContent(post.content || '');
     setEditPersoId(post.perso ? post.perso.id : null);
     setEditError(null);
+  };
+
+  const handleQuotePost = (post: any) => {
+    const authorName = post.perso?.name || post.user?.username || 'Anonyme';
+    const quotedContent = `<blockquote><strong>${authorName} a écrit :</strong><br>${post.content}</blockquote><p><br></p>`;
+    setPostContent((prev) => prev + quotedContent);
   };
 
   const handleCancelEdit = () => {
@@ -994,9 +1001,20 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                       </span>
                     )}
 
-                    {/* Actions : Édition & Suppression */}
+                    {/* Actions : Citer, Édition & Suppression */}
                     {!isCurrentlyEditing && (
                       <div className="flex items-center gap-1 ml-1">
+                        {isAuthenticated && (
+                          <button
+                            type="button"
+                            onClick={() => handleQuotePost(post)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition shadow-2xs cursor-pointer"
+                            title="Citer ce message"
+                          >
+                            <Quote className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Citer</span>
+                          </button>
+                        )}
                         {canEdit && (
                           <button
                             type="button"
