@@ -161,7 +161,7 @@ export class CampaignQueries {
         catId: raw.catId,
         categoryName: '',
         isPlayer,
-        persoFields: raw.persoFields,
+        persoFields: canSeePrivate ? raw.persoFields : undefined,
         widgets: canSeePrivate ? (raw.widgets || '') : undefined,
       };
 
@@ -280,7 +280,7 @@ export class CampaignQueries {
       catId: raw.catId,
       categoryName: raw.categoryName || (isPlayer ? 'Personnage joueur' : 'Non classées'),
       isPlayer,
-      persoFields: raw.persoFields,
+      persoFields: canSeePrivate ? raw.persoFields : undefined,
       templateHtml: campaign.templateHtml,
       templateImg: campaign.templateImg,
       templateFields: campaign.templateFields,
