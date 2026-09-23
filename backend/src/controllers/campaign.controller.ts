@@ -15,6 +15,7 @@ import { joinCampaignUseCase, JoinCampaignUseCase } from '../usecases/campaign/j
 import { leaveCampaignUseCase, LeaveCampaignUseCase } from '../usecases/campaign/leave-campaign.usecase.js';
 import { validateParticipantUseCase, ValidateParticipantUseCase } from '../usecases/campaign/validate-participant.usecase.js';
 import { rejectParticipantUseCase, RejectParticipantUseCase } from '../usecases/campaign/reject-participant.usecase.js';
+import { excludeParticipantUseCase, ExcludeParticipantUseCase } from '../usecases/campaign/exclude-participant.usecase.js';
 import { createSectionUseCase, CreateSectionUseCase } from '../usecases/forum/create-section.usecase.js';
 import { updateSectionUseCase, UpdateSectionUseCase } from '../usecases/forum/update-section.usecase.js';
 import { deleteSectionUseCase, DeleteSectionUseCase } from '../usecases/forum/delete-section.usecase.js';
@@ -368,6 +369,7 @@ export class CampaignController {
     private readonly leaveCampaignUseCaseService: LeaveCampaignUseCase = leaveCampaignUseCase,
     private readonly validateParticipantUseCaseService: ValidateParticipantUseCase = validateParticipantUseCase,
     private readonly rejectParticipantUseCaseService: RejectParticipantUseCase = rejectParticipantUseCase,
+    private readonly excludeParticipantUseCaseService: ExcludeParticipantUseCase = excludeParticipantUseCase,
     private readonly observeCampaignUseCaseService: ObserveCampaignUseCase = observeCampaignUseCase,
     private readonly unobserveCampaignUseCaseService: UnobserveCampaignUseCase = unobserveCampaignUseCase,
     private readonly setCampaignAlertUseCaseService: SetCampaignAlertUseCase = setCampaignAlertUseCase,
@@ -2096,6 +2098,44 @@ export class CampaignController {
   }
 
   /**
+   * POST /api/campaigns/:id/participants/:userId/exclude
+   * Exclut un joueur de la campagne (MJ)
+   */
+  async excludeParticipant(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = participantActionParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Paramètres invalides',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.excludeParticipantUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        mjId: user.id,
+        targetUserId: parseParams.data.userId,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de l\'exclusion du participant' });
+    }
+  }
+
+  /**
    * GET /api/campaigns/:id/pending-participants
    * Récupère la liste des inscriptions en attente de validation (MJ)
    */
@@ -2489,6 +2529,11 @@ export class CampaignController {
       '/api/campaigns/:id/participants/:userId',
       { preHandler: [app.authenticate] },
       (req, rep) => this.rejectParticipant(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/participants/:userId/exclude',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.excludeParticipant(req, rep)
     );
     app.get(
       '/api/campaigns/:id/pending-participants',

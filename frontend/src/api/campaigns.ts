@@ -184,6 +184,12 @@ export const campaignsApi = {
     });
   },
 
+  async excludeParticipant(campaignId: number, userId: number): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>(`/api/campaigns/${campaignId}/participants/${userId}/exclude`, {
+      method: 'POST',
+    });
+  },
+
   async createCharacter(campaignId: number, payload: CreateCharacterPayload): Promise<CampaignCharacter> {
     return request<CampaignCharacter>(`/api/campaigns/${campaignId}/characters`, {
       method: 'POST',

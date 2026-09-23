@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {useAuth} from '../contexts/AuthContext';
 import {campaignsApi} from '../api/campaigns';
-import {CampaignCharacter, CampaignWidget, CreateCampaignPayload, UpdateCampaignPayload} from '../types/campaign';
+import {CampaignCharacter, CampaignWidget, CreateCampaignPayload, UpdateCampaignPayload, CampaignParticipant} from '../types/campaign';
 import {WysiwygEditor} from '../components/WysiwygEditor';
 import {
   Activity,
@@ -23,6 +23,7 @@ import {
   Upload,
   Users,
   X,
+  Ban,
 } from 'lucide-react';
 import {CharacterSheetRenderer} from '../components/CharacterSheetRenderer';
 import {CampaignWidgetsConfig} from '../components/CampaignWidgetsConfig';
@@ -154,6 +155,15 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   // Campaign Widgets Configuration
   const [widgetsList, setWidgetsList] = useState<CampaignWidget[]>([]);
 
+  // Participants management
+  const [mjId, setMjId] = useState<number | null>(null);
+  const [participants, setParticipants] = useState<CampaignParticipant[]>([]);
+  const [isLoadingParticipants, setIsLoadingParticipants] = useState<boolean>(false);
+  const [excludeError, setExcludeError] = useState<string | null>(null);
+  const [isExcluding, setIsExcluding] = useState<number | null>(null);
+  const [participantToExclude, setParticipantToExclude] = useState<CampaignParticipant | null>(null);
+  const [showExcludeModal, setShowExcludeModal] = useState<boolean>(false);
+
   // Active tab in form
   const [activeTab, setActiveTab] = useState<'general' | 'gameplay' | 'appearance' | 'sheet' | 'widgets'>('general');
 
@@ -179,6 +189,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         setUnivers(campaign.univers || '');
         setDescription(campaign.description || '');
         setNbJoueurs(campaign.nbJoueurs || 4);
+        setMjId(campaign.mjId);
 
         // Vignette (campagne.banniere)
         setVignetteUrl(campaign.banniere || '');
@@ -242,6 +253,16 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         if (campaign.widgets) {
           setWidgetsList(parseWidgets(campaign.widgets));
         }
+
+        // Load participants if in edit mode and user is MJ
+        if (user && user.id === campaign.mjId) {
+          try {
+            const parts = await campaignsApi.getCampaignParticipants(campaignId);
+            setParticipants(parts);
+          } catch (partsErr) {
+            console.error('Erreur lors du chargement des participants:', partsErr);
+          }
+        }
       } catch (err: any) {
         setLoadError(err.message || 'Impossible de charger les données de la campagne.');
       } finally {
@@ -251,6 +272,44 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
     fetchCampaignData();
   }, [isEditMode, campaignId, user]);
+
+  // Participants management
+  const loadParticipants = async () => {
+    if (!campaignId || !user || !mjId || user.id !== mjId) return;
+    setIsLoadingParticipants(true);
+    try {
+      const parts = await campaignsApi.getCampaignParticipants(campaignId);
+      setParticipants(parts);
+      setExcludeError(null);
+    } catch (err: any) {
+      setExcludeError(err.message || 'Impossible de charger les participants.');
+    } finally {
+      setIsLoadingParticipants(false);
+    }
+  };
+
+  const handleExcludeParticipant = (participant: CampaignParticipant) => {
+    setParticipantToExclude(participant);
+    setShowExcludeModal(true);
+  };
+
+  const confirmExcludeParticipant = async () => {
+    if (!participantToExclude || !campaignId) return;
+    
+    setIsExcluding(participantToExclude.id);
+    setShowExcludeModal(false);
+    
+    try {
+      await campaignsApi.excludeParticipant(campaignId, participantToExclude.id);
+      setExcludeError(null);
+      await loadParticipants(); // Recharge la liste des participants
+    } catch (err: any) {
+      setExcludeError(err.message || 'Impossible d\'exclure le participant.');
+    } finally {
+      setIsExcluding(null);
+      setParticipantToExclude(null);
+    }
+  };
 
   // Handlers for Vignette (Campagne)
   const handleVignetteFileSelect = (file: File) => {
@@ -1099,7 +1158,126 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   <div className="w-11 h-6 bg-slate-300 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                 </label>
               </div>
+
+              {/* Participants Management Card */}
+              {isEditMode && user && mjId && user.id === mjId && (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <span className="text-sm font-bold text-slate-900 block">
+                        Gestion des participants
+                      </span>
+                      <span className="text-xs text-slate-500 block">
+                        {participants.length} joueur(s) actif(s) dans cette campagne
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={loadParticipants}
+                      disabled={isLoadingParticipants}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-300 text-slate-700 font-semibold text-xs rounded-lg transition disabled:cursor-not-allowed"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isLoadingParticipants ? 'animate-spin' : ''}`} />
+                      <span>Actualiser</span>
+                    </button>
+                  </div>
+                  
+                  {excludeError && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs">
+                      {excludeError}
+                    </div>
+                  )}
+
+                  {isLoadingParticipants ? (
+                    <div className="flex items-center justify-center p-4">
+                      <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
+                    </div>
+                  ) : participants.length === 0 ? (
+                    <div className="text-center p-4 text-xs text-slate-500">
+                      Aucun participant pour le moment.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {participants.map((participant) => (
+                        <div
+                          key={participant.id}
+                          className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-100"
+                        >
+                          <div className="flex items-center gap-3">
+                            {participant.avatar && (
+                              <img
+                                src={participant.avatar}
+                                alt={participant.username}
+                                className="w-8 h-8 rounded-full object-cover"
+                              />
+                            )}
+                            <div className="flex flex-col">
+                              <span className="text-sm font-semibold text-slate-900">
+                                {participant.username}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleExcludeParticipant(participant)}
+                            disabled={isExcluding === participant.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 disabled:bg-rose-100 text-rose-700 font-semibold text-xs rounded-lg border border-rose-200 transition disabled:cursor-not-allowed"
+                            title={`Exclure ${participant.username} de la campagne`}
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                            <span>Exclure</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* Exclude Participant Confirmation Modal */}
+            {showExcludeModal && participantToExclude && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowExcludeModal(false)}>
+                <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <Ban className="w-5 h-5 text-rose-600" />
+                    Exclure un participant
+                  </h3>
+                  <p className="text-sm text-slate-600 mb-6">
+                    Êtes-vous sûr de vouloir exclure <strong className="text-slate-900">{participantToExclude.username}</strong> de votre campagne ?
+                    Cette action est irréversible et le joueur ne pourra plus accéder à la campagne.
+                  </p>
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowExcludeModal(false);
+                        setParticipantToExclude(null);
+                      }}
+                      className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmExcludeParticipant}
+                      disabled={isExcluding !== null}
+                      className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 text-white font-semibold text-sm transition flex items-center gap-2"
+                    >
+                      {isExcluding !== null ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Exclusion...
+                        </>
+                      ) : (
+                        'Exclure'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Rhythm and RP Level */}
             <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
