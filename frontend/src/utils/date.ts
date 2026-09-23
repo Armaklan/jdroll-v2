@@ -180,3 +180,87 @@ export function formatDateLabel(timeInput?: string | Date | number | null): stri
     return '';
   }
 }
+
+/**
+ * Format une date ISO pour un input type="date" (YYYY-MM-DD)
+ * Utilise parseDbDate qui extrait les composants directement sans décalage horaire
+ */
+export function formatDateForInput(dateInput?: string | Date | number | null): string {
+  if (!dateInput) return '';
+  
+  if (dateInput instanceof Date) {
+    if (isNaN(dateInput.getTime())) return '';
+    const year = dateInput.getFullYear();
+    const month = String(dateInput.getMonth() + 1).padStart(2, '0');
+    const day = String(dateInput.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  if (typeof dateInput === 'number') {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  if (typeof dateInput !== 'string') return '';
+
+  const trimmed = dateInput.trim();
+  if (!trimmed) return '';
+
+  // Essayer d'extraire directement YYYY-MM-DD depuis la chaîne
+  // Cela fonctionne si le backend retourne "1986-05-05" avec dateStrings: true
+  const directMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (directMatch) {
+    return `${directMatch[1]}-${directMatch[2]}-${directMatch[3]}`;
+  }
+
+  // Si pas de match direct, essayer avec parseDbDate
+  // Cela gère les dates au format ISO avec heure
+  const d = parseDbDate(trimmed);
+  if (d) {
+    // Extraire la date via toISOString pour éviter les décalages horaires
+    const isoString = d.toISOString();
+    const isoMatch = isoString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Parse une date depuis un input type="date" (YYYY-MM-DD) vers un ISO string
+ * Convertit YYYY-MM-DD en format ISO T12:00:00.000Z pour l'API
+ * On utilise midi (12:00:00) au lieu de minuit pour éviter les problèmes de décalage horaire
+ */
+export function parseDateFromInput(dateInput?: string | null): string | null {
+  if (!dateInput) return null;
+  
+  const trimmed = dateInput.trim();
+  if (!trimmed) return null;
+
+  // Validation du format YYYY-MM-DD
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10) - 1;
+  const day = parseInt(match[3], 10);
+
+  // Validation basique de la date
+  const d = new Date(year, month, day);
+  if (isNaN(d.getTime())) return null;
+  
+  // Vérifier que la date extraite correspond à l'entrée
+  if (
+    d.getFullYear() !== year ||
+    d.getMonth() !== month ||
+    d.getDate() !== day
+  ) return null;
+
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}T12:00:00.000Z`;
+}

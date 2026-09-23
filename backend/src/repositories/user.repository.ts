@@ -109,7 +109,20 @@ export class MysqlUserRepository implements IUserRepository {
     }
     if (data.birthDate !== undefined) {
       updates.push('birthDate = ?');
-      params.push(data.birthDate);
+      // Convertir la date ISO (ex: 1986-05-05T00:00:00.000Z) en format YYYY-MM-DD pour MySQL
+      let formattedDate = data.birthDate;
+      if (typeof formattedDate === 'string') {
+        // Si c'est une chaîne vide ou juste des espaces, mettre à null
+        const trimmed = formattedDate.trim();
+        if (!trimmed) {
+          formattedDate = null;
+        } else {
+          // Extraire uniquement la partie date YYYY-MM-DD
+          const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+          formattedDate = match ? match[1] : null;
+        }
+      }
+      params.push(formattedDate);
     }
 
     if (updates.length === 0) {

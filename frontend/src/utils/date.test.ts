@@ -8,7 +8,9 @@ import {
   formatNotificationDate,
   formatTime,
   formatDateLabel,
-} from './date.js';
+  formatDateForInput,
+  parseDateFromInput,
+} from './date.ts';
 
 describe('Date utils (French DB Timezone handling)', () => {
   describe('parseDbDate', () => {
@@ -93,6 +95,45 @@ describe('Date utils (French DB Timezone handling)', () => {
       const day = String(today.getDate()).padStart(2, '0');
       const todayIso = `${today.getFullYear()}-${month}-${day}T12:00:00.000Z`;
       assert.strictEqual(formatDateLabel(todayIso), "Aujourd'hui");
+    });
+  });
+
+  describe('formatDateForInput', () => {
+    it('doit formater une date ISO en YYYY-MM-DD pour input type=date', () => {
+      const formatted = formatDateForInput('2026-09-17T14:30:00.000Z');
+      assert.strictEqual(formatted, '2026-09-17');
+    });
+
+    it('doit formater une date simple YYYY-MM-DD', () => {
+      const formatted = formatDateForInput('2026-09-17');
+      assert.strictEqual(formatted, '2026-09-17');
+    });
+
+    it('doit formater une date ISO avec heure à midi', () => {
+      const formatted = formatDateForInput('2026-09-17T12:00:00.000Z');
+      assert.strictEqual(formatted, '2026-09-17');
+    });
+
+    it('doit retourner une chaîne vide pour null, undefined ou vide', () => {
+      assert.strictEqual(formatDateForInput(null), '');
+      assert.strictEqual(formatDateForInput(undefined), '');
+      assert.strictEqual(formatDateForInput(''), '');
+    });
+  });
+
+  describe('parseDateFromInput', () => {
+    it('doit convertir YYYY-MM-DD en ISO string avec heure à midi (T12:00:00.000Z)', () => {
+      const parsed = parseDateFromInput('2026-09-17');
+      assert.strictEqual(parsed, '2026-09-17T12:00:00.000Z');
+    });
+
+    it('doit retourner null pour une chaîne vide', () => {
+      assert.strictEqual(parseDateFromInput(''), null);
+    });
+
+    it('doit retourner null pour null ou undefined', () => {
+      assert.strictEqual(parseDateFromInput(null), null);
+      assert.strictEqual(parseDateFromInput(undefined), null);
     });
   });
 });

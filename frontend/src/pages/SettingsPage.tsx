@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../api/auth';
 import { User, UpdateProfileData, NotificationSettings } from '../types/auth';
+import { formatDateForInput, parseDateFromInput } from '../utils/date';
 import { 
   User as UserIcon, 
   Mail, 
@@ -185,10 +186,19 @@ export const SettingsPage: React.FC = () => {
 
   // Profile handlers
   const handleProfileChange = (field: keyof UpdateProfileData, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    // Pour birthDate, convertir de YYYY-MM-DD à ISO string
+    if (field === 'birthDate') {
+      const parsedDate = parseDateFromInput(value);
+      setFormData((prev) => ({
+        ...prev,
+        [field]: parsedDate,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: value,
+      }));
+    }
     setError(null);
     setSuccess(null);
   };
@@ -536,7 +546,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, formData, isSubmitting, o
       </label>
       <input
         type="date"
-        value={formData.birthDate ? formData.birthDate : ''}
+        value={formData.birthDate ? formatDateForInput(formData.birthDate) : ''}
         onChange={(e) => onChange('birthDate', e.target.value)}
         className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition"
       />
