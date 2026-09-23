@@ -24,6 +24,7 @@ import {
   StickyNote,
   Map,
   DoorOpen,
+  User,
 } from 'lucide-react';
 import { CampaignFloatingSearch } from './CampaignFloatingSearch';
 
@@ -64,6 +65,7 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
   const [isAlertLoading, setIsAlertLoading] = useState<boolean>(false);
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
   const [isLeaving, setIsLeaving] = useState<boolean>(false);
+  const [playerCharacterId, setPlayerCharacterId] = useState<number | null>(null);
 
   useEffect(() => {
     setIsObserving(Boolean(campaign.isObserving || campaign.userRole === 'observer'));
@@ -72,6 +74,34 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
   useEffect(() => {
     setHasAlert(Boolean(campaign.hasAlert));
   }, [campaign.hasAlert]);
+
+  // Récupérer l'ID du personnage du joueur (uniquement s'il n'en a qu'un seul)
+  useEffect(() => {
+    if (!user || campaign.userRole !== 'player' || !campaign.id) {
+      setPlayerCharacterId(null);
+      return;
+    }
+
+    const fetchPlayerCharacter = async () => {
+      try {
+        const data = await campaignsApi.getCampaignCharacters(campaign.id);
+        const playerChars = data.categories
+          .flatMap(cat => cat.characters)
+          .filter(char => char.userId === user.id);
+        
+        // Si le joueur a exactement un seul personnage, utiliser son ID
+        if (playerChars.length === 1) {
+          setPlayerCharacterId(playerChars[0].id);
+        } else {
+          setPlayerCharacterId(null);
+        }
+      } catch (err) {
+        console.error('Erreur lors de la récupération du personnage du joueur:', err);
+        setPlayerCharacterId(null);
+      }
+    };
+    fetchPlayerCharacter();
+  }, [user?.id, campaign.id, campaign.userRole]);
 
   const isMj = Boolean(
     user && (user.id === campaign.mjId || campaign.userRole === 'mj')
@@ -441,6 +471,25 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
               <Users className="w-3.5 h-3.5 text-indigo-500" />
               <span>Galerie de personnages</span>
             </button>
+          )}
+
+          {/* Link 2.5: Mon personnage (joueur avec un seul personnage) */}
+          {isPlayer && playerCharacterId && (
+            activeTab === 'characters' ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold text-xs border border-purple-100">
+                <User className="w-3.5 h-3.5 text-purple-600" />
+                <span>Mon personnage</span>
+              </span>
+            ) : (
+              <button
+                onClick={() => navigate(`/campaigns/${campaign.id}/characters?char=${playerCharacterId}`)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-purple-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
+                title="Accéder à la fiche de votre personnage"
+              >
+                <User className="w-3.5 h-3.5 text-purple-500" />
+                <span>Mon personnage</span>
+              </button>
+            )
           )}
 
           {/* Link 3: Note */}

@@ -21,6 +21,7 @@ import {
   Eye,
   Archive,
   BookOpen,
+  User,
 } from 'lucide-react';
 
 export interface CampaignFloatingSearchProps {
@@ -69,6 +70,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
+  const [playerCharacterId, setPlayerCharacterId] = useState<number | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -77,6 +79,34 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
   const isMj = campaign.userRole === 'mj';
   const isPlayer = campaign.userRole === 'player';
   const isCampaignMember = isMj || isPlayer;
+
+  // Récupérer l'ID du personnage du joueur (uniquement s'il n'en a qu'un seul)
+  useEffect(() => {
+    if (!user || campaign.userRole !== 'player' || !campaign.id) {
+      setPlayerCharacterId(null);
+      return;
+    }
+
+    const fetchPlayerCharacter = async () => {
+      try {
+        const data = await campaignsApi.getCampaignCharacters(campaign.id);
+        const playerChars = data.categories
+          .flatMap(cat => cat.characters)
+          .filter(char => char.userId === user.id);
+        
+        // Si le joueur a exactement un seul personnage, utiliser son ID
+        if (playerChars.length === 1) {
+          setPlayerCharacterId(playerChars[0].id);
+        } else {
+          setPlayerCharacterId(null);
+        }
+      } catch (err) {
+        console.error('Erreur lors de la récupération du personnage du joueur:', err);
+        setPlayerCharacterId(null);
+      }
+    };
+    fetchPlayerCharacter();
+  }, [user?.id, campaign.id, campaign.userRole]);
 
   const fetchMyCampaigns = async () => {
     if (!isAuthenticated) return;
@@ -446,6 +476,18 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                   <Users className="w-4 h-4 mb-1" />
                   <span>Galerie</span>
                 </button>
+
+                {/* Mon personnage (joueur avec un personnage) */}
+                {isPlayer && playerCharacterId && (
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate(`/campaigns/${campaign.id}/characters?char=${playerCharacterId}`)}
+                    className="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl text-xs font-semibold bg-white text-slate-700 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 border border-slate-200 transition cursor-pointer"
+                  >
+                    <User className="w-4 h-4 mb-1 text-purple-600" />
+                    <span>Mon perso</span>
+                  </button>
+                )}
 
                 {/* Notes (membres de la campagne uniquement) */}
                 {isCampaignMember ? (
