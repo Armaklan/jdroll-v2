@@ -24,6 +24,7 @@ import {
   User,
 } from 'lucide-react';
 
+
 export interface CampaignFloatingSearchProps {
   campaign: CampaignSummary;
   activeTab?: 'forum' | 'characters' | 'topic' | 'notes' | 'cartes' | 'carte' | 'none';
@@ -31,6 +32,7 @@ export interface CampaignFloatingSearchProps {
   onToggleAlert?: () => Promise<void> | void;
   hasAlert?: boolean;
   isAlertLoading?: boolean;
+  onOpenCharacter?: (characterId: number) => void;
 }
 
 type FlattenedSearchResult = {
@@ -56,6 +58,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
   onToggleAlert,
   hasAlert = false,
   isAlertLoading = false,
+  onOpenCharacter,
 }) => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
@@ -378,7 +381,13 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
     } else if (e.key === 'Enter') {
       e.preventDefault();
       if (flattenedResults[selectedIndex]) {
-        handleNavigate(flattenedResults[selectedIndex].url);
+        const selected = flattenedResults[selectedIndex];
+        if (selected.type === 'character' && onOpenCharacter) {
+          onOpenCharacter(selected.id);
+          setIsOpen(false);
+        } else {
+          handleNavigate(selected.url);
+        }
       }
     }
   };
@@ -478,10 +487,10 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                 </button>
 
                 {/* Mon personnage (joueur avec un personnage) */}
-                {isPlayer && playerCharacterId && (
+                {isPlayer && playerCharacterId && onOpenCharacter && (
                   <button
                     type="button"
-                    onClick={() => handleNavigate(`/campaigns/${campaign.id}/characters?char=${playerCharacterId}`)}
+                    onClick={() => onOpenCharacter(playerCharacterId)}
                     className="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl text-xs font-semibold bg-white text-slate-700 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 border border-slate-200 transition cursor-pointer"
                   >
                     <User className="w-4 h-4 mb-1 text-purple-600" />
@@ -881,7 +890,10 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                               key={`char-${char.id}`}
                               data-index={itemIndex}
                               type="button"
-                              onClick={() => handleNavigate(char.url)}
+                              onClick={() => {
+                                onOpenCharacter?.(char.id);
+                                setIsOpen(false);
+                              }}
                               onMouseEnter={() => setSelectedIndex(itemIndex)}
                               className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
                                 isSelected

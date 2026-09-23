@@ -27,6 +27,7 @@ import {
   User,
 } from 'lucide-react';
 import { CampaignFloatingSearch } from './CampaignFloatingSearch';
+import { CharacterDetailModal } from './CharacterDetailModal';
 
 export interface CampaignHeaderProps {
   campaign: CampaignSummary;
@@ -39,6 +40,7 @@ export interface CampaignHeaderProps {
   onClearBannerUploadError?: () => void;
   onObserveChange?: (isObserving: boolean) => void;
   onAlertChange?: (hasAlert: boolean) => void;
+  onOpenCharacter?: (characterId: number) => void;
 }
 
 export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
@@ -66,6 +68,8 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
   const [isLeaving, setIsLeaving] = useState<boolean>(false);
   const [playerCharacterId, setPlayerCharacterId] = useState<number | null>(null);
+  const [isCharacterModalOpen, setIsCharacterModalOpen] = useState<boolean>(false);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<number | null>(null);
 
   useEffect(() => {
     setIsObserving(Boolean(campaign.isObserving || campaign.userRole === 'observer'));
@@ -475,21 +479,17 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
 
           {/* Link 2.5: Mon personnage (joueur avec un seul personnage) */}
           {isPlayer && playerCharacterId && (
-            activeTab === 'characters' ? (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 font-semibold text-xs border border-purple-100">
-                <User className="w-3.5 h-3.5 text-purple-600" />
-                <span>Mon personnage</span>
-              </span>
-            ) : (
-              <button
-                onClick={() => navigate(`/campaigns/${campaign.id}/characters?char=${playerCharacterId}`)}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-purple-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
-                title="Accéder à la fiche de votre personnage"
-              >
-                <User className="w-3.5 h-3.5 text-purple-500" />
-                <span>Mon personnage</span>
-              </button>
-            )
+            <button
+              onClick={() => {
+                setSelectedCharacterId(playerCharacterId);
+                setIsCharacterModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-purple-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
+              title="Accéder à la fiche de votre personnage"
+            >
+              <User className="w-3.5 h-3.5 text-purple-500" />
+              <span>Mon personnage</span>
+            </button>
           )}
 
           {/* Link 3: Note */}
@@ -597,6 +597,19 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
         onToggleAlert={handleToggleAlert}
         hasAlert={hasAlert}
         isAlertLoading={isAlertLoading}
+        onOpenCharacter={(charId) => {
+          setSelectedCharacterId(charId);
+          setIsCharacterModalOpen(true);
+        }}
+      />
+
+      {/* Modale de détail du personnage */}
+      <CharacterDetailModal
+        isOpen={isCharacterModalOpen}
+        onClose={() => setIsCharacterModalOpen(false)}
+        characterId={selectedCharacterId}
+        campaignId={campaign.id}
+        initialCampaign={campaign}
       />
     </div>
   );
