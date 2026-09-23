@@ -124,6 +124,26 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
   const [isDeletingTopic, setIsDeletingTopic] = useState<boolean>(false);
   const [deleteTopicError, setDeleteTopicError] = useState<string | null>(null);
 
+  // Mark all topics as read
+  const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState<boolean>(false);
+
+  const handleMarkAllAsRead = async () => {
+    if (!isAuthenticated || !user) return;
+
+    setIsMarkingAllAsRead(true);
+
+    try {
+      await campaignsApi.markAllGeneralForumTopicsAsRead();
+      // Refresh the forum data to update read status
+      const data = await campaignsApi.getGeneralForum();
+      setForumData(data);
+    } catch (err: any) {
+      console.error('Erreur lors du marquage comme lu:', err);
+    } finally {
+      setIsMarkingAllAsRead(false);
+    }
+  };
+
   const handleNavigate = (view: AppView) => {
     if (onNavigate) onNavigate(view);
     else navigate(viewToPath(view));
@@ -636,13 +656,29 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
             )}
 
             {isAuthenticated && (
-              <button
-                onClick={() => handleOpenCreateTopic()}
-                className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Nouveau sujet</span>
-              </button>
+              <>
+                <button
+                  onClick={() => handleOpenCreateTopic()}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nouveau sujet</span>
+                </button>
+                {unreadTopics.length > 0 && (
+                  <button
+                    onClick={handleMarkAllAsRead}
+                    disabled={isMarkingAllAsRead}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isMarkingAllAsRead ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    <span>Tout marquer comme lu</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

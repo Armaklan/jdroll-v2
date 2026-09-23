@@ -25,6 +25,7 @@ import { updateTopicUseCase, UpdateTopicUseCase } from '../usecases/forum/update
 import { deleteTopicUseCase, DeleteTopicUseCase } from '../usecases/forum/delete-topic.usecase.js';
 import { reorderSectionsUseCase, ReorderSectionsUseCase } from '../usecases/forum/reorder-sections.usecase.js';
 import { reorderTopicsUseCase, ReorderTopicsUseCase } from '../usecases/forum/reorder-topics.usecase.js';
+import { markAllForumTopicsAsReadUseCase, MarkAllForumTopicsAsReadUseCase } from '../usecases/forum/mark-all-topics-as-read.usecase.js';
 import { createCharacterUseCase, CreateCharacterUseCase } from '../usecases/character/create-character.usecase.js';
 import { updateCharacterUseCase, UpdateCharacterUseCase } from '../usecases/character/update-character.usecase.js';
 import { deleteCharacterUseCase, DeleteCharacterUseCase } from '../usecases/character/delete-character.usecase.js';
@@ -357,6 +358,7 @@ export class CampaignController {
     private readonly deleteTopicUseCaseService: DeleteTopicUseCase = deleteTopicUseCase,
     private readonly reorderSectionsUseCaseService: ReorderSectionsUseCase = reorderSectionsUseCase,
     private readonly reorderTopicsUseCaseService: ReorderTopicsUseCase = reorderTopicsUseCase,
+    private readonly markAllTopicsAsReadUseCaseService: MarkAllForumTopicsAsReadUseCase = markAllForumTopicsAsReadUseCase,
     private readonly createCharacterUseCaseService: CreateCharacterUseCase = createCharacterUseCase,
     private readonly updateCharacterUseCaseService: UpdateCharacterUseCase = updateCharacterUseCase,
     private readonly deleteCharacterUseCaseService: DeleteCharacterUseCase = deleteCharacterUseCase,
@@ -607,6 +609,69 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la récupération du forum de la campagne' });
+    }
+  }
+
+  /**
+   * POST /api/forum/mark-all-as-read
+   * Marque tous les topics du forum général comme lus
+   */
+  async markAllGeneralForumTopicsAsRead(request: FastifyRequest, reply: FastifyReply) {
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      return reply.status(401).send({ error: 'Non autorisé' });
+    }
+
+    if (!userId) {
+      return reply.status(401).send({ error: 'Non autorisé' });
+    }
+
+    try {
+      await this.markAllTopicsAsReadUseCaseService.execute({ userId, campaignId: null });
+      return reply.status(200).send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors du marquage des topics comme lus' });
+    }
+  }
+
+  /**
+   * POST /api/campaigns/:id/forum/mark-all-as-read
+   * Marque tous les topics du forum de la campagne comme lus
+   */
+  async markAllCampaignForumTopicsAsRead(request: FastifyRequest, reply: FastifyReply) {
+    const parseResult = getCampaignForumParamsSchema.safeParse(request.params);
+
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseResult.error.format(),
+      });
+    }
+
+    const { id: campaignId } = parseResult.data;
+
+    let userId: number | undefined;
+    try {
+      await request.jwtVerify();
+      userId = (request.user as JWTPayload)?.id;
+    } catch {
+      return reply.status(401).send({ error: 'Non autorisé' });
+    }
+
+    if (!userId) {
+      return reply.status(401).send({ error: 'Non autorisé' });
+    }
+
+    try {
+      await this.markAllTopicsAsReadUseCaseService.execute({ userId, campaignId });
+      return reply.status(200).send({ success: true });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors du marquage des topics comme lus' });
     }
   }
 
@@ -2609,6 +2674,20 @@ export class CampaignController {
 
     // Route pour voir le forum d'une campagne (accessible public avec statut de lecture si connecté)
     app.get('/api/campaigns/:id/forum', (req, rep) => this.getCampaignForum(req, rep));
+
+    // Route pour marquer tous les topics du forum général comme lus
+    app.post(
+      '/api/forum/mark-all-as-read',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.markAllGeneralForumTopicsAsRead(req, rep)
+    );
+
+    // Route pour marquer tous les topics du forum d'une campagne comme lus
+    app.post(
+      '/api/campaigns/:id/forum/mark-all-as-read',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.markAllCampaignForumTopicsAsRead(req, rep)
+    );
 
     // Route pour voir la galerie des personnages d'une campagne
     app.get('/api/campaigns/:id/characters', (req, rep) => this.getCampaignCharacters(req, rep));

@@ -153,6 +153,18 @@ export const campaignsApi = {
     return request<CampaignForumData>(`/api/campaigns/${campaignId}/forum`);
   },
 
+  async markAllGeneralForumTopicsAsRead(): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>('/api/forum/mark-all-as-read', {
+      method: 'POST',
+    });
+  },
+
+  async markAllCampaignForumTopicsAsRead(campaignId: number): Promise<{ success: boolean }> {
+    return request<{ success: boolean }>(`/api/campaigns/${campaignId}/forum/mark-all-as-read`, {
+      method: 'POST',
+    });
+  },
+
   async getCampaignCharacters(campaignId: number): Promise<CampaignCharactersData> {
     return request<CampaignCharactersData>(`/api/campaigns/${campaignId}/characters`);
   },

@@ -213,6 +213,26 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const [isDeletingTopic, setIsDeletingTopic] = useState<boolean>(false);
   const [deleteTopicError, setDeleteTopicError] = useState<string | null>(null);
 
+  // Mark all topics as read
+  const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState<boolean>(false);
+
+  const handleMarkAllAsRead = async () => {
+    if (!user) return;
+
+    setIsMarkingAllAsRead(true);
+
+    try {
+      await campaignsApi.markAllCampaignForumTopicsAsRead(effectiveCampaignId);
+      // Refresh the forum data to update read status
+      const data = await campaignsApi.getCampaignForum(effectiveCampaignId);
+      setForumData(data);
+    } catch (err: any) {
+      console.error('Erreur lors du marquage comme lu:', err);
+    } finally {
+      setIsMarkingAllAsRead(false);
+    }
+  };
+
   const handleBack = () => {
     if (onBack) {
       onBack();
@@ -950,6 +970,22 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                 <span>{isAdminMode ? 'Ne plus administrer' : 'Administrer'}</span>
               </button>
             </>
+          )}
+
+          {isCampaignMember && unreadTopics.length > 0 && (
+            <button
+              onClick={handleMarkAllAsRead}
+              disabled={isMarkingAllAsRead}
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Marquer tous les sujets comme lus"
+            >
+              {isMarkingAllAsRead ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4" />
+              )}
+              <span>Tout marquer comme lu</span>
+            </button>
           )}
         </div>
       </div>
