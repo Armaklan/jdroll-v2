@@ -152,7 +152,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
 
   const activeView = getActiveView();
 
-  const handleNavigate = (view: AppView) => {
+  // Handle link clicks with support for Ctrl+Click, middle click, and right-click "Open in new tab"
+  const handleLinkClick = (e: React.MouseEvent, view: AppView, closeMobileMenu: boolean = true) => {
+    // Allow default behavior for Ctrl+Click, Shift+Click, middle click (button 1), or right-click (button 2)
+    if (e.ctrlKey || e.shiftKey || e.metaKey || e.button === 1 || e.button === 2) {
+      if (setCurrentView) {
+        setCurrentView(view);
+      }
+      if (closeMobileMenu) {
+        setMobileMenuOpen(false);
+      }
+      return;
+    }
+    e.preventDefault();
     if (setCurrentView) {
       setCurrentView(view);
     }
@@ -178,21 +190,23 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
         {/* Brand & Left Navigation */}
         <div className="flex items-center gap-8">
           {/* Logo */}
-          <button
-            onClick={() => handleNavigate('home')}
+          <a
+            href="/"
+            onClick={(e) => handleLinkClick(e, 'home')}
             className="flex items-center gap-2.5 text-slate-900 font-bold text-xl hover:opacity-90 transition group"
           >
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform">
               <Dice6 className="w-5 h-5 text-white" />
             </div>
             <span className="tracking-tight font-extrabold text-slate-900">JdRoll</span>
-          </button>
+          </a>
 
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-1">
             {/* Accueil */}
-            <button
-              onClick={() => handleNavigate('home')}
+            <a
+              href="/"
+              onClick={(e) => handleLinkClick(e, 'home')}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
                 activeView === 'home'
                   ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
@@ -201,11 +215,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               <Home className="w-4 h-4" />
               <span>Accueil</span>
-            </button>
+            </a>
 
             {/* Jouer */}
-            <button
-                onClick={() => handleNavigate('my-campaigns')}
+            <a
+                href="/my-campaigns"
+                onClick={(e) => handleLinkClick(e, 'my-campaigns')}
                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
                     isPlayActive
                         ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
@@ -214,11 +229,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               <Gamepad2 className="w-4 h-4" />
               <span>Campagnes</span>
-            </button>
+            </a>
 
             {/* Forum */}
-            <button
-              onClick={() => handleNavigate('forum')}
+            <a
+              href="/forum/0"
+              onClick={(e) => handleLinkClick(e, 'forum')}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
                 activeView === 'forum' || activeView === 'topic-view'
                   ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
@@ -227,11 +243,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               <MessagesSquare className="w-4 h-4" />
               <span>Forum</span>
-            </button>
+            </a>
 
             {/* Tchat */}
-            <button
-                onClick={() => handleNavigate('chat')}
+            <a
+                href="/chat"
+                onClick={(e) => handleLinkClick(e, 'chat')}
                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
                     activeView === 'chat'
                         ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
@@ -240,11 +257,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               <MessageSquare className="w-4 h-4" />
               <span>Tchat</span>
-            </button>
+            </a>
 
             {/* Messagerie */}
-            <button
-                onClick={() => handleNavigate('messages')}
+            <a
+                href="/messages"
+                onClick={(e) => handleLinkClick(e, 'messages')}
                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
                     activeView === 'messages'
                         ? 'text-indigo-600 bg-indigo-50/80 font-semibold'
@@ -258,7 +276,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
                 </span>
               )}
-            </button>
+            </a>
           </nav>
         </div>
 
@@ -316,8 +334,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleNavigate('login')}
+              <a
+                href="/login"
+                onClick={(e) => handleLinkClick(e, 'login')}
                 className={`flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-medium transition ${
                   activeView === 'login'
                     ? 'bg-slate-100 text-slate-900 border border-slate-300 font-semibold'
@@ -326,9 +345,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               >
                 <LogIn className="w-4 h-4" />
                 <span>Connexion</span>
-              </button>
-              <button
-                onClick={() => handleNavigate('register')}
+              </a>
+              <a
+                href="/register"
+                onClick={(e) => handleLinkClick(e, 'register')}
                 className={`flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl font-medium transition shadow-sm ${
                   activeView === 'register'
                     ? 'bg-indigo-700 text-white'
@@ -337,7 +357,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Inscription</span>
-              </button>
+              </a>
             </div>
           )}
         </div>
@@ -388,8 +408,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
         <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-3 shadow-xl">
           <div className="space-y-1">
             {/* Accueil */}
-            <button
-              onClick={() => handleNavigate('home')}
+            <a
+              href="/"
+              onClick={(e) => handleLinkClick(e, 'home')}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
                 activeView === 'home'
                   ? 'bg-indigo-50 text-indigo-700 font-semibold'
@@ -398,11 +419,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               <Home className="w-4 h-4 text-indigo-600" />
               <span>Accueil</span>
-            </button>
+            </a>
 
             {/* Jouer */}
-            <button
-                onClick={() => handleNavigate('my-campaigns')}
+            <a
+                href="/my-campaigns"
+                onClick={(e) => handleLinkClick(e, 'my-campaigns')}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
                     isPlayActive
                         ? 'bg-indigo-50 text-indigo-700 font-semibold'
@@ -411,11 +433,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               <Gamepad2 className="w-4 h-4 text-indigo-600" />
               <span>Jouer</span>
-            </button>
+            </a>
 
             {/* Forum */}
-            <button
-              onClick={() => handleNavigate('forum')}
+            <a
+              href="/forum/0"
+              onClick={(e) => handleLinkClick(e, 'forum')}
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
                 activeView === 'forum' || activeView === 'topic-view'
                   ? 'bg-indigo-50 text-indigo-700 font-semibold'
@@ -424,11 +447,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               <MessagesSquare className="w-4 h-4 text-indigo-600" />
               <span>Forum</span>
-            </button>
+            </a>
 
             {/* Tchat */}
-            <button
-                onClick={() => handleNavigate('chat')}
+            <a
+                href="/chat"
+                onClick={(e) => handleLinkClick(e, 'chat')}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium ${
                     activeView === 'chat'
                         ? 'bg-indigo-50 text-indigo-700 font-semibold'
@@ -437,11 +461,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             >
               <MessageSquare className="w-4 h-4 text-indigo-600" />
               <span>Tchat</span>
-            </button>
+            </a>
 
             {/* Messagerie */}
-            <button
-                onClick={() => handleNavigate('messages')}
+            <a
+                href="/messages"
+                onClick={(e) => handleLinkClick(e, 'messages')}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium ${
                     activeView === 'messages'
                         ? 'bg-indigo-50 text-indigo-700 font-semibold'
@@ -457,7 +482,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
                 </span>
               )}
-            </button>
+            </a>
 
           </div>
 
@@ -480,18 +505,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleNavigate('login')}
+                <a
+                  href="/login"
+                  onClick={(e) => handleLinkClick(e, 'login')}
                   className="w-full py-2 text-center text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg"
                 >
                   Connexion
-                </button>
-                <button
-                  onClick={() => handleNavigate('register')}
+                </a>
+                <a
+                  href="/register"
+                  onClick={(e) => handleLinkClick(e, 'register')}
                   className="w-full py-2 text-center text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
                 >
                   Inscription
-                </button>
+                </a>
               </div>
             )}
           </div>

@@ -321,14 +321,28 @@ export const GlobalFloatingSearch: React.FC<GlobalFloatingSearchProps> = ({
     }, 200);
   };
 
+  // Handle link clicks with support for Ctrl+Click, middle click, and right-click "Open in new tab"
+  const handleLinkClick = (e: React.MouseEvent, url: string, closeModal: boolean = true) => {
+    // Allow default behavior for Ctrl+Click, Shift+Click, middle click (button 1), or right-click (button 2)
+    if (e.ctrlKey || e.shiftKey || e.metaKey || e.button === 1 || e.button === 2) {
+      if (closeModal) {
+        setIsOpen(false);
+      }
+      return;
+    }
+    e.preventDefault();
+    setIsOpen(false);
+    navigate(url);
+  };
+
   const handleNavigate = (url: string) => {
     setIsOpen(false);
     navigate(url);
   };
 
-  const handleNavigateToView = (path: string) => {
-    setIsOpen(false);
-    navigate(path);
+  // Wrapper for menu items to support new tab opening
+  const handleMenuItemClick = (e: React.MouseEvent, path: string) => {
+    handleLinkClick(e, path, true);
   };
 
   // Keyboard navigation inside modal
@@ -423,10 +437,10 @@ export const GlobalFloatingSearch: React.FC<GlobalFloatingSearchProps> = ({
                   const Icon = item.icon;
                   
                   return (
-                    <button
+                    <a
                       key={item.key}
-                      type="button"
-                      onClick={() => handleNavigateToView(item.path)}
+                      href={item.path}
+                      onClick={(e) => handleMenuItemClick(e, item.path)}
                       className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
                         isActive
                           ? `${item.bgColor} ${item.textColor} ${item.borderColor} shadow-xs`
@@ -435,7 +449,7 @@ export const GlobalFloatingSearch: React.FC<GlobalFloatingSearchProps> = ({
                     >
                       <Icon className="w-4 h-4 mb-1" />
                       <span>{item.label}</span>
-                    </button>
+                    </a>
                   );
                 })}
               </div>
@@ -510,13 +524,14 @@ export const GlobalFloatingSearch: React.FC<GlobalFloatingSearchProps> = ({
                         );
                         const isSelected = itemIndex === selectedIndex;
                         const item = flattenedResults[itemIndex];
+                        const url = item?.url || `/forum/${c.id}`;
 
                         return (
-                          <button
+                          <a
                             key={`campaign-${c.id}`}
                             data-index={itemIndex}
-                            type="button"
-                            onClick={() => handleNavigate(item?.url || `/forum/${c.id}`)}
+                            href={url}
+                            onClick={(e) => handleLinkClick(e, url, true)}
                             onMouseEnter={() => setSelectedIndex(itemIndex)}
                             className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
                               isSelected
@@ -587,7 +602,7 @@ export const GlobalFloatingSearch: React.FC<GlobalFloatingSearchProps> = ({
                                 isSelected ? 'text-blue-600 translate-x-0.5' : 'text-slate-300'
                               }`}
                             />
-                          </button>
+                          </a>
                         );
                       })}
                     </div>

@@ -361,6 +361,20 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
     }, 200);
   };
 
+  // Handle link clicks with support for Ctrl+Click, middle click, and right-click "Open in new tab"
+  const handleLinkClick = (e: React.MouseEvent, url: string, closeModal: boolean = true) => {
+    // Allow default behavior for Ctrl+Click, Shift+Click, middle click (button 1), or right-click (button 2)
+    if (e.ctrlKey || e.shiftKey || e.metaKey || e.button === 1 || e.button === 2) {
+      if (closeModal) {
+        setIsOpen(false);
+      }
+      return;
+    }
+    e.preventDefault();
+    setIsOpen(false);
+    navigate(url);
+  };
+
   const handleNavigate = (url: string) => {
     setIsOpen(false);
     navigate(url);
@@ -459,9 +473,9 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
 
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                 {/* Forum */}
-                <button
-                  type="button"
-                  onClick={() => handleNavigate(`/forum/${campaign.id}`)}
+                <a
+                  href={`/forum/${campaign.id}`}
+                  onClick={(e) => handleLinkClick(e, `/forum/${campaign.id}`)}
                   className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
                     activeTab === 'forum'
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
@@ -470,12 +484,12 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                 >
                   <MessageCircle className="w-4 h-4 mb-1" />
                   <span>Forum</span>
-                </button>
+                </a>
 
                 {/* Galerie / Personnages */}
-                <button
-                  type="button"
-                  onClick={() => handleNavigate(`/campaigns/${campaign.id}/characters`)}
+                <a
+                  href={`/campaigns/${campaign.id}/characters`}
+                  onClick={(e) => handleLinkClick(e, `/campaigns/${campaign.id}/characters`)}
                   className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
                     activeTab === 'characters'
                       ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
@@ -484,7 +498,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                 >
                   <Users className="w-4 h-4 mb-1" />
                   <span>Galerie</span>
-                </button>
+                </a>
 
                 {/* Mon personnage (joueur avec un personnage) */}
                 {isPlayer && playerCharacterId && onOpenCharacter && (
@@ -500,9 +514,9 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
 
                 {/* Notes (membres de la campagne uniquement) */}
                 {isCampaignMember ? (
-                  <button
-                    type="button"
-                    onClick={() => handleNavigate(`/campaigns/${campaign.id}/notes`)}
+                  <a
+                    href={`/campaigns/${campaign.id}/notes`}
+                    onClick={(e) => handleLinkClick(e, `/campaigns/${campaign.id}/notes`)}
                     className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
                       activeTab === 'notes'
                         ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
@@ -511,7 +525,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                   >
                     <StickyNote className="w-4 h-4 mb-1" />
                     <span>Note</span>
-                  </button>
+                  </a>
                 ) : (
                   <div className="flex flex-col items-center justify-center py-2 px-1.5 rounded-xl text-xs font-medium text-slate-400 bg-slate-100/70 border border-slate-200 cursor-not-allowed">
                     <StickyNote className="w-4 h-4 mb-1 text-slate-400" />
@@ -520,9 +534,9 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                 )}
 
                 {/* Cartes */}
-                <button
-                  type="button"
-                  onClick={() => handleNavigate(`/campaigns/${campaign.id}/cartes`)}
+                <a
+                  href={`/campaigns/${campaign.id}/cartes`}
+                  onClick={(e) => handleLinkClick(e, `/campaigns/${campaign.id}/cartes`)}
                   className={`flex flex-col items-center justify-center py-2 px-1.5 rounded-xl text-xs font-semibold transition cursor-pointer border ${
                     activeTab === 'cartes' || activeTab === 'carte'
                       ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
@@ -531,7 +545,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                 >
                   <Map className="w-4 h-4 mb-1" />
                   <span>Cartes</span>
-                </button>
+                </a>
 
                 {/* Tour à dé (membres uniquement) */}
                 {isCampaignMember && onOpenDiceTower ? (
@@ -645,13 +659,14 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                           const isSelected = itemIndex === selectedIndex;
                           const item = flattenedResults[itemIndex];
                           const isCurrentCampaign = c.id === campaign.id;
+                          const url = item?.url || `/forum/${c.id}`;
 
                           return (
-                            <button
+                            <a
                               key={`campaign-${c.id}`}
                               data-index={itemIndex}
-                              type="button"
-                              onClick={() => handleNavigate(item?.url || `/forum/${c.id}`)}
+                              href={url}
+                              onClick={(e) => handleLinkClick(e, url, true)}
                               onMouseEnter={() => setSelectedIndex(itemIndex)}
                               className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
                                 isSelected
@@ -727,7 +742,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                                   isSelected ? 'text-blue-600 translate-x-0.5' : 'text-slate-300'
                                 }`}
                               />
-                            </button>
+                            </a>
                           );
                         })}
                       </div>
@@ -747,12 +762,13 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                             (it) => it.type === 'topic' && it.id === topic.id
                           );
                           const isSelected = itemIndex === selectedIndex;
+                          const url = topic.url;
                           return (
-                            <button
+                            <a
                               key={`topic-${topic.id}`}
                               data-index={itemIndex}
-                              type="button"
-                              onClick={() => handleNavigate(topic.url)}
+                              href={url}
+                              onClick={(e) => handleLinkClick(e, url, true)}
                               onMouseEnter={() => setSelectedIndex(itemIndex)}
                               className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
                                 isSelected
@@ -797,7 +813,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                                   isSelected ? 'text-indigo-600 translate-x-0.5' : 'text-slate-300'
                                 }`}
                               />
-                            </button>
+                            </a>
                           );
                         })}
                       </div>
@@ -817,12 +833,13 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                             (it) => it.type === 'carte' && it.id === carte.id
                           );
                           const isSelected = itemIndex === selectedIndex;
+                          const url = carte.url;
                           return (
-                            <button
+                            <a
                               key={`carte-${carte.id}`}
                               data-index={itemIndex}
-                              type="button"
-                              onClick={() => handleNavigate(carte.url)}
+                              href={url}
+                              onClick={(e) => handleLinkClick(e, url, true)}
                               onMouseEnter={() => setSelectedIndex(itemIndex)}
                               className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
                                 isSelected
@@ -865,7 +882,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                                   isSelected ? 'text-emerald-600 translate-x-0.5' : 'text-slate-300'
                                 }`}
                               />
-                            </button>
+                            </a>
                           );
                         })}
                       </div>

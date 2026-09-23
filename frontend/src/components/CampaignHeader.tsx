@@ -115,6 +115,16 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
     user && (isMj || isPlayer)
   );
 
+  // Handle link clicks with support for Ctrl+Click, middle click, and right-click "Open in new tab"
+  const handleLinkClick = (e: React.MouseEvent, url: string) => {
+    // Allow default behavior for Ctrl+Click, Shift+Click, middle click (button 1), or right-click (button 2)
+    if (e.ctrlKey || e.shiftKey || e.metaKey || e.button === 1 || e.button === 2) {
+      return;
+    }
+    e.preventDefault();
+    navigate(url);
+  };
+
   const handleLeaveCampaign = async () => {
     if (!user) {
       navigate('/login', { state: { from: window.location.pathname } });
@@ -381,14 +391,15 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
         {/* 3 Main Action Links + Admin Config */}
         <div className="flex flex-wrap items-center gap-2">
           {isAdminMode && (
-            <button
-              onClick={() => navigate(`/campaigns/${campaign.id}/edit`)}
+            <a
+              href={`/campaigns/${campaign.id}/edit`}
+              onClick={(e) => handleLinkClick(e, `/campaigns/${campaign.id}/edit`)}
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold text-xs border border-amber-200 shadow-2xs transition cursor-pointer"
               title="Modifier la configuration de la campagne"
             >
               <SlidersHorizontal className="w-3.5 h-3.5 text-amber-600" />
               <span>Configurer</span>
-            </button>
+            </a>
           )}
           
           {/* Quitter button (pour les joueurs uniquement) */}
@@ -450,14 +461,15 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
               <span>Forum de la campagne</span>
             </span>
           ) : (
-            <button
-              onClick={() => navigate(`/forum/${campaign.id}`)}
+            <a
+              href={`/forum/${campaign.id}`}
+              onClick={(e) => handleLinkClick(e, `/forum/${campaign.id}`)}
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
               title="Accéder au forum de la campagne"
             >
               <MessageCircle className="w-3.5 h-3.5 text-indigo-500" />
               <span>Forum de la campagne</span>
-            </button>
+            </a>
           )}
 
           {/* Link 2: Galerie de personnages */}
@@ -467,14 +479,15 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
               <span>Galerie de personnages</span>
             </span>
           ) : (
-            <button
-              onClick={() => navigate(`/campaigns/${campaign.id}/characters`)}
+            <a
+              href={`/campaigns/${campaign.id}/characters`}
+              onClick={(e) => handleLinkClick(e, `/campaigns/${campaign.id}/characters`)}
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
               title="Accéder à la galerie de personnages de la campagne"
             >
               <Users className="w-3.5 h-3.5 text-indigo-500" />
               <span>Galerie de personnages</span>
-            </button>
+            </a>
           )}
 
           {/* Link 2.5: Mon personnage (joueur avec un seul personnage) */}
@@ -500,14 +513,15 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
                 <span>Note</span>
               </span>
             ) : (
-              <button
-                onClick={() => navigate(`/campaigns/${campaign.id}/notes`)}
+              <a
+                href={`/campaigns/${campaign.id}/notes`}
+                onClick={(e) => handleLinkClick(e, `/campaigns/${campaign.id}/notes`)}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
                 title="Accéder à vos notes personnelles pour cette campagne"
               >
                 <StickyNote className="w-3.5 h-3.5 text-indigo-500" />
                 <span>Note</span>
-              </button>
+              </a>
             )
           )}
 
@@ -518,14 +532,15 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
               <span>Cartes</span>
             </span>
           ) : (
-            <button
-              onClick={() => navigate(`/campaigns/${campaign.id}/cartes`)}
+            <a
+              href={`/campaigns/${campaign.id}/cartes`}
+              onClick={(e) => handleLinkClick(e, `/campaigns/${campaign.id}/cartes`)}
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white hover:bg-slate-50 text-slate-700 hover:text-indigo-600 font-semibold text-xs border border-slate-200 shadow-2xs transition cursor-pointer"
               title="Accéder aux cartes de la campagne"
             >
               <Map className="w-3.5 h-3.5 text-indigo-500" />
               <span>Cartes</span>
-            </button>
+            </a>
           )}
 
           {/* Link 4: Tour à dé */}
