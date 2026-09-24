@@ -27,6 +27,14 @@
 7. **Vérifier** que tous passent avant de continuer
 8. **Recommencer** si un test échoue
 
+## Tests E2E pour les nouvelles fonctionnalités
+
+**OBLIGATOIRE** :
+1. **Mettre à jour les tests e2e** : Modifier ou créer le test e2e correspondant à la nouvelle fonctionnalité
+2. **Exécuter les tests e2e** : Vérifier qu'ils tombent en échec (KO) pour confirmer le besoin
+3. **Faire le développement** : Implémenter la fonctionnalité
+4. **Vérifier que les tests e2e sont maintenant OK** : Réexécuter les tests e2e pour confirmer qu'ils passent
+
 ## Règle absolue
 **TDD pur** : RED → GREEN → REFACTOR, avec exécution des tests à chaque étape.
 

@@ -1,0 +1,35 @@
+{
+  "name": "jdroll-e2e-tests",
+  "version": "1.0.0",
+  "description": "E2E tests for JdRoll application using Playwright",
+  "scripts": {
+    "test": "playwright test",
+    "test:report": "playwright show-report",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:chrome": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:mobile": "playwright test --project='Mobile Chrome'",
+    "codegen": "playwright codegen",
+    "codegen:demo": "playwright codegen demo.playwright.dev/todomvc",
+    "show-report": "playwright show-report",
+    "install": "playwright install",
+    "install:deps": "playwright install-deps"
+  },
+  "main": "playwright.config.ts",
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "dotenv": "^16.4.5",
+    "typescript": "^5.7.3"
+  },
+  "keywords": [
+    "playwright",
+    "e2e",
+    "testing",
+    "jdroll"
+  ],
+  "author": "",
+  "license": "ISC"
+}

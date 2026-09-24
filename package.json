@@ -12,7 +12,12 @@
     "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
     "build:backend": "npm run build --workspace=backend",
-    "start": "npm run start --workspace=backend"
+    "start": "npm run start --workspace=backend",
+    "test:e2e": "cd frontend/e2e && npm test",
+    "test:e2e:ui": "cd frontend/e2e && npm run test:ui",
+    "test:e2e:headed": "cd frontend/e2e && npm run test:headed",
+    "test:e2e:install": "cd frontend/e2e && npm install && npx playwright install",
+    "test:e2e:codegen": "cd frontend/e2e && npm run codegen"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
