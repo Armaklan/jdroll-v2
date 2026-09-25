@@ -13,6 +13,7 @@ export function getFilesDirectory(): string {
 
 export interface IFileStorage {
   saveCampaignFile(campaignId: number, filename: string, content: Buffer): Promise<string>;
+  saveUserFile(userId: number, filename: string, content: Buffer): Promise<string>;
 }
 
 export class DiskFileStorage implements IFileStorage {
@@ -24,6 +25,14 @@ export class DiskFileStorage implements IFileStorage {
     const targetPath = path.join(campaignDir, filename);
     await fs.promises.writeFile(targetPath, content);
     return `/files/${campaignId}/${filename}`;
+  }
+
+  async saveUserFile(userId: number, filename: string, content: Buffer): Promise<string> {
+    const userDir = path.join(this.baseDir, 'users', String(userId));
+    await fs.promises.mkdir(userDir, { recursive: true });
+    const targetPath = path.join(userDir, filename);
+    await fs.promises.writeFile(targetPath, content);
+    return `/files/users/${userId}/${filename}`;
   }
 }
 

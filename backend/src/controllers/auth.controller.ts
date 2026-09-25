@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { registerUserUseCase, RegisterUserUseCase } from '../usecases/auth/register-user.usecase.js';
 import { loginUserUseCase, LoginUserUseCase } from '../usecases/auth/login-user.usecase.js';
 import { updateUserProfileUseCase, UpdateUserProfileUseCase } from '../usecases/auth/update-user-profile.usecase.js';
+import { uploadUserAvatarUseCase, UploadUserAvatarUseCase } from '../usecases/auth/upload-user-avatar.usecase.js';
 import { updateNotificationSettingsUseCase, UpdateNotificationSettingsUseCase } from '../usecases/auth/update-notification-settings.usecase.js';
 import { updatePasswordUseCase, UpdatePasswordUseCase } from '../usecases/auth/update-password.usecase.js';
 import { userQueries, UserQueries } from '../queries/user.queries.js';
@@ -53,6 +54,7 @@ export class AuthController {
   private readonly registerUseCase: RegisterUserUseCase;
   private readonly loginUseCase: LoginUserUseCase;
   private readonly updateProfileUseCase: UpdateUserProfileUseCase;
+  private readonly uploadAvatarUseCase: UploadUserAvatarUseCase;
   private readonly updateNotificationSettingsUseCase: UpdateNotificationSettingsUseCase;
   private readonly updatePasswordUseCase: UpdatePasswordUseCase;
   private readonly userQueryService: UserQueries;
@@ -61,6 +63,7 @@ export class AuthController {
     registerUC?: RegisterUserUseCase,
     loginUC?: LoginUserUseCase,
     updateProfileUC?: UpdateUserProfileUseCase,
+    uploadAvatarUC?: UploadUserAvatarUseCase,
     updateNotifSettingsUC?: UpdateNotificationSettingsUseCase,
     updatePwdUC?: UpdatePasswordUseCase,
     userQuerySvc?: UserQueries
@@ -68,6 +71,7 @@ export class AuthController {
     this.registerUseCase = registerUC || registerUserUseCase;
     this.loginUseCase = loginUC || loginUserUseCase;
     this.updateProfileUseCase = updateProfileUC || updateUserProfileUseCase;
+    this.uploadAvatarUseCase = uploadAvatarUC || uploadUserAvatarUseCase;
     this.updateNotificationSettingsUseCase = updateNotifSettingsUC || updateNotificationSettingsUseCase;
     this.updatePasswordUseCase = updatePwdUC || updatePasswordUseCase;
     this.userQueryService = userQuerySvc || userQueries;
@@ -198,6 +202,33 @@ export class AuthController {
   }
 
   /**
+   * POST /api/auth/avatar
+   * Téléverser une image (avatar ou image de profil) pour l'utilisateur connecté
+   */
+  async uploadAvatar(request: FastifyRequest, reply: FastifyReply) {
+    const userPayload = request.user as JWTPayload;
+
+    try {
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ error: 'Aucun fichier fourni' });
+      }
+
+      const buffer = await file.toBuffer();
+      const result = await this.uploadAvatarUseCase.execute({
+        userId: userPayload.id,
+        filename: file.filename,
+        mimetype: file.mimetype,
+        content: buffer,
+      });
+
+      return reply.status(201).send(result);
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
+  /**
    * PUT /api/auth/notification-settings
    * Mise à jour des paramètres de notification de l'utilisateur connecté
    */
@@ -251,6 +282,7 @@ export class AuthController {
     app.post('/api/auth/login', (req, rep) => this.login(req, rep, app));
     app.get('/api/auth/me', { preHandler: [app.authenticate] }, (req, rep) => this.getMe(req, rep));
     app.put('/api/auth/profile', { preHandler: [app.authenticate] }, (req, rep) => this.updateProfile(req, rep));
+    app.post('/api/auth/avatar', { preHandler: [app.authenticate] }, (req, rep) => this.uploadAvatar(req, rep));
     app.put('/api/auth/notification-settings', { preHandler: [app.authenticate] }, (req, rep) => this.updateNotificationSettings(req, rep));
     app.put('/api/auth/password', { preHandler: [app.authenticate] }, (req, rep) => this.updatePassword(req, rep));
   }

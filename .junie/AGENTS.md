@@ -21,9 +21,10 @@ Méthode : Utiliser la commande `skill` pour chaque skill découvert.
 5. **Ne pas ajouter** de fonctionnalité non testée
 
 ### Après l'implémentation (Phase REFACTOR)
-6. **Réexécuter TOUS les tests** : `npm test --workspace=backend`
-7. **Valider** que tous les tests passent avant de considérer la tâche terminée
+6. **Réexécuter le test correspondant** : `npm test --workspace=backend -- <chemin du test>` pour le fichier de test lié au code modifié (pas besoin de relancer toute la suite à chaque itération)
+7. **Valider** que le test correspondant passe avant de continuer
 8. **Refactorer** uniquement si les tests restent verts
+9. **Avant de clore la tâche** : exécuter la suite complète `npm test --workspace=backend` une dernière fois pour vérifier l'absence de régression
 
 ## Règles immuables
 - ❌ **INTERDIT** : Modifier du code de production sans test correspondant qui échoue d'abord

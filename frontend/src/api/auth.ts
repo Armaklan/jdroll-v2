@@ -72,6 +72,31 @@ export const authApi = {
     });
   },
 
+  async uploadAvatar(file: File): Promise<{ url: string; filename: string }> {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch('/api/auth/avatar', {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || `Erreur lors du téléversement (${response.status})`);
+    }
+
+    return data as { url: string; filename: string };
+  },
+
   async updateNotificationSettings(data: NotificationSettings): Promise<{ user: User }> {
     return request<{ user: User }>('/api/auth/notification-settings', {
       method: 'PUT',

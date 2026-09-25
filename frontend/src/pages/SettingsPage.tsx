@@ -1,22 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../api/auth';
 import { User, UpdateProfileData, NotificationSettings } from '../types/auth';
 import { formatDateForInput, parseDateFromInput } from '../utils/date';
-import { 
-  User as UserIcon, 
-  Mail, 
-  Image as ImageIcon, 
-  Type, 
-  Calendar, 
-  Check, 
-  ChevronLeft, 
-  Loader2, 
-  AlertCircle, 
+import { WysiwygEditor } from '../components/WysiwygEditor';
+import {
+  User as UserIcon,
+  Mail,
+  Image as ImageIcon,
+  Type,
+  Calendar,
+  Check,
+  ChevronLeft,
+  Loader2,
+  AlertCircle,
   Bell,
   Key,
-  Settings
+  Settings,
+  Upload,
+  Link as LinkIcon,
 } from 'lucide-react';
 
 // Types pour les onglets
@@ -124,6 +127,13 @@ export const SettingsPage: React.FC = () => {
     birthDate: null,
   });
 
+  // Avatar upload / url state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarMode, setAvatarMode] = useState<'url' | 'upload'>('url');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState<boolean>(false);
+  const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
+  const [isDraggingAvatar, setIsDraggingAvatar] = useState<boolean>(false);
+
   // Notification settings state
   const [settings, setSettings] = useState<NotificationSettings>({
     notif_mp: 1,
@@ -181,6 +191,7 @@ export const SettingsPage: React.FC = () => {
         titre: user.titre,
         birthDate: user.birthDate ?? null,
       });
+      setAvatarMode(user.avatar && user.avatar.startsWith('/files/') ? 'upload' : 'url');
     }
   }, [activeTab, user]);
 
@@ -201,6 +212,36 @@ export const SettingsPage: React.FC = () => {
     }
     setError(null);
     setSuccess(null);
+  };
+
+  const handleAvatarFileUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setAvatarUploadError('Le fichier doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).');
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+    setAvatarUploadError(null);
+    try {
+      const res = await authApi.uploadAvatar(file);
+      setFormData((prev) => ({ ...prev, avatar: res.url }));
+      setError(null);
+      setSuccess(null);
+    } catch (err: any) {
+      setAvatarUploadError(err.message || "Erreur lors du téléversement de l'image.");
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await handleAvatarFileUpload(file);
+    }
   };
 
   const handleProfileSubmit = async (e: React.FormEvent) => {
@@ -393,6 +434,17 @@ export const SettingsPage: React.FC = () => {
                 isSubmitting={isSubmitting}
                 onChange={handleProfileChange}
                 onSubmit={handleProfileSubmit}
+                avatarMode={avatarMode}
+                onAvatarModeChange={(mode) => {
+                  setAvatarMode(mode);
+                  setAvatarUploadError(null);
+                }}
+                onAvatarFileUpload={handleAvatarFileUpload}
+                onAvatarFileChange={handleAvatarFileChange}
+                isUploadingAvatar={isUploadingAvatar}
+                avatarUploadError={avatarUploadError}
+                isDraggingAvatar={isDraggingAvatar}
+                onDraggingAvatarChange={setIsDraggingAvatar}
               />
             )}
 
@@ -440,9 +492,34 @@ interface ProfileTabProps {
   isSubmitting: boolean;
   onChange: (field: keyof UpdateProfileData, value: string) => void;
   onSubmit: (e: React.FormEvent) => Promise<void>;
+  avatarMode: 'url' | 'upload';
+  onAvatarModeChange: (mode: 'url' | 'upload') => void;
+  onAvatarFileUpload: (file: File) => Promise<void>;
+  onAvatarFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  isUploadingAvatar: boolean;
+  avatarUploadError: string | null;
+  isDraggingAvatar: boolean;
+  onDraggingAvatarChange: (dragging: boolean) => void;
 }
 
-const ProfileTab: React.FC<ProfileTabProps> = ({ user, formData, isSubmitting, onChange, onSubmit }) => (
+const ProfileTab: React.FC<ProfileTabProps> = ({
+  user,
+  formData,
+  isSubmitting,
+  onChange,
+  onSubmit,
+  avatarMode,
+  onAvatarModeChange,
+  onAvatarFileUpload,
+  onAvatarFileChange,
+  isUploadingAvatar,
+  avatarUploadError,
+  isDraggingAvatar,
+  onDraggingAvatarChange,
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  return (
   <form onSubmit={onSubmit} className="space-y-6">
     {/* Profile Header */}
     <div className="bg-slate-50 px-6 py-4 rounded-xl border border-slate-200 mb-6">
@@ -480,19 +557,145 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, formData, isSubmitting, o
       />
     </div>
 
-    {/* Avatar */}
+    {/* Avatar (URL ou Upload) */}
     <div>
-      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
-        <ImageIcon className="w-4 h-4" />
-        Avatar (URL)
-      </label>
-      <input
-        type="url"
-        value={formData.avatar}
-        onChange={(e) => onChange('avatar', e.target.value)}
-        placeholder="https://exemple.com/avatar.png"
-        className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition"
-      />
+      <div className="flex items-center justify-between mb-2">
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <ImageIcon className="w-4 h-4" />
+          Avatar
+        </label>
+        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+          <button
+            type="button"
+            onClick={() => onAvatarModeChange('upload')}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+              avatarMode === 'upload'
+                ? 'bg-white text-indigo-600 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Upload className="w-3 h-3" />
+            <span>Uploader (Drag & Drop)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onAvatarModeChange('url')}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-medium transition cursor-pointer ${
+              avatarMode === 'url'
+                ? 'bg-white text-indigo-600 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <LinkIcon className="w-3 h-3" />
+            <span>URL Web</span>
+          </button>
+        </div>
+      </div>
+
+      {avatarMode === 'url' ? (
+        <input
+          type="url"
+          value={formData.avatar}
+          onChange={(e) => onChange('avatar', e.target.value)}
+          placeholder="https://exemple.com/avatar.png"
+          className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition"
+        />
+      ) : (
+        <div className="space-y-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png, image/jpeg, image/jpg, image/webp, image/gif, image/svg+xml, image/avif"
+            onChange={onAvatarFileChange}
+            className="hidden"
+            id="user-avatar-file-input"
+          />
+
+          <div
+            data-testid="avatar-dropzone"
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDraggingAvatarChange(true);
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDraggingAvatarChange(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDraggingAvatarChange(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDraggingAvatarChange(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) onAvatarFileUpload(file);
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 ${
+              isDraggingAvatar
+                ? 'border-indigo-600 bg-indigo-50/70 scale-[1.01]'
+                : formData.avatar
+                ? 'border-emerald-300 bg-emerald-50/20 hover:bg-emerald-50/40'
+                : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50 hover:bg-indigo-50/20'
+            }`}
+          >
+            {isUploadingAvatar ? (
+              <div className="flex items-center gap-2 text-indigo-700 text-xs font-semibold py-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Téléversement de l'avatar en cours...</span>
+              </div>
+            ) : formData.avatar ? (
+              <div className="flex items-center justify-between w-full px-2 gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="text-xs font-medium text-slate-700 truncate font-mono">
+                    {formData.avatar}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] text-indigo-600 font-semibold hover:underline">
+                    Changer l'image
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChange('avatar', '');
+                    }}
+                    className="text-xs text-rose-600 hover:text-rose-800 font-medium p-1 cursor-pointer"
+                    title="Supprimer l'avatar"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-1.5 py-2">
+                <Upload className="w-5 h-5 text-indigo-500" />
+                <span className="text-xs font-medium text-slate-600">
+                  Glissez-déposez une image ici ou cliquez pour parcourir
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  PNG, JPG, WebP, GIF, SVG, AVIF - 10 Mo maximum
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {avatarUploadError && (
+        <div className="mt-2 flex items-center gap-2 text-red-600 text-xs">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{avatarUploadError}</span>
+        </div>
+      )}
+
       {formData.avatar && (
         <div className="mt-2">
           <img
@@ -523,18 +726,21 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, formData, isSubmitting, o
       />
     </div>
 
-    {/* Description */}
+    {/* Description (Wysiwyg) */}
     <div>
-      <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center gap-2">
+      <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
         <UserIcon className="w-4 h-4" />
         Description
       </label>
-      <textarea
-        value={formData.description}
-        onChange={(e) => onChange('description', e.target.value)}
+      <WysiwygEditor
+        value={formData.description || ''}
+        onChange={(val) => onChange('description', val)}
         placeholder="Décrivez-vous en quelques mots..."
-        rows={4}
-        className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition resize-none"
+        minHeight="180px"
+        onUploadImage={async (file) => {
+          const res = await authApi.uploadAvatar(file);
+          return res.url;
+        }}
       />
     </div>
 
@@ -571,7 +777,8 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, formData, isSubmitting, o
       )}
     </button>
   </form>
-);
+  );
+};
 
 // Notifications Tab Component
 interface NotificationsTabProps {

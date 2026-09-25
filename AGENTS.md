@@ -23,9 +23,10 @@
 5. **Ne rien ajouter** qui n'est pas couvert par un test
 
 ### ✅ OBLIGATOIRE après toute modification de code
-6. **Réexécuter TOUS les tests** : `npm test --workspace=backend`
-7. **Vérifier** que tous passent avant de continuer
+6. **Réexécuter le test correspondant** : `npm test --workspace=backend -- <chemin du test>` pour le fichier de test lié au code modifié (pas besoin de relancer toute la suite à chaque itération)
+7. **Vérifier** que tous les tests correspondants passent avant de continuer
 8. **Recommencer** si un test échoue
+9. **Avant de clore la tâche** : exécuter la suite complète `npm test --workspace=backend` une dernière fois pour vérifier l'absence de régression
 
 ## Tests E2E pour les nouvelles fonctionnalités
 

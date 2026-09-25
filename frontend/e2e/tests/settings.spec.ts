@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 import { Navbar } from '../page-objects/Navbar';
 import { LoginPage } from '../page-objects/LoginPage';
+import { RegisterPage } from '../page-objects/RegisterPage';
+import { SettingsPage } from '../page-objects/SettingsPage';
 
 /**
  * Settings Tests
@@ -72,5 +74,61 @@ test.describe('Settings', () => {
     // Assert: Should show login and register buttons
     await expect(navbar.loginButton).toBeVisible({ timeout: 5000 });
     await expect(navbar.registerButton).toBeVisible({ timeout: 5000 });
+  });
+});
+
+/**
+ * Tests du profil Settings (utilisateur authentifié)
+ * Avatar : URL ou upload d'image ; Description : éditeur Wysiwyg
+ */
+test.describe('Settings - Profil', () => {
+  let settingsPage: SettingsPage;
+  let registerPage: RegisterPage;
+
+  test.beforeEach(async ({ page }) => {
+    settingsPage = new SettingsPage(page);
+    registerPage = new RegisterPage(page);
+
+    // Créer un utilisateur unique et se connecter (l'inscription connecte automatiquement)
+    const username = `e2e_user_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    await registerPage.navigate();
+    await registerPage.register(username, `${username}@example.com`, 'password123');
+
+    // Aller sur la page des paramètres (l'onglet Profil est actif par défaut)
+    await settingsPage.navigate();
+    await settingsPage.switchToProfileTab();
+  });
+
+  test('Avatar : le choix entre URL et upload est proposé', async ({ page }) => {
+    // Les deux modes sont accessibles
+    await expect(settingsPage.avatarUploadToggle).toBeVisible();
+    await expect(settingsPage.avatarUrlToggle).toBeVisible();
+
+    // Mode URL actif par défaut : champ URL visible
+    await expect(settingsPage.avatarUrlInput).toBeVisible();
+
+    // Mode upload : dropzone visible
+    await settingsPage.avatarUploadToggle.click();
+    await expect(settingsPage.avatarDropzone.first()).toBeVisible();
+
+    // Retour au mode URL
+    await settingsPage.avatarUrlToggle.click();
+    await expect(settingsPage.avatarUrlInput).toBeVisible();
+  });
+
+  test('Avatar : une URL peut être saisie et prévisualisée', async ({ page }) => {
+    await settingsPage.avatarUrlInput.fill('https://example.com/avatar.png');
+    await expect(settingsPage.avatarUrlInput).toHaveValue('https://example.com/avatar.png');
+  });
+
+  test('Description : un éditeur Wysiwyg est proposé', async ({ page }) => {
+    // La barre d'outils du wysiwyg est présente
+    await expect(settingsPage.wysiwygToolbar).toBeVisible();
+
+    // La zone éditable est présente et on peut y écrire
+    await expect(settingsPage.wysiwygEditor).toBeVisible();
+    await settingsPage.wysiwygEditor.click();
+    await settingsPage.wysiwygEditor.type('Ma description de test');
+    await expect(settingsPage.wysiwygEditor).toContainText('Ma description de test');
   });
 });

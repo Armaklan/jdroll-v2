@@ -15,18 +15,34 @@ export class SettingsPage extends BasePage {
   readonly form: Locator;
   readonly successMessage: Locator;
   readonly errorMessage: Locator;
+  readonly avatarUrlToggle: Locator;
+  readonly avatarUploadToggle: Locator;
+  readonly avatarUrlInput: Locator;
+  readonly avatarDropzone: Locator;
+  readonly wysiwygToolbar: Locator;
+  readonly wysiwygEditor: Locator;
 
   constructor(page: Page) {
     super(page);
     
     this.title = page.locator('h1:text-is("Paramètres")');
-    this.profileTab = page.locator('button:text("Profil")');
-    this.notificationsTab = page.locator('button:text("Notifications")');
-    this.passwordTab = page.locator('button:text("Mot de passe")');
-    this.saveButton = page.locator('button[type="submit"]');
+    this.profileTab = page.getByRole('button', { name: 'Profil', exact: true });
+    this.notificationsTab = page.getByRole('button', { name: 'Notifications', exact: true });
+    this.passwordTab = page.getByRole('button', { name: 'Mot de passe', exact: true });
+    this.saveButton = page.getByRole('button', { type: 'submit' });
     this.form = page.locator('form');
     this.successMessage = page.locator('.bg-green-50.border.border-green-200:visible');
     this.errorMessage = page.locator('.bg-red-50.border.border-red-200:visible');
+
+    // Avatar (URL ou upload) - onglet Profil
+    this.avatarUrlToggle = page.getByRole('button', { name: /URL Web/i });
+    this.avatarUploadToggle = page.getByRole('button', { name: 'Uploader (Drag & Drop)' });
+    this.avatarUrlInput = page.getByPlaceholder(/https:\/\/.*\.\.\./i).or(page.locator('input[type="url"]'));
+    this.avatarDropzone = page.locator('[data-testid="avatar-dropzone"], .border-dashed');
+
+    // Editeur Wysiwyg de description - onglet Profil
+    this.wysiwygToolbar = page.locator('button[title="Gras (Ctrl+B)"]');
+    this.wysiwygEditor = page.locator('div[contenteditable="true"]');
   }
 
   /**

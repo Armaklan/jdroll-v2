@@ -87,6 +87,10 @@ class MockFileStorage implements IFileStorage {
     this.savedFiles.push({ campaignId, filename, content });
     return `/files/${campaignId}/${filename}`;
   }
+
+  async saveUserFile(userId: number, filename: string, content: Buffer): Promise<string> {
+    return `/files/users/${userId}/${filename}`;
+  }
 }
 
 describe('UploadCampaignBannerUseCase', () => {
