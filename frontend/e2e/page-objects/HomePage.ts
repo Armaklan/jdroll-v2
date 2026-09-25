@@ -18,6 +18,12 @@ export class HomePage extends BasePage {
   readonly communitySection: Locator;
   readonly choiceSection: Locator;
   readonly platformSection: Locator;
+  readonly carouselSection: Locator;
+  readonly carouselTitle: Locator;
+  readonly carouselTrack: Locator;
+  readonly carouselSlides: Locator;
+  readonly carouselNextButton: Locator;
+  readonly carouselPrevButton: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -46,6 +52,31 @@ export class HomePage extends BasePage {
     this.communitySection = page.locator('article').filter({ hasText: /Une communauté|Une communaute/i }).first();
     this.choiceSection = page.locator('article').filter({ hasText: /Du choix/i }).first();
     this.platformSection = page.locator('article').filter({ hasText: /Une plateforme/i }).first();
+
+    // Campaign carousel
+    this.carouselSection = page.locator('[data-testid="home-campaign-carousel"]');
+    this.carouselTitle = page.locator('[data-testid="home-campaign-carousel-title"]');
+    this.carouselTrack = page.locator('[data-testid="home-campaign-carousel-track"]');
+    this.carouselSlides = page.locator('[data-testid="home-campaign-carousel-slide"]');
+    this.carouselNextButton = page.locator('[data-testid="home-campaign-carousel-next"]');
+    this.carouselPrevButton = page.locator('[data-testid="home-campaign-carousel-prev"]');
+  }
+
+  /**
+   * Mock the GET /api/campaigns endpoint (used by the homepage carousel)
+   */
+  async mockCampaignsApi(campaigns: Array<Record<string, unknown>>): Promise<void> {
+    await this.page.route('**/api/campaigns?*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ campaigns }),
+      });
+    });
   }
 
   /**
