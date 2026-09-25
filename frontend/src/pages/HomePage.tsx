@@ -6,6 +6,9 @@ import {Dices, Gamepad2, Globe2, PenTool, Sparkles,} from 'lucide-react';
 import {AppView, viewToPath} from '../components/Navbar';
 import {GlobalFloatingSearch} from '../components/GlobalFloatingSearch';
 import {HomeCampaignCarousel} from '../components/HomeCampaignCarousel';
+import {HomeStats} from '../components/HomeStats';
+import {HomeChatPreview} from '../components/HomeChatPreview';
+import {HomeRecentTopics} from '../components/HomeRecentTopics';
 
 interface HomePageProps {
   onNavigateLogin?: () => void;
@@ -108,7 +111,18 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </section>
 
-      {/* Presentation sections */}
+      {isLoading ? null : isAuthenticated && user ? (
+          <div data-testid="home-dashboard" className="space-y-8">
+            {/* Community stats : online users, latest registrations, birthdays */}
+            <HomeStats />
+
+            {/* Chat preview and most recently active forum topics */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <HomeChatPreview />
+              <HomeRecentTopics />
+            </div>
+          </div>
+      ) : (
       <ul className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <li className="p-4">
           <article className="h-full bg-white border border-slate-200 hover:border-indigo-300 hover:shadow-md rounded-2xl p-6 transition-all">
@@ -183,6 +197,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           </article>
         </li>
       </ul>
+      )}
 
       {/* Campaign carousel : recruiting tables, or random active ones */}
       <HomeCampaignCarousel />

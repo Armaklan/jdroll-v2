@@ -1,19 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { campaignsApi } from '../api/campaigns';
-import { CampaignSummary } from '../types/campaign';
-import { CampaignDetailModal } from './CampaignDetailModal';
-import { getUserColorClass } from '../utils/user';
-import {
-  BookOpen,
-  ChevronLeft,
-  ChevronRight,
-  Crown,
-  Dice5,
-  Layers,
-  Sparkles,
-  Users,
-} from 'lucide-react';
+import React, {useEffect, useRef, useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {campaignsApi} from '../api/campaigns';
+import {CampaignSummary} from '../types/campaign';
+import {CampaignDetailModal} from './CampaignDetailModal';
+import {getUserColorClass} from '../utils/user';
+import {BookOpen, ChevronLeft, ChevronRight, Crown, Dice5, Layers, Sparkles,} from 'lucide-react';
 
 const MAX_SLIDES = 6;
 
@@ -128,10 +119,6 @@ export const HomeCampaignCarousel: React.FC<HomeCampaignCarouselProps> = ({ onOp
           className="flex gap-4 [justify-content:safe_center] overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mb-2"
         >
           {campaigns.map((campaign) => {
-            const isFull =
-              campaign.nbJoueurs > 0 && campaign.nbJoueursActuel >= campaign.nbJoueurs;
-            const showRecruitingBadge = isRecruiting && !isFull;
-
             return (
               <article
                 key={campaign.id}
@@ -154,23 +141,6 @@ export const HomeCampaignCarousel: React.FC<HomeCampaignCarouselProps> = ({ onOp
                       <BookOpen className="w-10 h-10 text-indigo-400" />
                     </div>
                   )}
-                  <span
-                    className={`absolute top-3 left-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold text-white shadow-md backdrop-blur-md ${
-                      showRecruitingBadge ? 'bg-indigo-600/90' : 'bg-emerald-600/90'
-                    }`}
-                  >
-                    {showRecruitingBadge ? (
-                      <>
-                        <Sparkles className="w-3 h-3" />
-                        Recrute
-                      </>
-                    ) : (
-                      <>
-                        <Users className="w-3 h-3" />
-                        Active
-                      </>
-                    )}
-                  </span>
                 </div>
 
                 <div className="p-4 space-y-2 flex-1 flex flex-col">

@@ -100,35 +100,6 @@ test.describe('Homepage', () => {
   });
 
   /**
-   * Test 9: All quick access cards are visible
-   */
-  test('All quick access cards are visible and clickable', async () => {
-    // Assert: All cards visible
-    await expect(homePage.myCampaignsCard).toBeVisible({ timeout: 5000 });
-    await expect(homePage.createCampaignCard).toBeVisible({ timeout: 5000 });
-    await expect(homePage.joinCampaignCard).toBeVisible({ timeout: 5000 });
-    await expect(homePage.forumCard).toBeVisible({ timeout: 5000 });
-  });
-
-  /**
-   * Test 10: Quick access cards have correct labels
-   */
-  test('Quick access cards have correct labels', async () => {
-    // Assert: Card labels
-    const myCampaignsText = await homePage.myCampaignsCard.textContent();
-    expect(myCampaignsText?.toLowerCase()).toContain('campagne');
-    
-    const createText = await homePage.createCampaignCard.textContent();
-    expect(createText?.toLowerCase()).toContain('créer');
-    
-    const joinText = await homePage.joinCampaignCard.textContent();
-    expect(joinText?.toLowerCase()).toContain('rejoindre');
-    
-    const forumText = await homePage.forumCard.textContent();
-    expect(forumText?.toLowerCase()).toContain('forum');
-  });
-
-  /**
    * Test 11: Homepage is responsive
    */
   test('Homepage adapts to different screen sizes', async ({ page }) => {

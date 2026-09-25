@@ -1,5 +1,5 @@
 import { query, queryOne, execute } from '../db/mysql.js';
-import { User, UserWithPassword, CreateUserData, UpdateUserProfileData, NotificationSettings } from '../types/index.js';
+import { User, UserWithPassword, CreateUserData, UpdateUserProfileData, NotificationSettings, HomeUserSummary } from '../types/index.js';
 
 export interface IUserRepository {
   findById(id: number): Promise<User | null>;
@@ -11,6 +11,8 @@ export interface IUserRepository {
   updateProfile(id: number, data: UpdateUserProfileData): Promise<User>;
   updateNotificationSettings(id: number, settings: NotificationSettings): Promise<User>;
   updatePassword(id: number, currentPasswordHash: string, newPasswordHash: string): Promise<void>;
+  findLatestRegistrations(limit: number): Promise<HomeUserSummary[]>;
+  findTodayBirthdays(): Promise<HomeUserSummary[]>;
 }
 
 export class MysqlUserRepository implements IUserRepository {
@@ -209,6 +211,29 @@ export class MysqlUserRepository implements IUserRepository {
     if (result.affectedRows === 0) {
       throw new Error('Mot de passe actuel incorrect ou utilisateur introuvable');
     }
+  }
+
+  async findLatestRegistrations(limit: number): Promise<HomeUserSummary[]> {
+    const safeLimit = Math.min(Math.max(1, limit), 50);
+    return query<HomeUserSummary>(
+      `SELECT id, username, avatar, profil, subscribe_date as subscribeDate
+       FROM user
+       ORDER BY subscribe_date DESC, id DESC
+       LIMIT ?`,
+      [safeLimit]
+    );
+  }
+
+  async findTodayBirthdays(): Promise<HomeUserSummary[]> {
+    return query<HomeUserSummary>(
+      `SELECT id, username, avatar, profil, birthDate
+       FROM user
+       WHERE birthDate IS NOT NULL
+         AND MONTH(birthDate) = MONTH(CURDATE())
+         AND DAY(birthDate) = DAY(CURDATE())
+       ORDER BY username ASC
+       LIMIT 20`
+    );
   }
 }
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { PresenceProvider } from './contexts/PresenceContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { Navbar } from './components/Navbar';
 import { HomePage } from './pages/HomePage';
@@ -197,9 +198,11 @@ export function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <NotificationProvider>
-        <AppContent />
-      </NotificationProvider>
+      <PresenceProvider>
+        <NotificationProvider>
+          <AppContent />
+        </NotificationProvider>
+      </PresenceProvider>
     </AuthProvider>
   );
 }

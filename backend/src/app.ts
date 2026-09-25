@@ -13,6 +13,8 @@ import { notificationRoutes } from './controllers/notification.controller.js';
 import { messageRoutes } from './controllers/message.controller.js';
 import { carteRoutes } from './controllers/carte.controller.js';
 import { chatRoutes } from './controllers/chat.controller.js';
+import { homeRoutes } from './controllers/home.controller.js';
+import { presenceRoutes } from './controllers/presence.controller.js';
 import { notificationListener } from './listeners/notification.listener.js';
 
 export async function buildApp() {
@@ -78,6 +80,8 @@ export async function buildApp() {
   await app.register(notificationRoutes);
   await app.register(messageRoutes);
   await app.register(chatRoutes);
+  await app.register(homeRoutes);
+  await app.register(presenceRoutes);
 
   return app;
 }
