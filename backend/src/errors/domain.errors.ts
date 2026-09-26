@@ -109,3 +109,9 @@ export class ValidationError extends DomainError {
     this.details = details;
   }
 }
+
+export class AntibotError extends DomainError {
+  constructor(message = 'Inscription impossible pour le moment, veuillez réessayer') {
+    super(message);
+  }
+}

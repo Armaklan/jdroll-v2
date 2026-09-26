@@ -7,6 +7,7 @@ import { uploadUserAvatarUseCase, UploadUserAvatarUseCase } from '../usecases/au
 import { updateNotificationSettingsUseCase, UpdateNotificationSettingsUseCase } from '../usecases/auth/update-notification-settings.usecase.js';
 import { updatePasswordUseCase, UpdatePasswordUseCase } from '../usecases/auth/update-password.usecase.js';
 import { userQueries, UserQueries } from '../queries/user.queries.js';
+import { validateRegistrationAntibot } from '../services/antibot.service.js';
 import {
   DomainError,
   UserAlreadyExistsError,
@@ -19,6 +20,8 @@ const registerSchema = z.object({
   username: z.string().min(2).max(32),
   mail: z.string().email(),
   password: z.string().min(3),
+  website: z.string().optional(),
+  elapsedMs: z.number().int().min(0).optional(),
 });
 
 const loginSchema = z.object({
@@ -125,6 +128,11 @@ export class AuthController {
     }
 
     try {
+      validateRegistrationAntibot({
+        website: parseResult.data.website,
+        elapsedMs: parseResult.data.elapsedMs,
+      });
+
       const user = await this.registerUseCase.execute(parseResult.data);
       const token = this.generateToken(app, user);
 

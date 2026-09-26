@@ -21,6 +21,8 @@ async function registerUser(request: APIRequestContext, username: string, passwo
       username,
       mail: `${username.toLowerCase()}@example.com`,
       password,
+      website: '',
+      elapsedMs: 10000,
     },
   });
   if (!response.ok()) {

@@ -17,6 +17,9 @@ export class RegisterPage extends BasePage {
   readonly loadingSpinner: Locator;
   readonly switchToLoginLink: Locator;
   readonly form: Locator;
+  readonly honeypotInput: Locator;
+
+  private formStartTime: number | null = null;
 
   constructor(page: Page) {
     super(page);
@@ -38,6 +41,7 @@ export class RegisterPage extends BasePage {
     this.loadingSpinner = page.locator('.animate-spin:visible');
     this.switchToLoginLink = page.getByRole('button', { name: /Se connecter/i });
     this.form = page.locator('form');
+    this.honeypotInput = page.locator('[name="website"]');
   }
 
   /**
@@ -52,6 +56,7 @@ export class RegisterPage extends BasePage {
    * Fill the registration form
    */
   async fillRegisterForm(username: string, email: string, password: string): Promise<void> {
+    this.formStartTime = Date.now();
     await this.fill(this.usernameInput, username);
     await this.fill(this.emailInput, email);
     await this.fill(this.passwordInput, password);
@@ -59,8 +64,17 @@ export class RegisterPage extends BasePage {
 
   /**
    * Submit the registration form
+   * Garantit le temps de remplissage minimal exigé par l'antibot côté serveur
    */
   async submit(): Promise<void> {
+    if (this.formStartTime !== null) {
+      const elapsed = Date.now() - this.formStartTime;
+      const remaining = 2000 - elapsed;
+      if (remaining > 0) {
+        await this.page.waitForTimeout(remaining);
+      }
+    }
+
     await this.registerButton.click();
     try {
       await this.page.waitForTimeout(1000);

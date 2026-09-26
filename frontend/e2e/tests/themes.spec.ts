@@ -24,6 +24,8 @@ async function createAndLoginUser(request: APIRequestContext, suffix: string): P
       username,
       mail: `${username}@example.com`,
       password,
+      website: '',
+      elapsedMs: 10000,
     },
   });
   expect(registerRes.ok()).toBeTruthy();

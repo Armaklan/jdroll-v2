@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserPlus, AlertCircle, Loader2 } from 'lucide-react';
@@ -16,6 +16,8 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onSwitchT
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [website, setWebsite] = useState('');
+  const formLoadedAt = useRef(Date.now());
 
   const handleSuccess = () => {
     if (onSuccess) {
@@ -39,7 +41,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onSwitchT
     setIsSubmitting(true);
 
     try {
-      await register({ username, mail, password });
+      await register({
+        username,
+        mail,
+        password,
+        website,
+        elapsedMs: Date.now() - formLoadedAt.current,
+      });
       handleSuccess();
     } catch (err) {
       setError((err as Error).message || "Erreur lors de l'inscription");
@@ -105,6 +113,20 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onSuccess, onSwitchT
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
             className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition text-sm"
+          />
+        </div>
+
+        {/* Honeypot antibot : champ caché qui ne doit jamais être rempli */}
+        <div className="hidden" aria-hidden="true">
+          <label htmlFor="website">Site web</label>
+          <input
+            type="text"
+            id="website"
+            name="website"
+            tabIndex={-1}
+            autoComplete="off"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
           />
         </div>
 

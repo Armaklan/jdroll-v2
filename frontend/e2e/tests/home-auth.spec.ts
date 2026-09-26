@@ -20,6 +20,8 @@ async function registerTestUser(page: Page): Promise<TestUser> {
       username,
       mail: `${username}@test.local`,
       password: 'Passw0rd!123',
+      website: '',
+      elapsedMs: 10000,
     },
   });
   expect(response.ok()).toBeTruthy();
