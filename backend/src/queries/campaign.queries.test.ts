@@ -618,9 +618,9 @@ describe('CampaignQueries', () => {
       assert.equal(data.campaign.userRole, 'mj');
 
       // Categories should have:
-      // 1. Noblesse de Barovie (with Strahd)
-      // 2. Ordre de la Plume (0 characters)
-      // 3. Personnage joueur (with Kaelen)
+      // 1. Personnage joueur (with Kaelen)
+      // 2. Noblesse de Barovie (with Strahd)
+      // 3. Ordre de la Plume (0 characters)
       // 4. Non classées (with Danovich)
       assert.equal(data.categories.length, 4);
 
@@ -645,6 +645,23 @@ describe('CampaignQueries', () => {
       assert.equal(catNonClasses.characters.length, 1);
       assert.equal(catNonClasses.characters[0].name, 'Aubergiste Danovich');
       assert.equal(catNonClasses.characters[0].isPlayer, false);
+    });
+
+    it('should order categories: "Personnage joueur" first, "Non classées" last, others alphabetically', async () => {
+      const unorderedCategories: RawPnjCategoryRow[] = [
+        { id: 10, campagneId: 1, name: 'Zénith de Barovie', defaultCollapse: 0 },
+        { id: 20, campagneId: 1, name: 'Ordre de la Plume', defaultCollapse: 1 },
+        { id: 30, campagneId: 1, name: 'Auberge du Vallon', defaultCollapse: 0 },
+      ];
+      const repo = new MockCampaignRepository([campaign1], [], [], characters, unorderedCategories);
+      const queries = new CampaignQueries(repo);
+
+      const data = await queries.getCampaignCharacters(1, 1);
+
+      assert.deepEqual(
+        data.categories.map((c) => c.name),
+        ['Personnage joueur', 'Auberge du Vallon', 'Ordre de la Plume', 'Zénith de Barovie', 'Non classées']
+      );
     });
 
     it('should hide private description for users who are not GM and not character owner', async () => {

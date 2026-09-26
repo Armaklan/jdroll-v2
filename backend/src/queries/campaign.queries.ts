@@ -180,9 +180,20 @@ export class CampaignQueries {
 
     const categories: CampaignCharacterCategory[] = [];
 
-    // 1. Defined categories from pnj_category
-    for (const cat of rawCategories) {
-      const entry = categoryMap.get(cat.id);
+    // 1. "Personnage joueur" category first if there are player characters
+    if (playerCharacters.length > 0) {
+      categories.push({
+        id: null,
+        name: 'Personnage joueur',
+        defaultCollapse: false,
+        characters: playerCharacters,
+      });
+    }
+
+    // 2. Defined categories from pnj_category, alphabetically
+    const sortedRawCategories = [...rawCategories].sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    for (const raw of sortedRawCategories) {
+      const entry = categoryMap.get(raw.id);
       if (entry) {
         categories.push({
           id: entry.id,
@@ -193,17 +204,7 @@ export class CampaignQueries {
       }
     }
 
-    // 2. "Personnage joueur" category if there are player characters
-    if (playerCharacters.length > 0) {
-      categories.push({
-        id: null,
-        name: 'Personnage joueur',
-        defaultCollapse: false,
-        characters: playerCharacters,
-      });
-    }
-
-    // 3. "Non classées" category if there are uncategorized NPCs
+    // 3. "Non classées" category last if there are uncategorized NPCs
     if (uncategorizedPnj.length > 0) {
       categories.push({
         id: null,
