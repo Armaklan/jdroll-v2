@@ -22,6 +22,18 @@ export interface UserWithPassword extends User {
   password?: string;
 }
 
+export interface PublicUserProfile {
+  id: number;
+  username: string;
+  avatar: string;
+  description: string;
+  titre: string;
+  profil: number;
+  subscribeDate: string | null;
+  birthDate?: string | null;
+  currentAbsences: Absence[];
+}
+
 export interface HomeUserSummary {
   id: number;
   username: string;

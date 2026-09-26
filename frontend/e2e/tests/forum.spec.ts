@@ -33,17 +33,6 @@ test.describe('Forum', () => {
   });
 
   /**
-   * Test 2: User can navigate to Forum from home quick access
-   */
-  test('User can navigate to Forum from home quick access card', async () => {
-    // Act: Click on Forum card
-    await homePage.clickForumCard();
-    
-    // Assert: URL should contain forum
-    await expect(navbar.getPage()).toHaveURL(/forum/);
-  });
-
-  /**
    * Test 3: User can navigate to General Forum directly
    */
   test('User can navigate to General Forum directly', async ({ page }) => {

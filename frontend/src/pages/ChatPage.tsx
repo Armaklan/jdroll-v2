@@ -478,14 +478,8 @@ export function ChatPage() {
           </div>
           <div>
             <h1 className="font-bold text-base text-slate-100 flex items-center gap-2">
-              Tchat Communautaire
-              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-normal border border-indigo-500/30">
-                Temps Réel
-              </span>
+              Tchat
             </h1>
-            <p className="text-xs text-slate-400">
-              Échangez en direct avec les membres ou en privé
-            </p>
           </div>
         </div>
 

@@ -12,6 +12,7 @@ import {AppView} from '../components/Navbar';
 import {useAuth} from '../contexts/AuthContext';
 import {DiceTowerModal} from '../components/DiceTowerModal';
 import {CampaignHeader} from '../components/CampaignHeader';
+import {UserPseudoLink} from '../components/UserPseudoLink';
 import {formatDate, formatDayDate} from '../utils/date';
 import {
   AlertCircle,
@@ -1067,7 +1068,11 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                 className="text-xs sm:text-sm text-amber-900 flex flex-wrap items-baseline gap-x-1.5"
                 data-testid="campaign-absence-item"
               >
-                <span className="font-bold">{absence.username}</span>
+                <UserPseudoLink
+                  userId={absence.userId}
+                  username={absence.username}
+                  className="font-bold text-amber-900"
+                />
                 {absence.isMj && (
                   <span className="font-semibold text-amber-700" title="Maître du Jeu">
                     (MJ)
@@ -1242,7 +1247,12 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                   <span className="font-semibold">Accès :</span>
                                   <span className="truncate max-w-xs sm:max-w-md">
                                     {topic.canReadUsers && topic.canReadUsers.length > 0
-                                      ? topic.canReadUsers.map((u) => u.username).join(', ')
+                                      ? topic.canReadUsers.map((u, index) => (
+                                          <React.Fragment key={u.id}>
+                                            {index > 0 && ', '}
+                                            <UserPseudoLink userId={u.id} username={u.username} profil={u.profil} />
+                                          </React.Fragment>
+                                        ))
                                       : 'MJ uniquement'}
                                   </span>
                                 </div>
@@ -1258,7 +1268,12 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                               <div className="flex items-center gap-1.5 font-medium text-slate-700 truncate">
                                 <span className="text-slate-400">par</span>
                                 <span className="font-semibold truncate">
-                                  {topic.lastPost.username}
+                                  <UserPseudoLink
+                                    userId={topic.lastPost.userId}
+                                    username={topic.lastPost.username}
+                                    profil={topic.lastPost.userProfil}
+                                    className="text-slate-700"
+                                  />
                                 </span>
                               </div>
                               <div className="flex items-center gap-1 text-[11px] text-slate-400">
@@ -1592,7 +1607,12 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                         <span className="font-semibold">Accès :</span>
                                         <span className="truncate max-w-xs sm:max-w-md">
                                           {topic.canReadUsers && topic.canReadUsers.length > 0
-                                            ? topic.canReadUsers.map((u) => u.username).join(', ')
+                                            ? topic.canReadUsers.map((u, index) => (
+                                                <React.Fragment key={u.id}>
+                                                  {index > 0 && ', '}
+                                                  <UserPseudoLink userId={u.id} username={u.username} profil={u.profil} />
+                                                </React.Fragment>
+                                              ))
                                             : 'MJ uniquement'}
                                         </span>
                                       </div>
@@ -1636,7 +1656,12 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                     <div className="flex items-center gap-1.5 font-medium text-slate-700 truncate">
                                       <span className="text-slate-400">par</span>
                                       <span className="font-semibold truncate">
-                                        {topic.lastPost.username}
+                                        <UserPseudoLink
+                                          userId={topic.lastPost.userId}
+                                          username={topic.lastPost.username}
+                                          profil={topic.lastPost.userProfil}
+                                          className="text-slate-700"
+                                        />
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-1 text-[11px] text-slate-400">

@@ -8,6 +8,7 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { UserProfilePage } from './pages/UserProfilePage';
 import { MyCampaignsPage } from './pages/MyCampaignsPage';
 import { JoinCampaignPage } from './pages/JoinCampaignPage';
 import { CampaignForumPage } from './pages/CampaignForumPage';
@@ -96,6 +97,16 @@ export function AppContent() {
             element={
               <ProtectedRoute>
                 <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Profil public d'un membre */}
+          <Route
+            path="/users/:userId"
+            element={
+              <ProtectedRoute>
+                <UserProfilePage />
               </ProtectedRoute>
             }
           />

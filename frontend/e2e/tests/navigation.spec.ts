@@ -85,61 +85,6 @@ test.describe('Navigation', () => {
   });
 
   /**
-   * Test 6: Home page displays all quick access cards
-   */
-  test('Home page displays all quick access cards', async () => {
-    // Assert: All cards should be visible
-    await expect(homePage.myCampaignsCard).toBeVisible({ timeout: 5000 });
-    await expect(homePage.createCampaignCard).toBeVisible({ timeout: 5000 });
-    await expect(homePage.joinCampaignCard).toBeVisible({ timeout: 5000 });
-    await expect(homePage.forumCard).toBeVisible({ timeout: 5000 });
-  });
-
-  /**
-   * Test 7: User can navigate to My Campaigns from quick access card
-   */
-  test('User can navigate to My Campaigns from quick access card', async () => {
-    // Act: Click on My Campaigns card
-    await homePage.clickMyCampaignsCard();
-    
-    // Assert: Should navigate to my campaigns or login
-    await expect(navbar.getPage()).toHaveURL(/my-campaigns|login/);
-  });
-
-  /**
-   * Test 8: User can navigate to Create Campaign from quick access card
-   */
-  test('User can navigate to Create Campaign from quick access card', async () => {
-    // Act: Click on Create Campaign card
-    await homePage.clickCreateCampaignCard();
-    
-    // Assert: Should navigate to create campaign or login
-    await expect(navbar.getPage()).toHaveURL(/campaigns\/new|login/);
-  });
-
-  /**
-   * Test 9: User can navigate to Join Campaign from quick access card
-   */
-  test('User can navigate to Join Campaign from quick access card', async () => {
-    // Act: Click on Join Campaign card
-    await homePage.clickJoinCampaignCard();
-    
-    // Assert: Should navigate to join campaign
-    await expect(navbar.getPage()).toHaveURL('/join-campaign');
-  });
-
-  /**
-   * Test 10: User can navigate to Forum from quick access card
-   */
-  test('User can navigate to Forum from quick access card', async () => {
-    // Act: Click on Forum card
-    await homePage.clickForumCard();
-    
-    // Assert: URL should contain forum
-    await expect(navbar.getPage()).toHaveURL(/forum/);
-  });
-
-  /**
    * Test 11: Home page displays hero section
    */
   test('Home page hero section is displayed correctly', async () => {

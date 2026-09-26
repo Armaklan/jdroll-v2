@@ -4,7 +4,8 @@ import { campaignsApi } from '../api/campaigns';
 import { GeneralForumData, ForumSectionSummary, ForumTopicSummary } from '../types/campaign';
 import { AppView, viewToPath } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
-import { getUserColorClass, isUserAdmin } from '../utils/user';
+import { isUserAdmin } from '../utils/user';
+import { UserPseudoLink } from '../components/UserPseudoLink';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { formatDate } from '../utils/date';
 import {
@@ -833,8 +834,13 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                                 <span>&bull;</span>
                                 <span>
                                   Dernier message par{' '}
-                                  <strong className={`font-semibold ${getUserColorClass(topic.lastPost.userProfil, 'text-slate-700')}`}>
-                                    {topic.lastPost.username}
+                                  <strong className="font-semibold">
+                                    <UserPseudoLink
+                                      userId={topic.lastPost.userId}
+                                      username={topic.lastPost.username}
+                                      profil={topic.lastPost.userProfil}
+                                      className="text-slate-700"
+                                    />
                                   </strong>{' '}
                                   le {formatDate(topic.lastPost.createDate)}
                                 </span>
@@ -1079,8 +1085,13 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                                       <span>&bull;</span>
                                       <span>
                                         Dernier message par{' '}
-                                        <strong className={`font-semibold ${getUserColorClass(topic.lastPost.userProfil, 'text-slate-700')}`}>
-                                          {topic.lastPost.username}
+                                        <strong className="font-semibold">
+                                          <UserPseudoLink
+                                            userId={topic.lastPost.userId}
+                                            username={topic.lastPost.username}
+                                            profil={topic.lastPost.userProfil}
+                                            className="text-slate-700"
+                                          />
                                         </strong>{' '}
                                         le {formatDate(topic.lastPost.createDate)}
                                       </span>

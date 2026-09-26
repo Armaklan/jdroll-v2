@@ -113,6 +113,7 @@ export interface TopicUserSummary {
   id: number;
   username: string;
   avatar?: string;
+  profil?: number;
 }
 
 export interface ForumTopicSummary {

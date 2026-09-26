@@ -8,6 +8,7 @@ export interface IAbsenceRepository {
   updateByIdAndUser(id: number, userId: number, beginDate: string, endDate: string, commentaire: string): Promise<boolean>;
   deleteByIdAndUser(id: number, userId: number): Promise<boolean>;
   findCurrentByCampaignId(campaignId: number, excludeUserId?: number): Promise<CampaignPlayerAbsence[]>;
+  findCurrentByUser(userId: number): Promise<Absence[]>;
 }
 
 function formatDate(value: Date | string | null): string {
@@ -120,6 +121,20 @@ export class MysqlAbsenceRepository implements IAbsenceRepository {
       username: row.username,
       isMj: Boolean(row.is_mj),
     }));
+  }
+
+  async findCurrentByUser(userId: number): Promise<Absence[]> {
+    const rows = await query<RawAbsenceRow>(
+      `SELECT id, user_id, begin_date, end_date, commentaire
+       FROM absences
+       WHERE user_id = ?
+         AND begin_date <= CURDATE()
+         AND end_date >= CURDATE()
+       ORDER BY begin_date ASC, id ASC`,
+      [userId]
+    );
+
+    return rows.map(mapRow);
   }
 }
 

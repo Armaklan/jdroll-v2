@@ -39,17 +39,6 @@ test.describe('Campaigns', () => {
   });
 
   /**
-   * Test 2: My Campaigns page is accessible from home quick access
-   */
-  test('My Campaigns page is accessible from home quick access card', async () => {
-    // Act: Click on My Campaigns card
-    await homePage.clickMyCampaignsCard();
-    
-    // Assert: URL should contain my-campaigns or login
-    await expect(navbar.getPage()).toHaveURL(/my-campaigns|login/);
-  });
-
-  /**
    * Test 3: Create Campaign page is accessible
    */
   test('Create Campaign page is accessible', async () => {
@@ -59,17 +48,6 @@ test.describe('Campaigns', () => {
     // Assert: Should be on create campaign page or login
     const url = navbar.getPage().url();
     expect(url).toMatch(/campaigns\/new|login/);
-  });
-
-  /**
-   * Test 4: Create Campaign page is accessible from quick access
-   */
-  test('Create Campaign page is accessible from home quick access card', async () => {
-    // Act: Click on Create Campaign card
-    await homePage.clickCreateCampaignCard();
-    
-    // Assert: URL should contain create campaign or login
-    await expect(navbar.getPage()).toHaveURL(/campaigns\/new|login/);
   });
 
   /**
@@ -148,17 +126,6 @@ test.describe('Campaigns', () => {
     
     // Assert: URL should contain join-campaign or campaigns
     await expect(navbar.getPage()).toHaveURL(/campaigns|join-campaign|login/);
-  });
-
-  /**
-   * Test 9: Join Campaign page is accessible from home quick access
-   */
-  test('Join Campaign page is accessible from home quick access card', async () => {
-    // Act: Click on Join Campaign card
-    await homePage.clickJoinCampaignCard();
-    
-    // Assert: Should navigate to join campaign
-    await expect(navbar.getPage()).toHaveURL('/join-campaign');
   });
 
   /**

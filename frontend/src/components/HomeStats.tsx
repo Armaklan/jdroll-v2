@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { homeApi } from '../api/home';
 import { usePresence } from '../contexts/PresenceContext';
 import { HomeCommunityStats } from '../types/home';
-import { getUserColorClass } from '../utils/user';
+import { UserPseudoLink } from './UserPseudoLink';
 import { Cake, UserPlus, Users } from 'lucide-react';
 
 function formatSubscribeDate(date: string | null | undefined): string {
@@ -15,9 +15,12 @@ function formatSubscribeDate(date: string | null | undefined): string {
 function UserListItem({ user, meta }: { user: { id: number; username: string; avatar?: string | null; profil?: number | null }; meta?: string }) {
   return (
     <li className="flex items-center justify-between gap-2 py-1.5">
-      <span className={`text-sm font-medium truncate ${getUserColorClass(user.profil)}`}>
-        {user.username}
-      </span>
+      <UserPseudoLink
+        userId={user.id}
+        username={user.username}
+        profil={user.profil}
+        className="text-sm font-medium truncate"
+      />
       {meta && <span className="text-xs text-slate-400 shrink-0">{meta}</span>}
     </li>
   );

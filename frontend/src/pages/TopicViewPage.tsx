@@ -5,6 +5,7 @@ import { TopicDetail, CharacterSummary } from '../types/campaign';
 import { AppView, viewToPath } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserColorClass, isUserAdmin } from '../utils/user';
+import { UserPseudoLink } from '../components/UserPseudoLink';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignHeader } from '../components/CampaignHeader';
@@ -1101,7 +1102,16 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                           className={`font-bold text-sm sm:text-base leading-tight ${getUserColorClass(post.user?.profil)}`}
                           style={{ color: postLinkColor || postTextColor || undefined }}
                         >
-                          {authorName}
+                          {!isSystem && post.user?.id ? (
+                            <UserPseudoLink
+                              userId={post.user.id}
+                              username={authorName}
+                              profil={post.user.profil}
+                              style={{ color: postLinkColor || postTextColor || undefined }}
+                            />
+                          ) : (
+                            authorName
+                          )}
                         </h4>
                       )}
 
@@ -1120,9 +1130,13 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                       {!isSystem && post.perso && (
                         <p className="text-[11px] opacity-75" style={{ color: postTextColor || undefined }}>
                           Joueur :{' '}
-                          <span className={`font-medium ${getUserColorClass(post.user?.profil)}`} style={{ color: postLinkColor || postTextColor || undefined }}>
-                            {post.user.username}
-                          </span>
+                          <UserPseudoLink
+                            userId={post.user?.id}
+                            username={post.user.username}
+                            profil={post.user?.profil}
+                            className="font-medium"
+                            style={{ color: postLinkColor || postTextColor || undefined }}
+                          />
                         </p>
                       )}
 

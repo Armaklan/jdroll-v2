@@ -134,10 +134,7 @@ test.describe('PageObject Pattern Examples', () => {
   test('Example: Home page displays expected content', async () => {
     // Assert: Hero section is displayed
     await expect(homePage.heroTitle).toBeVisible({ timeout: 5000 });
-    
-    // Assert: All quick access cards are visible
-    await expect(homePage.areQuickAccessCardsVisible()).resolves.toBeTruthy();
-    
+
     // Assert: Navbar is displayed
     await expect(navbar.logo).toBeVisible({ timeout: 3000 });
   });

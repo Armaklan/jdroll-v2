@@ -11,10 +11,6 @@ export class HomePage extends BasePage {
   readonly heroSubtitle: Locator;
   readonly loginButton: Locator;
   readonly registerButton: Locator;
-  readonly myCampaignsCard: Locator;
-  readonly createCampaignCard: Locator;
-  readonly joinCampaignCard: Locator;
-  readonly forumCard: Locator;
   readonly communitySection: Locator;
   readonly choiceSection: Locator;
   readonly platformSection: Locator;
@@ -33,21 +29,7 @@ export class HomePage extends BasePage {
     this.heroSubtitle = page.locator('p').filter({ hasText: /Du jeu, du rôle, du roll/i }).first();
     this.loginButton = page.getByRole('button', { name: /Se connecter/i }).first();
     this.registerButton = page.getByRole('button', { name: /S'inscrire/i }).first();
-    
-    // Quick access cards - use more flexible selectors
-    this.myCampaignsCard = page.getByRole('button', { name: /Mes Campagnes/i }).or(
-      page.locator('button:has-text("Mes Campagnes")')
-    );
-    this.createCampaignCard = page.getByRole('button', { name: /Créer une Campagne/i }).or(
-      page.locator('button:has-text("Créer une Campagne")')
-    );
-    this.joinCampaignCard = page.getByRole('button', { name: /Rejoindre/i }).or(
-      page.locator('button:has-text("Rejoindre")')
-    );
-    this.forumCard = page.getByRole('button', { name: /Forum Général/i }).or(
-      page.locator('button:has-text("Forum Général")')
-    );
-    
+
     // Content sections - use locator with filter for more control
     this.communitySection = page.locator('article').filter({ hasText: /Une communauté|Une communaute/i }).first();
     this.choiceSection = page.locator('article').filter({ hasText: /Du choix/i }).first();
@@ -113,39 +95,6 @@ export class HomePage extends BasePage {
   }
 
   /**
-   * Click on "My Campaigns" card
-   */
-  async clickMyCampaignsCard(): Promise<void> {
-    await this.click(this.myCampaignsCard);
-    await this.page.waitForURL(/\/my-campaigns/);
-  }
-
-  /**
-   * Click on "Create Campaign" card
-   */
-  async clickCreateCampaignCard(): Promise<void> {
-    await this.click(this.createCampaignCard);
-    await this.page.waitForURL(/\/campaigns\/new/);
-  }
-
-  /**
-   * Click on "Join Campaign" card
-   */
-  async clickJoinCampaignCard(): Promise<void> {
-    await this.click(this.joinCampaignCard);
-    // May navigate to campaigns list or join page
-    await this.page.waitForTimeout(500);
-  }
-
-  /**
-   * Click on "Forum" card
-   */
-  async clickForumCard(): Promise<void> {
-    await this.click(this.forumCard);
-    await this.page.waitForURL(/\/forum/);
-  }
-
-  /**
    * Check if login button is visible (user is not authenticated)
    */
   async isLoginButtonVisible(): Promise<boolean> {
@@ -157,25 +106,6 @@ export class HomePage extends BasePage {
    */
   async isRegisterButtonVisible(): Promise<boolean> {
     return await this.registerButton.count() > 0;
-  }
-
-  /**
-   * Check if all quick access cards are visible
-   */
-  async areQuickAccessCardsVisible(): Promise<boolean> {
-    const cards = [
-      this.myCampaignsCard,
-      this.createCampaignCard,
-      this.joinCampaignCard,
-      this.forumCard,
-    ];
-    
-    for (const card of cards) {
-      if (await card.count() === 0) {
-        return false;
-      }
-    }
-    return true;
   }
 
   /**
