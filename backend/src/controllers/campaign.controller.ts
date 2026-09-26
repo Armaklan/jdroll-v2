@@ -38,6 +38,8 @@ import { observeCampaignUseCase, ObserveCampaignUseCase } from '../usecases/camp
 import { unobserveCampaignUseCase, UnobserveCampaignUseCase } from '../usecases/campaign/unobserve-campaign.usecase.js';
 import { setCampaignAlertUseCase, SetCampaignAlertUseCase } from '../usecases/campaign/set-campaign-alert.usecase.js';
 import { removeCampaignAlertUseCase, RemoveCampaignAlertUseCase } from '../usecases/campaign/remove-campaign-alert.usecase.js';
+import { applyThemeUseCase, ApplyThemeUseCase } from '../usecases/campaign/apply-theme.usecase.js';
+import { themeQueries, ThemeQueries } from '../queries/theme.queries.js';
 import { noteQueries, NoteQueries } from '../queries/note.queries.js';
 import { createNoteUseCase, CreateNoteUseCase } from '../usecases/note/create-note.usecase.js';
 import { updateNoteUseCase, UpdateNoteUseCase } from '../usecases/note/update-note.usecase.js';
@@ -55,6 +57,7 @@ import {
   ValidationError,
   UserNotFoundError,
   NoteNotFoundError,
+  ThemeNotFoundError,
 } from '../errors/domain.errors.js';
 
 const getMyCampaignsSchema = z.object({
@@ -135,6 +138,10 @@ const createCampaignBodySchema = z.object({
 });
 
 const updateCampaignBodySchema = createCampaignBodySchema.partial();
+
+const applyThemeBodySchema = z.object({
+  themeId: z.coerce.number().int().positive('Identifiant de thème invalide'),
+});
 
 const getCampaignForumParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -379,7 +386,9 @@ export class CampaignController {
     private readonly noteQueryService: NoteQueries = noteQueries,
     private readonly createNoteUseCaseService: CreateNoteUseCase = createNoteUseCase,
     private readonly updateNoteUseCaseService: UpdateNoteUseCase = updateNoteUseCase,
-    private readonly deleteNoteUseCaseService: DeleteNoteUseCase = deleteNoteUseCase
+    private readonly deleteNoteUseCaseService: DeleteNoteUseCase = deleteNoteUseCase,
+    private readonly themeQueryService: ThemeQueries = themeQueries,
+    private readonly applyThemeUseCaseService: ApplyThemeUseCase = applyThemeUseCase
   ) {}
 
   /**
@@ -489,6 +498,66 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la mise à jour de la campagne' });
+    }
+  }
+
+  /**
+   * GET /api/themes
+   * Récupère la liste des thèmes pré-conçus disponibles
+   */
+  async getThemes(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const themes = await this.themeQueryService.getAllThemes();
+      return reply.status(200).send({ themes });
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération des thèmes' });
+    }
+  }
+
+  /**
+   * POST /api/campaigns/:id/theme
+   * Applique un thème pré-conçu aux couleurs de la campagne (MJ uniquement)
+   */
+  async applyTheme(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseBody = applyThemeBodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Données invalides',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const campaign = await this.applyThemeUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        userId: user.id,
+        themeId: parseBody.data.themeId,
+      });
+
+      return reply.status(200).send({ campaign });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ThemeNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: "Erreur lors de l'application du thème" });
     }
   }
 
@@ -2660,6 +2729,16 @@ export class CampaignController {
       '/api/campaigns/:id',
       { preHandler: [app.authenticate] },
       (req, rep) => this.updateCampaign(req, rep)
+    );
+
+    // Route pour voir les thèmes pré-conçus disponibles
+    app.get('/api/themes', (req, rep) => this.getThemes(req, rep));
+
+    // Route authentifiée pour appliquer un thème pré-conçu à une campagne (MJ)
+    app.post(
+      '/api/campaigns/:id/theme',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.applyTheme(req, rep)
     );
 
     // Route authentifiée pour voir ses propres campagnes

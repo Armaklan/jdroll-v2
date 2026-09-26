@@ -83,6 +83,12 @@ export class AbsenceNotFoundError extends DomainError {
   }
 }
 
+export class ThemeNotFoundError extends DomainError {
+  constructor(message = 'Thème introuvable') {
+    super(message);
+  }
+}
+
 export class TopicClosedError extends DomainError {
   constructor(message = 'Ce sujet est fermé') {
     super(message);

@@ -115,4 +115,15 @@ INSERT INTO `read_post` (`topic_id`, `user_id`, `post_id`) VALUES
 (5, 2, 7),
 (10, 2, 19);
 
+-- Thèmes pré-conçus applicables aux campagnes (table theme)
+INSERT INTO `theme` (
+    `id`, `title`, `odd_line_color`, `even_line_color`, `sidebar_color`, `link_color`,
+    `link_sidebar_color`, `text_color`, `dialogue_color`, `pensee_color`, `rp1_color`,
+    `rp2_color`, `quote_color`
+) VALUES
+(1, 'Parchemin Médiéval', '#f5efe0', '#ede4cf', '#e2d5b8', '#8b4513', '#6b3e14', '#3a2f1e', '#1a5276', '#5b2c6f', '#7d6608', '#6e2c00', '#5d4d33'),
+(2, 'Gothique Vampirique', '#1c1014', '#24161c', '#0d0709', '#c0392b', '#922b21', '#d5c5b0', '#e74c3c', '#8e44ad', '#f1c40f', '#d35400', '#a29b88'),
+(3, 'Cyberpunk Néon', '#0d0d0d', '#141414', '#050505', '#00fff0', '#ff00ff', '#e0e0e0', '#00ff00', '#ff0040', '#ffee00', '#00aaff', '#888888'),
+(4, 'Grimoire d''Épouvante', '#10140e', '#161c12', '#0a0d08', '#4a7c59', '#2e5941', '#cfd8c4', '#7fb685', '#9db88a', '#e9d985', '#b28e5a', '#8a9179');
+
 SET FOREIGN_KEY_CHECKS = 1;

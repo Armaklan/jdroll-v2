@@ -436,3 +436,19 @@ export interface CampaignSearchResults {
   cartes: CampaignSearchCarteItem[];
   characters: CampaignSearchCharacterItem[];
 }
+
+export interface PredefinedTheme {
+  id: number;
+  title: string;
+  oddLineColor: string | null;
+  evenLineColor: string | null;
+  sidebarColor: string | null;
+  linkColor: string | null;
+  linkSidebarColor: string;
+  textColor: string | null;
+  dialogueColor: string | null;
+  penseeColor: string | null;
+  rp1Color: string | null;
+  rp2Color: string | null;
+  quoteColor: string | null;
+}

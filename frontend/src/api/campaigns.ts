@@ -19,6 +19,7 @@ import {
   CreateCartePayload,
   UpdateCartePayload,
   CampaignSearchResults,
+  PredefinedTheme,
 } from '../types/campaign';
 import { getToken } from './auth';
 
@@ -145,6 +146,19 @@ export const campaignsApi = {
     const result = await request<{ campaign: CampaignSummary }>(`/api/campaigns/${campaignId}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
+    });
+    return result.campaign;
+  },
+
+  async getThemes(): Promise<PredefinedTheme[]> {
+    const result = await request<{ themes: PredefinedTheme[] }>('/api/themes');
+    return result.themes;
+  },
+
+  async applyTheme(campaignId: number, themeId: number): Promise<CampaignSummary> {
+    const result = await request<{ campaign: CampaignSummary }>(`/api/campaigns/${campaignId}/theme`, {
+      method: 'POST',
+      body: JSON.stringify({ themeId }),
     });
     return result.campaign;
   },

@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {useAuth} from '../contexts/AuthContext';
 import {campaignsApi} from '../api/campaigns';
-import {CampaignCharacter, CampaignWidget, CreateCampaignPayload, UpdateCampaignPayload, CampaignParticipant} from '../types/campaign';
+import {CampaignCharacter, CampaignWidget, CreateCampaignPayload, UpdateCampaignPayload, CampaignParticipant, PredefinedTheme} from '../types/campaign';
 import {WysiwygEditor} from '../components/WysiwygEditor';
 import {
   Activity,
@@ -130,6 +130,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const [linkColor, setLinkColor] = useState<string>('');
   const [linkSidebarColor, setLinkSidebarColor] = useState<string>('');
   const [width, setWidth] = useState<string>('800px');
+
+  // Predefined themes (table theme)
+  const [predefinedThemes, setPredefinedThemes] = useState<PredefinedTheme[]>([]);
+  const [selectedThemeId, setSelectedThemeId] = useState<string>('');
   
   // Separator Image Configuration
   const [hrMode, setHrMode] = useState<'upload' | 'url'>('url');
@@ -459,6 +463,40 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
     setTextColor('');
     setLinkColor('');
     setLinkSidebarColor('');
+  };
+
+  // Load predefined themes (table theme)
+  useEffect(() => {
+    let cancelled = false;
+    campaignsApi
+      .getThemes()
+      .then((result) => {
+        if (!cancelled) {
+          setPredefinedThemes(result);
+        }
+      })
+      .catch((err) => console.error('Erreur lors du chargement des thèmes pré-conçus:', err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleApplyPredefinedTheme = (themeId: string) => {
+    setSelectedThemeId(themeId);
+    if (!themeId) return;
+    const theme = predefinedThemes.find((t) => String(t.id) === themeId);
+    if (!theme) return;
+    setDialogueColor(theme.dialogueColor || DEFAULT_DIALOGUE_COLOR);
+    setPenseeColor(theme.penseeColor || DEFAULT_PENSEE_COLOR);
+    setRp1Color(theme.rp1Color || DEFAULT_RP1_COLOR);
+    setRp2Color(theme.rp2Color || DEFAULT_RP2_COLOR);
+    setQuoteColor(theme.quoteColor || '');
+    setSidebarColor(theme.sidebarColor || '');
+    setOddLineColor(theme.oddLineColor || '');
+    setEvenLineColor(theme.evenLineColor || '');
+    setTextColor(theme.textColor || '');
+    setLinkColor(theme.linkColor || '');
+    setLinkSidebarColor(theme.linkSidebarColor || '');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1795,14 +1833,31 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </p>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleResetColors}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold transition shadow-2xs cursor-pointer"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Réinitialiser les couleurs</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={selectedThemeId}
+                    onChange={(e) => handleApplyPredefinedTheme(e.target.value)}
+                    aria-label="Appliquer un thème pré-conçu"
+                    data-testid="predefined-theme-select"
+                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition shadow-2xs cursor-pointer"
+                  >
+                    <option value="">Appliquer un thème pré-conçu…</option>
+                    {predefinedThemes.map((theme) => (
+                      <option key={theme.id} value={theme.id}>
+                        {theme.title}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={handleResetColors}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-semibold transition shadow-2xs cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Réinitialiser les couleurs</span>
+                  </button>
+                </div>
               </div>
 
               {/* RP Dialogue & Pensée Colors */}
