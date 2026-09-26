@@ -1,12 +1,14 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
+import { IAbsenceRepository, absenceRepository } from '../repositories/absence.repository.js';
 import { CampaignForumData, GeneralForumData, TopicDetail, CharacterSummary, CampaignSummary, TopicUserSummary, CampaignParticipant } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
 export class ForumQueries {
   constructor(
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
-    private readonly forumRepo: IForumRepository = forumRepository
+    private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly absenceRepo: IAbsenceRepository = absenceRepository
   ) {}
 
   /**
@@ -60,6 +62,12 @@ export class ForumQueries {
 
     const sections = await this.forumRepo.findSectionsByCampaignId(campaignId, userId);
 
+    // Chaque membre de la campagne (MJ et joueurs) est informé des absences
+    // en cours des autres membres, MJ compris, mais pas des siennes
+    const currentAbsences = (userRole === 'mj' || userRole === 'player')
+      ? await this.absenceRepo.findCurrentByCampaignId(campaignId, userId)
+      : undefined;
+
     return {
       campaign: {
         ...campaign,
@@ -70,6 +78,7 @@ export class ForumQueries {
       },
       sections,
       pendingParticipants,
+      currentAbsences,
     };
   }
 

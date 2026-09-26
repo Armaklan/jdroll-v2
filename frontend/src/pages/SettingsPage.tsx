@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authApi } from '../api/auth';
+import { absencesApi } from '../api/absences';
 import { User, UpdateProfileData, NotificationSettings } from '../types/auth';
-import { formatDateForInput, parseDateFromInput } from '../utils/date';
+import { Absence } from '../types/absence';
+import { formatDateForInput, parseDateFromInput, formatDayDate } from '../utils/date';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import {
   User as UserIcon,
@@ -20,10 +22,12 @@ import {
   Settings,
   Upload,
   Link as LinkIcon,
+  CalendarOff,
+  Trash2,
 } from 'lucide-react';
 
 // Types pour les onglets
-type TabType = 'profile' | 'notifications' | 'password';
+type TabType = 'profile' | 'notifications' | 'password' | 'absences';
 
 interface Tab {
   id: TabType;
@@ -33,6 +37,7 @@ interface Tab {
 
 const tabs: Tab[] = [
   { id: 'profile', label: 'Profil', icon: <UserIcon className="w-4 h-4" /> },
+  { id: 'absences', label: 'Absences', icon: <CalendarOff className="w-4 h-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
   { id: 'password', label: 'Mot de passe', icon: <Key className="w-4 h-4" /> },
 ];
@@ -152,6 +157,93 @@ export const SettingsPage: React.FC = () => {
     newPassword: '',
     confirmPassword: '',
   });
+
+  // Absences state
+  const [absences, setAbsences] = useState<Absence[]>([]);
+  const [absenceForm, setAbsenceForm] = useState({
+    beginDate: '',
+    endDate: '',
+    commentaire: '',
+  });
+  const [isLoadingAbsences, setIsLoadingAbsences] = useState<boolean>(false);
+  const [isSubmittingAbsence, setIsSubmittingAbsence] = useState<boolean>(false);
+  const [absenceError, setAbsenceError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== 'absences' || !currentUser) {
+      return;
+    }
+    let cancelled = false;
+
+    const loadAbsences = async () => {
+      setIsLoadingAbsences(true);
+      setAbsenceError(null);
+      try {
+        const result = await absencesApi.getMyAbsences();
+        if (!cancelled) {
+          setAbsences(result);
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setAbsenceError(err.message || 'Erreur lors du chargement des absences.');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingAbsences(false);
+        }
+      }
+    };
+
+    loadAbsences();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, currentUser]);
+
+  const handleAbsenceChange = (field: 'beginDate' | 'endDate' | 'commentaire', value: string) => {
+    setAbsenceForm((prev) => ({ ...prev, [field]: value }));
+    setAbsenceError(null);
+  };
+
+  const handleDeclareAbsence = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!absenceForm.beginDate || !absenceForm.endDate) {
+      setAbsenceError('Les dates de début et de fin sont obligatoires.');
+      return;
+    }
+    if (!absenceForm.commentaire.trim()) {
+      setAbsenceError('Le commentaire est obligatoire.');
+      return;
+    }
+    if (absenceForm.endDate < absenceForm.beginDate) {
+      setAbsenceError('La date de fin ne peut pas être antérieure à la date de début.');
+      return;
+    }
+
+    setIsSubmittingAbsence(true);
+    setAbsenceError(null);
+    try {
+      const created = await absencesApi.declareAbsence(absenceForm);
+      setAbsences((prev) => [...prev, created].sort((a, b) => a.beginDate.localeCompare(b.beginDate)));
+      setAbsenceForm({ beginDate: '', endDate: '', commentaire: '' });
+      setSuccess('Absence déclarée avec succès.');
+    } catch (err: any) {
+      setAbsenceError(err.message || 'Erreur lors de la déclaration de l\'absence.');
+    } finally {
+      setIsSubmittingAbsence(false);
+    }
+  };
+
+  const handleDeleteAbsence = async (absenceId: number) => {
+    setAbsenceError(null);
+    try {
+      await absencesApi.deleteAbsence(absenceId);
+      setAbsences((prev) => prev.filter((a) => a.id !== absenceId));
+    } catch (err: any) {
+      setAbsenceError(err.message || 'Erreur lors de la suppression de l\'absence.');
+    }
+  };
 
   useEffect(() => {
     if (!currentUser) {
@@ -454,6 +546,19 @@ export const SettingsPage: React.FC = () => {
                 isSubmitting={isSubmitting}
                 onToggle={toggleSetting}
                 onSubmit={handleNotificationSubmit}
+              />
+            )}
+
+            {activeTab === 'absences' && (
+              <AbsencesTab
+                absences={absences}
+                formData={absenceForm}
+                isLoading={isLoadingAbsences}
+                isSubmitting={isSubmittingAbsence}
+                error={absenceError}
+                onChange={handleAbsenceChange}
+                onSubmit={handleDeclareAbsence}
+                onDelete={handleDeleteAbsence}
               />
             )}
 
@@ -1001,4 +1106,148 @@ const PasswordTab: React.FC<PasswordTabProps> = ({ passwordData, isSubmitting, o
       )}
     </button>
   </form>
+);
+
+// Absences Tab Component
+interface AbsencesTabProps {
+  absences: Absence[];
+  formData: { beginDate: string; endDate: string; commentaire: string };
+  isLoading: boolean;
+  isSubmitting: boolean;
+  error: string | null;
+  onChange: (field: 'beginDate' | 'endDate' | 'commentaire', value: string) => void;
+  onSubmit: (e: React.FormEvent) => Promise<void>;
+  onDelete: (absenceId: number) => Promise<void>;
+}
+
+const formatAbsenceDate = (value: string): string => formatDayDate(value, value);
+
+const AbsencesTab: React.FC<AbsencesTabProps> = ({
+  absences,
+  formData,
+  isLoading,
+  isSubmitting,
+  error,
+  onChange,
+  onSubmit,
+  onDelete,
+}) => (
+  <div className="space-y-8">
+    {/* Formulaire de déclaration */}
+    <section>
+      <h3 className="text-base font-bold text-slate-800 mb-1">Déclarer une absence</h3>
+      <p className="text-xs text-slate-500 mb-4">
+        Informez vos Maîtres du Jeu de vos périodes d'absence. Ils seront notifiés sur la page de leur campagne.
+      </p>
+
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
+
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="absence-begin-date" className="block text-xs font-medium text-slate-600 mb-1.5">
+              Date de début
+            </label>
+            <input
+              id="absence-begin-date"
+              type="date"
+              value={formData.beginDate}
+              onChange={(e) => onChange('beginDate', e.target.value)}
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          <div>
+            <label htmlFor="absence-end-date" className="block text-xs font-medium text-slate-600 mb-1.5">
+              Date de fin
+            </label>
+            <input
+              id="absence-end-date"
+              type="date"
+              value={formData.endDate}
+              onChange={(e) => onChange('endDate', e.target.value)}
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label htmlFor="absence-commentaire" className="block text-xs font-medium text-slate-600 mb-1.5">
+            Commentaire
+          </label>
+          <input
+            id="absence-commentaire"
+            type="text"
+            maxLength={200}
+            placeholder="Raison de l'absence (200 caractères max)"
+            value={formData.commentaire}
+            onChange={(e) => onChange('commentaire', e.target.value)}
+            className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-xl flex items-center gap-2 transition shadow-sm"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Déclaration en cours...</span>
+            </>
+          ) : (
+            <>
+              <CalendarOff className="w-4 h-4" />
+              <span>Déclarer l'absence</span>
+            </>
+          )}
+        </button>
+      </form>
+    </section>
+
+    {/* Liste des absences */}
+    <section>
+      <h3 className="text-base font-bold text-slate-800 mb-4">Mes absences</h3>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+        </div>
+      ) : absences.length === 0 ? (
+        <div className="py-8 text-center text-sm text-slate-500 border border-dashed border-slate-200 rounded-xl">
+          Vous n'avez déclaré aucune absence.
+        </div>
+      ) : (
+        <ul className="space-y-3" data-testid="absences-list">
+          {absences.map((absence) => (
+            <li
+              key={absence.id}
+              className="flex items-start justify-between gap-4 p-4 border border-slate-200 rounded-xl bg-slate-50"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-800">
+                  Du {formatAbsenceDate(absence.beginDate)} au {formatAbsenceDate(absence.endDate)}
+                </p>
+                <p className="text-xs text-slate-600 mt-1">{absence.commentaire}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onDelete(absence.id)}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:text-white hover:bg-red-600 border border-red-200 rounded-lg transition"
+                title="Supprimer cette absence"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Supprimer</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  </div>
 );

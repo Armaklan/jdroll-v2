@@ -10,6 +10,7 @@ import {
   formatDateLabel,
   formatDateForInput,
   parseDateFromInput,
+  formatDayDate,
 } from './date.ts';
 
 describe('Date utils (French DB Timezone handling)', () => {
@@ -134,6 +135,20 @@ describe('Date utils (French DB Timezone handling)', () => {
     it('doit retourner null pour null ou undefined', () => {
       assert.strictEqual(parseDateFromInput(null), null);
       assert.strictEqual(parseDateFromInput(undefined), null);
+    });
+  });
+
+  describe('formatDayDate', () => {
+    it('doit formater une date YYYY-MM-DD en JJ/MM/AAAA sans heure', () => {
+      assert.strictEqual(formatDayDate('2026-09-26'), '26/09/2026');
+    });
+
+    it('doit formater une date complète en JJ/MM/AAAA sans heure', () => {
+      assert.strictEqual(formatDayDate('2026-09-26T14:30:00.000Z'), '26/09/2026');
+    });
+
+    it('doit retourner la chaîne telle quelle si la date est invalide', () => {
+      assert.strictEqual(formatDayDate('pas-une-date'), 'pas-une-date');
     });
   });
 });

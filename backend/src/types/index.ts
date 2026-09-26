@@ -173,6 +173,7 @@ export interface CampaignForumData {
   campaign: CampaignSummary;
   sections: ForumSectionSummary[];
   pendingParticipants?: CampaignParticipant[];
+  currentAbsences?: CampaignPlayerAbsence[];
 }
 
 export interface GeneralForumData {
@@ -454,6 +455,27 @@ export interface CampaignNotesData {
 }
 
 export type CampaignNoteData = CampaignNotesData;
+
+export interface Absence {
+  id: number;
+  userId: number;
+  beginDate: string;
+  endDate: string;
+  commentaire: string | null;
+}
+
+export interface RawAbsenceRow {
+  id: number;
+  user_id: number;
+  begin_date: Date | string | null;
+  end_date: Date | string | null;
+  commentaire: string | null;
+}
+
+export interface CampaignPlayerAbsence extends Absence {
+  username: string;
+  isMj: boolean;
+}
 
 export interface CarteMarkerPopup {
   name?: string;

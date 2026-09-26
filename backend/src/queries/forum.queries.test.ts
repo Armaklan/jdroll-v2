@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { ForumQueries } from './forum.queries.js';
 import { ICampaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository } from '../repositories/forum.repository.js';
+import { IAbsenceRepository } from '../repositories/absence.repository.js';
 import {
   CampaignSummary,
   ForumSectionSummary,
@@ -10,6 +11,8 @@ import {
   RawTopicDetail,
   CharacterSummary,
   TopicUserSummary,
+  Absence,
+  CampaignPlayerAbsence,
 } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
@@ -400,6 +403,53 @@ class MockForumRepository implements IForumRepository {
   }
 
   async deleteDraft(_topicId: number, _userId: number): Promise<void> {}
+}
+
+class MockAbsenceRepository implements IAbsenceRepository {
+  private readonly absences: CampaignPlayerAbsence[] = [
+    {
+      id: 5,
+      userId: 2,
+      beginDate: '2026-09-25',
+      endDate: '2026-09-30',
+      commentaire: 'Vacances',
+      username: 'testuser',
+      isMj: false,
+    },
+    {
+      id: 6,
+      userId: 1,
+      beginDate: '2026-09-26',
+      endDate: '2026-09-27',
+      commentaire: 'Congés',
+      username: 'admin',
+      isMj: true,
+    },
+  ];
+
+  async findByUser(_userId: number): Promise<Absence[]> {
+    return [];
+  }
+
+  async findById(_id: number): Promise<Absence | null> {
+    return null;
+  }
+
+  async create(userId: number, beginDate: string, endDate: string, commentaire: string): Promise<Absence> {
+    return { id: 1, userId, beginDate, endDate, commentaire };
+  }
+
+  async updateByIdAndUser(_id: number, _userId: number, _beginDate: string, _endDate: string, _commentaire: string): Promise<boolean> {
+    return true;
+  }
+
+  async deleteByIdAndUser(_id: number, _userId: number): Promise<boolean> {
+    return true;
+  }
+
+  async findCurrentByCampaignId(_campaignId: number, excludeUserId?: number): Promise<CampaignPlayerAbsence[]> {
+    return this.absences.filter((a) => a.userId !== excludeUserId);
+  }
 }
 
 describe('ForumQueries', () => {
@@ -833,5 +883,48 @@ describe('ForumQueries', () => {
     const anonResult = await queries.getTopicPosts(101, 1, 99);
     assert.equal(anonResult.posts[0].perso?.widgets, null);
     assert.equal(anonResult.posts[1].perso?.widgets, null);
+  });
+
+  it('should return currentAbsences (joueurs actuellement absents) for the MJ, sans ses propres absences', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections);
+    const absenceRepo = new MockAbsenceRepository();
+    const queries = new ForumQueries(campaignRepo, forumRepo, absenceRepo);
+
+    // User 1 = MJ (mockCampaign.mjId === 1), qui a lui-même une absence en cours
+    const result = await queries.getCampaignForum(1, 1);
+
+    assert.equal(result.currentAbsences?.length, 1);
+    assert.equal(result.currentAbsences?.[0].username, 'testuser');
+    assert.equal(result.currentAbsences?.[0].isMj, false);
+    assert.equal(result.currentAbsences?.[0].beginDate, '2026-09-25');
+    assert.equal(result.currentAbsences?.[0].endDate, '2026-09-30');
+    assert.equal(result.currentAbsences?.[0].commentaire, 'Vacances');
+  });
+
+  it('should return currentAbsences for a player, y compris celles du MJ, sans ses propres absences', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections);
+    const absenceRepo = new MockAbsenceRepository();
+    const queries = new ForumQueries(campaignRepo, forumRepo, absenceRepo);
+
+    // User 2 = joueur, lui-même absent ; il doit voir l'absence du MJ mais pas la sienne
+    const result = await queries.getCampaignForum(1, 2);
+
+    assert.equal(result.currentAbsences?.length, 1);
+    assert.equal(result.currentAbsences?.[0].username, 'admin');
+    assert.equal(result.currentAbsences?.[0].isMj, true);
+    assert.equal(result.currentAbsences?.[0].commentaire, 'Congés');
+  });
+
+  it('should not return currentAbsences for a guest', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections);
+    const absenceRepo = new MockAbsenceRepository();
+    const queries = new ForumQueries(campaignRepo, forumRepo, absenceRepo);
+
+    const result = await queries.getCampaignForum(1);
+
+    assert.equal(result.currentAbsences, undefined);
   });
 });

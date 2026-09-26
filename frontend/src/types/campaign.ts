@@ -1,3 +1,5 @@
+import type { CampaignPlayerAbsence } from './absence';
+
 export interface CampaignSummary {
   id: number;
   name: string;
@@ -141,7 +143,11 @@ export interface CampaignForumData {
   campaign: CampaignSummary;
   sections: ForumSectionSummary[];
   pendingParticipants?: CampaignParticipant[];
+  currentAbsences?: CampaignPlayerAbsence[];
 }
+
+// Types absences
+export type { Absence, CampaignPlayerAbsence } from './absence';
 
 export interface GeneralForumData {
   sections: ForumSectionSummary[];

@@ -12,9 +12,10 @@ import {AppView} from '../components/Navbar';
 import {useAuth} from '../contexts/AuthContext';
 import {DiceTowerModal} from '../components/DiceTowerModal';
 import {CampaignHeader} from '../components/CampaignHeader';
-import {formatDate} from '../utils/date';
+import {formatDate, formatDayDate} from '../utils/date';
 import {
   AlertCircle,
+  CalendarOff,
   Check,
   ChevronDown,
   ChevronUp,
@@ -919,6 +920,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
   const isMj = Boolean(user && (campaign.mjId === user.id || campaign.userRole === 'mj'));
   const isPlayer = Boolean(user && campaign.userRole === 'player');
   const isCampaignMember = isMj || isPlayer;
+  const currentAbsences = forumData.currentAbsences ?? [];
 
   const unreadTopics = sections.flatMap((sec) =>
     sec.topics
@@ -1045,6 +1047,34 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
         bannerUploadError={bannerUploadError}
         onClearBannerUploadError={() => setBannerUploadError(null)}
       />
+
+      {/* Joueurs actuellement absents (MJ uniquement) - avant les messages non lus */}
+      {isMj && currentAbsences.length > 0 && (
+        <div
+          className="bg-amber-50 border border-amber-300 rounded-2xl p-4 shadow-xs"
+          data-testid="campaign-absences-banner"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <CalendarOff className="w-5 h-5 text-amber-600" />
+            <h3 className="text-sm font-bold text-amber-950">
+              Joueurs actuellement absents
+            </h3>
+          </div>
+          <ul className="space-y-1.5">
+            {currentAbsences.map((absence) => (
+              <li
+                key={absence.id}
+                className="text-xs sm:text-sm text-amber-900 flex flex-wrap items-baseline gap-x-1.5"
+                data-testid="campaign-absence-item"
+              >
+                <span className="font-bold">{absence.username}</span>
+                <span>— absent du {formatDayDate(absence.beginDate)} au {formatDayDate(absence.endDate)}</span>
+                {absence.commentaire && <span>— {absence.commentaire}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Forum Sections List */}
       {sections.length === 0 ? (

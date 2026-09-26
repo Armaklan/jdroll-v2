@@ -76,6 +76,26 @@ export function formatDate(
 }
 
 /**
+ * Format jour seul : JJ/MM/AAAA (sans heure)
+ */
+export function formatDayDate(
+  dateInput?: string | Date | number | null,
+  fallback = 'Date inconnue'
+): string {
+  const d = parseDbDate(dateInput);
+  if (!d) return typeof dateInput === 'string' && dateInput ? dateInput : fallback;
+  try {
+    return d.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  } catch {
+    return typeof dateInput === 'string' && dateInput ? dateInput : fallback;
+  }
+}
+
+/**
  * Format complet avec secondes (pour tour à dés) : JJ/MM/AAAA HH:mm:ss
  */
 export function formatFullDateTime(

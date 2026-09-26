@@ -18,6 +18,8 @@
 2. **Écrire le test en échec** : Il doit échouer pour valider le besoin
 3. **Exécuter** : `npm test --workspace=backend` pour confirmer l'échec
 
+Pour gagner du temps, tu ne peut exécuter que les tests correspondants à la tâche en cours.
+
 ### ✅ OBLIGATOIRE pendant l'implémentation
 4. **Coder le strict minimum** pour faire passer le test
 5. **Ne rien ajouter** qui n'est pas couvert par un test
@@ -35,6 +37,8 @@
 2. **Exécuter les tests e2e** : Vérifier qu'ils tombent en échec (KO) pour confirmer le besoin
 3. **Faire le développement** : Implémenter la fonctionnalité
 4. **Vérifier que les tests e2e sont maintenant OK** : Réexécuter les tests e2e pour confirmer qu'ils passent
+
+Pour gagner du temps, tu ne peut exécuter que les tests correspondants à la tâche en cours.
 
 ## Règle absolue
 **TDD pur** : RED → GREEN → REFACTOR, avec exécution des tests à chaque étape.

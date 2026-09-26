@@ -77,6 +77,12 @@ export class CarteNotFoundError extends DomainError {
   }
 }
 
+export class AbsenceNotFoundError extends DomainError {
+  constructor(message = 'Absence introuvable') {
+    super(message);
+  }
+}
+
 export class TopicClosedError extends DomainError {
   constructor(message = 'Ce sujet est fermé') {
     super(message);
