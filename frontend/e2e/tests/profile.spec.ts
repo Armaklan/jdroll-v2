@@ -337,3 +337,59 @@ test.describe('Profil public', () => {
     await expect(page.getByTestId('user-profile')).toContainText(mj.user.username);
   });
 });
+
+test.describe("Affectation d'un titre par un administrateur", () => {
+  test("un membre standard ne voit pas le formulaire d'affectation et reçoit 403 via l'API", async ({ page, request }) => {
+    const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`;
+    const password = 'Password123';
+    const viewer = await registerUser(request, `e2e_titre_v_${suffix}`, password);
+    const target = await registerUser(request, `e2e_titre_t_${suffix}`, password);
+
+    // L'API refuse l'affectation par un non-admin
+    const assignResponse = await request.put(`/api/users/${target.user.id}/titre`, {
+      headers: { Authorization: `Bearer ${viewer.token}` },
+      data: { titre: 'Escroc' },
+    });
+    expect(assignResponse.status()).toBe(403);
+
+    // La page de profil n'expose pas le formulaire d'affectation
+    await setBrowserToken(page, viewer.token);
+    await page.goto(`/users/${target.user.id}`);
+
+    await expect(page.getByTestId('user-profile')).toContainText(target.user.username);
+    await expect(page.getByTestId('user-profile-assign-title')).toHaveCount(0);
+  });
+
+  test("un administrateur affecte un titre depuis le profil d'un membre", async ({ page, request }) => {
+    const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`;
+    const target = await registerUser(request, `e2e_titre_at_${suffix}`, 'Password123');
+
+    // Connexion avec le compte administrateur pré-créé par le seed (profil 2)
+    const adminLogin = await request.post('/api/auth/login', {
+      data: { username: 'admin', password: 'password' },
+    });
+    expect(adminLogin.ok(), await adminLogin.text()).toBeTruthy();
+    const admin = await adminLogin.json();
+
+    await setBrowserToken(page, admin.token);
+    await page.goto(`/users/${target.user.id}`);
+
+    // Le formulaire d'affectation est visible et pré-rempli
+    const titreInput = page.getByTestId('user-profile-titre-input');
+    await expect(titreInput).toBeVisible();
+    await titreInput.fill('Conteur émérite');
+    await page.getByTestId('user-profile-titre-save').click();
+
+    // Le titre est affecté et affiché dans l'en-tête du profil
+    const profile = page.getByTestId('user-profile');
+    await expect(profile).toContainText('Conteur émérite');
+
+    // Le titre est persisté côté API
+    const profileResponse = await request.get(`/api/users/${target.user.id}/profile`, {
+      headers: { Authorization: `Bearer ${admin.token}` },
+    });
+    expect(profileResponse.ok()).toBeTruthy();
+    const { profile: fetched } = await profileResponse.json();
+    expect(fetched.titre).toBe('Conteur émérite');
+  });
+});

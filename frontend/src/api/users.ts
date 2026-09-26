@@ -33,4 +33,11 @@ export const usersApi = {
   async getPublicProfile(userId: number | string): Promise<{ profile: PublicUserProfile }> {
     return request<{ profile: PublicUserProfile }>(`/api/users/${userId}/profile`);
   },
+
+  async assignTitle(userId: number | string, titre: string): Promise<{ user: { id: number; username: string; titre: string } }> {
+    return request<{ user: { id: number; username: string; titre: string } }>(`/api/users/${userId}/titre`, {
+      method: 'PUT',
+      body: JSON.stringify({ titre }),
+    });
+  },
 };

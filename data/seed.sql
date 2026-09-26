@@ -14,7 +14,7 @@ INSERT INTO `user` (
     `notif_message`, `mail_mp`, `mail_inscription`, `mail_perso`, `mail_message`,
     `notif_dice`, `mail_dice`
 ) VALUES
-(1, 'admin', '5f4dcc3b5aa765d61d8327deb882cf99', 'admin@example.com', '', 'Administrateur et Maître du Jeu de test', 1, NOW(), 'Maître du Donjon', 1, 1, 1, 1, 0, 0, 0, 0, 1, 0),
+(1, 'admin', '5f4dcc3b5aa765d61d8327deb882cf99', 'admin@example.com', '', 'Administrateur et Maître du Jeu de test', 2, NOW(), 'Maître du Donjon', 1, 1, 1, 1, 0, 0, 0, 0, 1, 0),
 (2, 'testuser', '5f4dcc3b5aa765d61d8327deb882cf99', 'test@example.com', '', 'Joueur de test pour le développement local', 0, NOW(), 'Aventurier Novice', 1, 1, 1, 1, 0, 0, 0, 0, 1, 0),
 (3, 'joueur2', '5f4dcc3b5aa765d61d8327deb882cf99', 'joueur2@example.com', '', 'Deuxième compte joueur de test', 0, NOW(), 'Compagnon de route', 1, 1, 1, 1, 0, 0, 0, 0, 1, 0);
 

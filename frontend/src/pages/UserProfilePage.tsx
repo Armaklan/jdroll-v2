@@ -2,19 +2,27 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { usersApi } from '../api/users';
 import { PublicUserProfile } from '../types/user';
-import { getUserColorClass } from '../utils/user';
+import { getUserColorClass, isUserAdmin } from '../utils/user';
 import { formatDayDate } from '../utils/date';
-import { ArrowLeft, CalendarOff } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { ArrowLeft, CalendarOff, BadgeCheck } from 'lucide-react';
 
 /**
  * Profil public d'un membre : avatar, pseudo, titre, description,
  * date d'inscription et absences en cours.
+ * Un administrateur peut affecter un titre depuis ce profil.
  */
 export function UserProfilePage() {
   const { userId } = useParams<{ userId: string }>();
+  const { user: currentUser } = useAuth();
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [titreInput, setTitreInput] = useState('');
+  const [isSavingTitre, setIsSavingTitre] = useState(false);
+  const [titreError, setTitreError] = useState<string | null>(null);
+
+  const isAdmin = isUserAdmin(currentUser?.profil);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,7 +32,10 @@ export function UserProfilePage() {
       setError(null);
       try {
         const { profile: fetched } = await usersApi.getPublicProfile(userId || '');
-        if (!cancelled) setProfile(fetched);
+        if (!cancelled) {
+          setProfile(fetched);
+          setTitreInput(fetched.titre);
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Impossible de charger le profil.');
@@ -39,6 +50,20 @@ export function UserProfilePage() {
       cancelled = true;
     };
   }, [userId]);
+
+  const handleAssignTitre = async () => {
+    if (!profile) return;
+    setIsSavingTitre(true);
+    setTitreError(null);
+    try {
+      const { user: updated } = await usersApi.assignTitle(profile.id, titreInput);
+      setProfile((prev) => (prev ? { ...prev, titre: updated.titre } : prev));
+    } catch (err) {
+      setTitreError(err instanceof Error ? err.message : "Impossible d'affecter le titre.");
+    } finally {
+      setIsSavingTitre(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -105,6 +130,44 @@ export function UserProfilePage() {
             )}
           </div>
         </div>
+
+        {/* Affectation d'un titre (réservée aux administrateurs) */}
+        {isAdmin && (
+          <div
+            className="p-6 border-t border-slate-100 bg-slate-50/60"
+            data-testid="user-profile-assign-title"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <BadgeCheck className="w-4 h-4 text-indigo-600" />
+              <h2 className="text-sm font-bold text-slate-900">Affecter un titre</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="text"
+                value={titreInput}
+                onChange={(e) => setTitreInput(e.target.value)}
+                maxLength={300}
+                placeholder="Titre du membre"
+                data-testid="user-profile-titre-input"
+                className="flex-1 min-w-[200px] px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <button
+                type="button"
+                onClick={handleAssignTitre}
+                disabled={isSavingTitre}
+                data-testid="user-profile-titre-save"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition"
+              >
+                {isSavingTitre ? 'Affectation...' : 'Affecter'}
+              </button>
+            </div>
+            {titreError && (
+              <p className="text-xs text-red-600 mt-2" data-testid="user-profile-titre-error">
+                {titreError}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Description */}
         {profile.description ? (
