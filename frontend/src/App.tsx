@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PresenceProvider } from './contexts/PresenceContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { Navbar } from './components/Navbar';
+import { PwaUpdateToast } from './components/PwaUpdateToast';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -214,6 +215,7 @@ export default function App() {
       <PresenceProvider>
         <NotificationProvider>
           <AppContent />
+          <PwaUpdateToast />
         </NotificationProvider>
       </PresenceProvider>
     </AuthProvider>

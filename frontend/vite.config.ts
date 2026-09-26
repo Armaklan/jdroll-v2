@@ -37,6 +37,7 @@ export default defineConfig({
         orientation: 'portrait-primary',
       },
       strategies: 'generateSW',
+      registerType: 'prompt',
       srcDir: 'src',
       filename: 'sw.js',
       workbox: {
