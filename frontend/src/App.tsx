@@ -53,6 +53,8 @@ export function AppContent() {
     location.pathname.match(/\/carte\/\d+/)
   );
 
+  const isChatPage = location.pathname === '/chat';
+
   if (isCarteViewer) {
     return (
       <Routes>
@@ -67,7 +69,11 @@ export function AppContent() {
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
+      <main
+        className={`flex-1 max-w-7xl w-full mx-auto ${
+          isChatPage ? 'px-0 py-0 sm:px-6 sm:py-8' : 'px-4 sm:px-6 py-8'
+        }`}
+      >
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -198,10 +204,6 @@ export function AppContent() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-
-      <footer className="border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
-        JdRoll 2.0 &bull; by Armaklan. Du jeu, du rôle, du roll !
-      </footer>
     </div>
   );
 }

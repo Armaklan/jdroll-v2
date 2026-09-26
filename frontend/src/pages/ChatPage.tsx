@@ -270,6 +270,14 @@ export function ChatPage() {
     scrollToBottom('smooth');
   }, [messages.length]);
 
+  // Auto-grow the input textarea with its content (capped at 8rem = max-h-32)
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
+  }, [messageInput]);
+
   // Filter messages for currently selected channel
   const currentChannelMessages = useMemo(() => {
     if (activeChannel.type === 'general') {
@@ -468,7 +476,7 @@ export function ChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-10rem)] min-h-[550px] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+    <div className="flex flex-col h-[calc(100vh-4rem)] sm:h-[calc(100vh-10rem)] min-h-0 sm:min-h-[550px] bg-white rounded-none sm:rounded-2xl shadow-none sm:shadow-xl border-0 sm:border sm:border-slate-200 overflow-hidden">
       <GlobalFloatingSearch activeTab="chat" />
       {/* Top Bar / Header */}
       <div className="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between border-b border-slate-800 shadow-sm">
