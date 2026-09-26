@@ -2,8 +2,66 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { JoinCampaignUseCase } from './join-campaign.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
+import { IEventBus } from '../../events/event-bus.js';
 import { CampaignNotFoundError, ValidationError } from '../../errors/domain.errors.js';
-import { CampaignSummary } from '../../types/index.js';
+import { CampaignSummary, User } from '../../types/index.js';
+
+const mockUser: User = {
+  id: 2,
+  username: 'Player_Two',
+  mail: 'player2@example.com',
+  avatar: '',
+  description: '',
+  profil: 0,
+  titre: '',
+  subscribe_date: '2026-01-01',
+};
+
+const mockUserRepo: IUserRepository = {
+  async findById(id: number): Promise<User | null> {
+    return id === mockUser.id ? mockUser : null;
+  },
+  async findByUsernameOrEmail(): Promise<any | null> {
+    return null;
+  },
+  async findByUsernames(): Promise<User[]> {
+    return [];
+  },
+  async searchByUsername(): Promise<{ id: number; username: string; avatar: string }[]> {
+    return [];
+  },
+  async existsByUsernameOrEmail(): Promise<boolean> {
+    return false;
+  },
+  async create(): Promise<User> {
+    return mockUser;
+  },
+  async updateProfile(): Promise<User> {
+    return mockUser;
+  },
+  async updateNotificationSettings(): Promise<User> {
+    return mockUser;
+  },
+  async updatePassword(): Promise<void> {},
+  async findLatestRegistrations(): Promise<any[]> {
+    return [];
+  },
+  async findTodayBirthdays(): Promise<any[]> {
+    return [];
+  },
+};
+
+const publishedEvents: any[] = [];
+
+const mockEventBus: IEventBus = {
+  async publish(event: any): Promise<void> {
+    publishedEvents.push(event);
+  },
+  subscribe(): void {},
+  unsubscribe(): void {},
+  clearHandlers(): void {},
+};
 
 function createMockCampaignRepo(initialCampaigns: CampaignSummary[] = []) {
   const campaigns = [...initialCampaigns];
@@ -110,7 +168,7 @@ describe('JoinCampaignUseCase', () => {
 
   it('lève une CampaignNotFoundError si la campagne n’existe pas', async () => {
     const { repo } = createMockCampaignRepo([]);
-    const useCase = new JoinCampaignUseCase(repo);
+    const useCase = new JoinCampaignUseCase(repo, mockUserRepo, mockEventBus);
 
     await assert.rejects(
       () => useCase.execute({ campaignId: 999, userId: 2 }),
@@ -122,7 +180,7 @@ describe('JoinCampaignUseCase', () => {
     const { repo } = createMockCampaignRepo([
       { ...sampleCampaign, id: 11, statut: 2, isArchived: true },
     ]);
-    const useCase = new JoinCampaignUseCase(repo);
+    const useCase = new JoinCampaignUseCase(repo, mockUserRepo, mockEventBus);
 
     await assert.rejects(
       () => useCase.execute({ campaignId: 11, userId: 2 }),
@@ -134,7 +192,7 @@ describe('JoinCampaignUseCase', () => {
     const { repo } = createMockCampaignRepo([
       { ...sampleCampaign, id: 13, statut: 3 },
     ]);
-    const useCase = new JoinCampaignUseCase(repo);
+    const useCase = new JoinCampaignUseCase(repo, mockUserRepo, mockEventBus);
 
     await assert.rejects(
       () => useCase.execute({ campaignId: 13, userId: 2 }),
@@ -146,7 +204,7 @@ describe('JoinCampaignUseCase', () => {
     const { repo } = createMockCampaignRepo([
       { ...sampleCampaign, id: 12, isRecrutementOpen: false },
     ]);
-    const useCase = new JoinCampaignUseCase(repo);
+    const useCase = new JoinCampaignUseCase(repo, mockUserRepo, mockEventBus);
 
     await assert.rejects(
       () => useCase.execute({ campaignId: 12, userId: 2 }),
@@ -156,7 +214,7 @@ describe('JoinCampaignUseCase', () => {
 
   it('lève une ValidationError si l’utilisateur est le MJ de la campagne', async () => {
     const { repo } = createMockCampaignRepo([sampleCampaign]);
-    const useCase = new JoinCampaignUseCase(repo);
+    const useCase = new JoinCampaignUseCase(repo, mockUserRepo, mockEventBus);
 
     await assert.rejects(
       () => useCase.execute({ campaignId: 10, userId: 1 }), // userId 1 is MJ
@@ -166,7 +224,7 @@ describe('JoinCampaignUseCase', () => {
 
   it('permet à un joueur de rejoindre avec succès la campagne', async () => {
     const { repo, participants } = createMockCampaignRepo([sampleCampaign]);
-    const useCase = new JoinCampaignUseCase(repo);
+    const useCase = new JoinCampaignUseCase(repo, mockUserRepo, mockEventBus);
 
     const result = await useCase.execute({ campaignId: 10, userId: 2 });
 
@@ -178,7 +236,7 @@ describe('JoinCampaignUseCase', () => {
   it('retourne un message informatif si le joueur participe déjà', async () => {
     const { repo, participants } = createMockCampaignRepo([sampleCampaign]);
     participants.set('10-2', 1);
-    const useCase = new JoinCampaignUseCase(repo);
+    const useCase = new JoinCampaignUseCase(repo, mockUserRepo, mockEventBus);
 
     const result = await useCase.execute({ campaignId: 10, userId: 2 });
 
@@ -189,7 +247,7 @@ describe('JoinCampaignUseCase', () => {
   it('retourne un message informatif si la demande du joueur est déjà en attente', async () => {
     const { repo, participants } = createMockCampaignRepo([sampleCampaign]);
     participants.set('10-2', 0);
-    const useCase = new JoinCampaignUseCase(repo);
+    const useCase = new JoinCampaignUseCase(repo, mockUserRepo, mockEventBus);
 
     const result = await useCase.execute({ campaignId: 10, userId: 2 });
 

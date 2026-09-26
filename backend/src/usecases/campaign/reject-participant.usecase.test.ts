@@ -2,8 +2,66 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { RejectParticipantUseCase } from './reject-participant.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
+import { IEventBus } from '../../events/event-bus.js';
 import { CampaignNotFoundError, ForbiddenError } from '../../errors/domain.errors.js';
-import { CampaignSummary } from '../../types/index.js';
+import { CampaignSummary, User } from '../../types/index.js';
+
+const mockUser: User = {
+  id: 2,
+  username: 'Player_Two',
+  mail: 'player2@example.com',
+  avatar: '',
+  description: '',
+  profil: 0,
+  titre: '',
+  subscribe_date: '2026-01-01',
+};
+
+const mockUserRepo: IUserRepository = {
+  async findById(id: number): Promise<User | null> {
+    return id === mockUser.id ? mockUser : null;
+  },
+  async findByUsernameOrEmail(): Promise<any | null> {
+    return null;
+  },
+  async findByUsernames(): Promise<User[]> {
+    return [];
+  },
+  async searchByUsername(): Promise<{ id: number; username: string; avatar: string }[]> {
+    return [];
+  },
+  async existsByUsernameOrEmail(): Promise<boolean> {
+    return false;
+  },
+  async create(): Promise<User> {
+    return mockUser;
+  },
+  async updateProfile(): Promise<User> {
+    return mockUser;
+  },
+  async updateNotificationSettings(): Promise<User> {
+    return mockUser;
+  },
+  async updatePassword(): Promise<void> {},
+  async findLatestRegistrations(): Promise<any[]> {
+    return [];
+  },
+  async findTodayBirthdays(): Promise<any[]> {
+    return [];
+  },
+};
+
+const publishedEvents: any[] = [];
+
+const mockEventBus: IEventBus = {
+  async publish(event: any): Promise<void> {
+    publishedEvents.push(event);
+  },
+  subscribe(): void {},
+  unsubscribe(): void {},
+  clearHandlers(): void {},
+};
 
 function createMockRepo(initialCampaigns: CampaignSummary[] = []) {
   const campaigns = [...initialCampaigns];
@@ -108,7 +166,7 @@ describe('RejectParticipantUseCase', () => {
     const { campaignRepo, participants } = createMockRepo([sampleCampaign]);
     participants.set('10-2', 0); // en attente
 
-    const useCase = new RejectParticipantUseCase(campaignRepo);
+    const useCase = new RejectParticipantUseCase(campaignRepo, mockUserRepo, mockEventBus);
     const result = await useCase.execute({ campaignId: 10, mjId: 1, targetUserId: 2 });
 
     assert.equal(result.success, true);
@@ -117,7 +175,7 @@ describe('RejectParticipantUseCase', () => {
 
   it('lève une ForbiddenError si l’utilisateur appelant n’est pas le MJ', async () => {
     const { campaignRepo } = createMockRepo([sampleCampaign]);
-    const useCase = new RejectParticipantUseCase(campaignRepo);
+    const useCase = new RejectParticipantUseCase(campaignRepo, mockUserRepo, mockEventBus);
 
     await assert.rejects(
       () => useCase.execute({ campaignId: 10, mjId: 99, targetUserId: 2 }),
@@ -127,7 +185,7 @@ describe('RejectParticipantUseCase', () => {
 
   it('lève une CampaignNotFoundError si la campagne n’existe pas', async () => {
     const { campaignRepo } = createMockRepo([]);
-    const useCase = new RejectParticipantUseCase(campaignRepo);
+    const useCase = new RejectParticipantUseCase(campaignRepo, mockUserRepo, mockEventBus);
 
     await assert.rejects(
       () => useCase.execute({ campaignId: 10, mjId: 1, targetUserId: 2 }),
