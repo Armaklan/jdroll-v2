@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { chatApi } from '../api/chat';
 import { ChatMessage } from '../types/chat';
@@ -13,9 +13,15 @@ function formatTime(time: string): string {
 
 export const HomeChatPreview: React.FC = () => {
   const navigate = useNavigate();
+  const messagesListRef = useRef<HTMLUListElement>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoading || !messagesListRef.current) return;
+    messagesListRef.current.scrollTop = messagesListRef.current.scrollHeight;
+  }, [isLoading, messages]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +78,10 @@ export const HomeChatPreview: React.FC = () => {
           Aucun message pour le moment. Lancez la conversation !
         </div>
       ) : (
-        <ul className="space-y-1.5 overflow-y-auto max-h-80 pr-1">
+        <ul
+          ref={messagesListRef}
+          className="space-y-1.5 flex-1 min-h-0 overflow-y-auto max-h-80 lg:max-h-none pr-1"
+        >
           {messages.map((message) => {
             const isPrivate = Boolean(message.to_username && message.to_username !== '');
             return (
@@ -96,7 +105,7 @@ export const HomeChatPreview: React.FC = () => {
                     {message.to_username}
                   </span>
                 )}
-                <span className="text-slate-700 break-all line-clamp-1">{message.message}</span>
+                <span className="text-slate-700 break-words min-w-0">{message.message}</span>
               </li>
             );
           })}

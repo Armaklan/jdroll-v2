@@ -113,12 +113,16 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       {isLoading ? null : isAuthenticated && user ? (
           <div data-testid="home-dashboard" className="space-y-8">
-            {/* Community stats : online users, latest registrations, birthdays */}
-            <HomeStats />
+            {/* Campaign carousel : recruiting tables, or random active ones */}
+            <HomeCampaignCarousel />
 
             {/* Chat preview and most recently active forum topics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <HomeChatPreview />
+              <div className="relative">
+                <div className="lg:absolute lg:inset-0">
+                  <HomeChatPreview />
+                </div>
+              </div>
               <HomeRecentTopics />
             </div>
           </div>
@@ -199,8 +203,11 @@ export const HomePage: React.FC<HomePageProps> = ({
       </ul>
       )}
 
-      {/* Campaign carousel : recruiting tables, or random active ones */}
-      <HomeCampaignCarousel />
+      {/* Campaign carousel for visitors : authenticated users see it above the chat */}
+      {isLoading || (isAuthenticated && user) ? null : <HomeCampaignCarousel />}
+
+      {/* Community stats : online users, latest registrations, birthdays */}
+      {isLoading ? null : isAuthenticated && user ? <HomeStats /> : null}
     </div>
   );
 };
