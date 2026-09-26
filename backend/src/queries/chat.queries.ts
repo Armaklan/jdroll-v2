@@ -9,7 +9,13 @@ export class ChatQueries {
   ) {}
 
   async getRecentMessages(userId: number, username: string, limit: number = 200): Promise<ChatMessage[]> {
-    return this.chatRepo.getRecentMessages(userId, username, limit);
+    const messages = await this.chatRepo.getRecentMessages(userId, username, limit);
+    // Les messages legacy du tchat ancien stockent `to = '0'` pour les messages publics
+    return messages.map((m) => ({
+      ...m,
+      to: m.to === '0' ? '' : m.to,
+      to_username: m.to === '0' && !m.to_username ? '' : m.to_username,
+    }));
   }
 
   async searchUsers(query: string, currentUserId: number): Promise<{ id: number; username: string; avatar: string }[]> {

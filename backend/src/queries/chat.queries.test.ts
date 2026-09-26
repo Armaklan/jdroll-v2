@@ -57,6 +57,32 @@ describe('ChatQueries', () => {
     assert.equal(messages[1].to_username, 'Alice');
   });
 
+  it('normalise les messages legacy avec to="0" comme messages publics', async () => {
+    const legacyRepo: IChatRepository = {
+      createMessage: async () => mockMessages[0],
+      getRecentMessages: async () => [
+        {
+          id: 10,
+          username: 'Bob',
+          userAvatar: 'avatar2.png',
+          userProfil: 0,
+          time: '2026-09-16 12:10:00',
+          message: 'Message legacy public avec to=0',
+          to: '0',
+          to_username: '',
+        },
+      ],
+      getMessageById: async () => null,
+    };
+    const legacyQueries = new ChatQueries(legacyRepo, mockUserRepo);
+
+    const messages = await legacyQueries.getRecentMessages(1, 'Alice', 200);
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].to, '');
+    assert.equal(messages[0].to_username, '');
+  });
+
   it('recherche des utilisateurs pour démarrer une conversation privée', async () => {
     const users = await queries.searchUsers('bo', 1);
     assert.equal(users.length, 1);
