@@ -8,6 +8,7 @@ export interface Absence {
 
 export interface CampaignPlayerAbsence extends Absence {
   username: string;
+  isMj: boolean;
 }
 
 export interface DeclareAbsencePayload {

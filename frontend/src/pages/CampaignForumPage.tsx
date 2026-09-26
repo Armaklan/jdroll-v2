@@ -1048,8 +1048,8 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
         onClearBannerUploadError={() => setBannerUploadError(null)}
       />
 
-      {/* Joueurs actuellement absents (MJ uniquement) - avant les messages non lus */}
-      {isMj && currentAbsences.length > 0 && (
+      {/* Membres actuellement absents (MJ et joueurs) - avant les messages non lus */}
+      {currentAbsences.length > 0 && (
         <div
           className="bg-amber-50 border border-amber-300 rounded-2xl p-4 shadow-xs"
           data-testid="campaign-absences-banner"
@@ -1057,7 +1057,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
           <div className="flex items-center gap-2 mb-2">
             <CalendarOff className="w-5 h-5 text-amber-600" />
             <h3 className="text-sm font-bold text-amber-950">
-              Joueurs actuellement absents
+              Membres actuellement absents
             </h3>
           </div>
           <ul className="space-y-1.5">
@@ -1068,6 +1068,11 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                 data-testid="campaign-absence-item"
               >
                 <span className="font-bold">{absence.username}</span>
+                {absence.isMj && (
+                  <span className="font-semibold text-amber-700" title="Maître du Jeu">
+                    (MJ)
+                  </span>
+                )}
                 <span>— absent du {formatDayDate(absence.beginDate)} au {formatDayDate(absence.endDate)}</span>
                 {absence.commentaire && <span>— {absence.commentaire}</span>}
               </li>

@@ -3,8 +3,10 @@ import { test, expect, APIRequestContext } from '@playwright/test';
 /**
  * Absences Tests
  * 1. Un utilisateur peut déclarer une absence depuis son profil (onglet Absences)
- * 2. Le MJ est informé des joueurs de sa partie actuellement absents,
+ * 2. Le MJ est informé des membres de sa partie actuellement absents,
  *    affiché avant la section "Messages non lus" de la page de campagne
+ * 3. Un joueur voit également les absences en cours, y compris celle du MJ,
+ *    mais pas ses propres absences
  */
 
 interface AuthResponse {
@@ -120,7 +122,7 @@ test.describe('Absences', () => {
     // Le bandeau d'absences est visible avec le nom du joueur et le commentaire
     const banner = page.getByTestId('campaign-absences-banner');
     await expect(banner).toBeVisible();
-    await expect(banner).toContainText('Joueurs actuellement absents');
+    await expect(banner).toContainText('Membres actuellement absents');
     await expect(banner).toContainText(player.user.username);
     await expect(banner).toContainText('Vacances en famille');
 
@@ -136,5 +138,78 @@ test.describe('Absences', () => {
       return bannerEl.compareDocumentPosition(unreadHeader) & Node.DOCUMENT_POSITION_FOLLOWING;
     });
     expect(isBannerBeforeUnread).toBe(true);
+  });
+
+  test("un joueur voit les absences en cours, y compris celle du MJ, mais pas les siennes", async ({ page, request }) => {
+    const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`;
+    const password = 'Password123';
+    const mj = await registerUser(request, `e2e_abs_mj_${suffix}`, password);
+    const player = await registerUser(request, `e2e_abs_pl_${suffix}`, password);
+
+    // Création de la campagne par le MJ
+    const createResponse = await request.post('/api/campaigns', {
+      headers: { Authorization: `Bearer ${mj.token}` },
+      data: {
+        name: `Campagne absences joueur ${suffix}`,
+        systeme: 'D&D 5e',
+        univers: 'Test',
+        description: 'Campagne de test des absences côté joueur',
+        nbJoueurs: 4,
+      },
+    });
+    expect(createResponse.ok()).toBeTruthy();
+    const { campaign } = await createResponse.json();
+
+    // Le joueur rejoint la campagne, puis le MJ valide son inscription
+    const joinResponse = await request.post(`/api/campaigns/${campaign.id}/join`, {
+      headers: { Authorization: `Bearer ${player.token}` },
+    });
+    expect(joinResponse.ok()).toBeTruthy();
+
+    const acceptResponse = await request.post(`/api/campaigns/${campaign.id}/participants/${player.user.id}/accept`, {
+      headers: { Authorization: `Bearer ${mj.token}` },
+    });
+    expect(acceptResponse.ok()).toBeTruthy();
+
+    const today = new Date();
+    const inTwoDays = new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+    // Le MJ déclare une absence en cours
+    const mjAbsenceResponse = await request.post('/api/absences', {
+      headers: { Authorization: `Bearer ${mj.token}` },
+      data: {
+        beginDate: toDateString(today),
+        endDate: toDateString(inTwoDays),
+        commentaire: 'Congés du MJ',
+      },
+    });
+    expect(mjAbsenceResponse.ok()).toBeTruthy();
+
+    // Le joueur déclare lui aussi une absence en cours
+    const playerAbsenceResponse = await request.post('/api/absences', {
+      headers: { Authorization: `Bearer ${player.token}` },
+      data: {
+        beginDate: toDateString(today),
+        endDate: toDateString(inTwoDays),
+        commentaire: 'Vacances du joueur',
+      },
+    });
+    expect(playerAbsenceResponse.ok()).toBeTruthy();
+
+    // Le joueur ouvre la page de la campagne
+    await setBrowserToken(page, player.token);
+    await page.goto(`/campaigns/${campaign.id}`);
+
+    // Le bandeau d'absences est visible pour le joueur, avec l'absence du MJ marquée comme telle
+    const banner = page.getByTestId('campaign-absences-banner');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText('Membres actuellement absents');
+    await expect(banner).toContainText(mj.user.username);
+    await expect(banner).toContainText('(MJ)');
+    await expect(banner).toContainText('Congés du MJ');
+
+    // Le joueur ne voit pas sa propre absence
+    await expect(banner).not.toContainText(player.user.username);
+    await expect(banner).not.toContainText('Vacances du joueur');
   });
 });
