@@ -11,6 +11,7 @@ export interface IUserRepository {
   updateProfile(id: number, data: UpdateUserProfileData): Promise<User>;
   updateNotificationSettings(id: number, settings: NotificationSettings): Promise<User>;
   updatePassword(id: number, currentPasswordHash: string, newPasswordHash: string): Promise<void>;
+  updateLastAction(id: number): Promise<void>;
   findLatestRegistrations(limit: number): Promise<HomeUserSummary[]>;
   findTodayBirthdays(): Promise<HomeUserSummary[]>;
 }
@@ -213,11 +214,20 @@ export class MysqlUserRepository implements IUserRepository {
     }
   }
 
+  async updateLastAction(id: number): Promise<void> {
+    await execute(
+      `INSERT INTO last_action (user_id, time) VALUES (?, NOW())
+       ON DUPLICATE KEY UPDATE time = NOW()`,
+      [id]
+    );
+  }
+
   async findLatestRegistrations(limit: number): Promise<HomeUserSummary[]> {
     const safeLimit = Math.min(Math.max(1, limit), 50);
     return query<HomeUserSummary>(
       `SELECT id, username, avatar, profil, subscribe_date as subscribeDate
        FROM user
+       WHERE EXISTS (SELECT 1 FROM last_action WHERE last_action.user_id = user.id)
        ORDER BY subscribe_date DESC, id DESC
        LIMIT ?`,
       [safeLimit]

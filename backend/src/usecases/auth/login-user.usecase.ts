@@ -22,6 +22,8 @@ export class LoginUserUseCase {
       throw new InvalidCredentialsError('Identifiant ou mot de passe incorrect');
     }
 
+    await this.userRepo.updateLastAction(userWithPassword.id);
+
     const { password: _, ...user } = userWithPassword;
     return user;
   }

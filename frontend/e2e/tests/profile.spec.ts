@@ -65,6 +65,12 @@ test.describe('Profil public', () => {
     const viewer = await registerUser(request, `e2e_prof_view_${suffix}`, password);
     const target = await registerUser(request, `e2e_prof_tgt_${suffix}`, password);
 
+    // Le membre cible s'est réellement connecté (visible dans les derniers inscrits)
+    const targetLogin = await request.post('/api/auth/login', {
+      data: { username: target.user.username, password },
+    });
+    expect(targetLogin.ok(), await targetLogin.text()).toBeTruthy();
+
     // Le membre cible complète son profil et déclare une absence en cours
     const profileResponse = await request.put('/api/auth/profile', {
       headers: { Authorization: `Bearer ${target.token}` },
@@ -93,6 +99,26 @@ test.describe('Profil public', () => {
     await expect(profile).toContainText('Conteur émérite');
     await expect(profile).toContainText('Vieux rôliste du dimanche');
     await expect(page.getByTestId('user-profile-current-absences')).toContainText('Congés bien mérités');
+  });
+
+  test("les derniers inscrits n'affichent que les membres qui se sont déjà connectés", async ({ page, request }) => {
+    const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`;
+    const password = 'Password123';
+    const neverLoggedIn = await registerUser(request, `e2e_prof_nl_${suffix}`, password);
+    const loggedIn = await registerUser(request, `e2e_prof_li_${suffix}`, password);
+
+    // Un seul des deux membres s'est réellement connecté
+    const loginResponse = await request.post('/api/auth/login', {
+      data: { username: loggedIn.user.username, password },
+    });
+    expect(loginResponse.ok(), await loginResponse.text()).toBeTruthy();
+
+    const registrations = page.getByTestId('home-stats-registrations');
+    await setBrowserToken(page, loggedIn.token);
+    await page.goto('/');
+
+    await expect(registrations.getByRole('link', { name: loggedIn.user.username })).toBeVisible();
+    await expect(registrations.getByRole('link', { name: neverLoggedIn.user.username })).toHaveCount(0);
   });
 
   test("le pseudo est cliquable dans la liste des gens en ligne", async ({ page, request }) => {

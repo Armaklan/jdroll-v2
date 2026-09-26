@@ -8,9 +8,18 @@ import { md5 } from '../../utils/auth.js';
 
 class MockUserRepository implements IUserRepository {
   private users: (User & { password?: string })[] = [];
+  private lastActionUpdates: number[] = [];
 
   constructor(initialUsers: (User & { password?: string })[] = []) {
     this.users = initialUsers;
+  }
+
+  async updateLastAction(id: number): Promise<void> {
+    this.lastActionUpdates.push(id);
+  }
+
+  getLastActionUpdates(): number[] {
+    return [...this.lastActionUpdates];
   }
 
   async findById(id: number): Promise<User | null> {
@@ -74,6 +83,29 @@ describe('LoginUserUseCase', () => {
     assert.equal(user.id, 1);
     assert.equal(user.username, 'testuser');
     assert.equal((user as { password?: string }).password, undefined);
+  });
+
+  it("marque la dernière action de l'utilisateur lors d'une connexion réussie", async () => {
+    const repo = new MockUserRepository([existingUser]);
+    const useCase = new LoginUserUseCase(repo);
+
+    await useCase.execute({
+      username: 'testuser',
+      password: 'correctPassword',
+    });
+
+    assert.deepEqual(repo.getLastActionUpdates(), [1]);
+  });
+
+  it('ne marque pas la dernière action quand les identifiants sont invalides', async () => {
+    const repo = new MockUserRepository([existingUser]);
+    const useCase = new LoginUserUseCase(repo);
+
+    await assert.rejects(() =>
+      useCase.execute({ username: 'testuser', password: 'wrongPassword' })
+    );
+
+    assert.deepEqual(repo.getLastActionUpdates(), []);
   });
 
   it('should authenticate user using email', async () => {

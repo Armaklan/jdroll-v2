@@ -51,6 +51,8 @@ class MockUserRepository implements IUserRepository {
   }
 
   async updatePassword(): Promise<void> {}
+
+  async updateLastAction(): Promise<void> {}
 }
 
 describe('HomeQueries', () => {
