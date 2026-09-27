@@ -14,6 +14,7 @@ export class LoginPage extends BasePage {
   readonly loginButton: Locator;
   readonly errorMessage: Locator;
   readonly loadingSpinner: Locator;
+  readonly rememberMeCheckbox: Locator;
   readonly switchToRegisterLink: Locator;
   readonly form: Locator;
 
@@ -33,6 +34,7 @@ export class LoginPage extends BasePage {
     this.loginButton = page.getByRole('button', { name: /Se connecter|Connexion/i });
     this.errorMessage = page.locator('.bg-red-50, .border-red-200, .text-red-700').filter({ hasText: /Erreur|Error/i });
     this.loadingSpinner = page.locator('.animate-spin:visible');
+    this.rememberMeCheckbox = page.getByLabel(/Se souvenir de moi/i);
     this.switchToRegisterLink = page.getByRole('button', { name: /Créer un compte/i });
     this.form = page.locator('form');
   }

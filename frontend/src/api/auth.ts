@@ -1,17 +1,25 @@
 import { User, AuthResponse, UpdateProfileData, NotificationSettings } from '../types/auth';
+import { getCookie, setCookie, deleteCookie } from '../utils/cookies';
 
 const TOKEN_KEY = 'jdroll_token';
+const REMEMBER_ME_DAYS = 30;
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY) ?? getCookie(TOKEN_KEY);
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+export function setToken(token: string, remember = false): void {
+  removeToken();
+  if (remember) {
+    setCookie(TOKEN_KEY, token, { maxAgeDays: REMEMBER_ME_DAYS });
+  } else {
+    localStorage.setItem(TOKEN_KEY, token);
+  }
 }
 
 export function removeToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+  deleteCookie(TOKEN_KEY);
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -50,10 +58,11 @@ export const authApi = {
     });
   },
 
-  async login(data: { username: string; password: string }): Promise<AuthResponse> {
+  async login(data: { username: string; password: string; rememberMe?: boolean }): Promise<AuthResponse> {
+    const { rememberMe: _rememberMe, ...credentials } = data;
     return request<AuthResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(credentials),
     });
   },
 

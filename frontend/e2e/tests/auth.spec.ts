@@ -108,6 +108,91 @@ test.describe('Authentication Flow', () => {
   });
 
   /**
+   * Test 5b: Remember me checkbox is visible, unchecked by default and toggleable
+   */
+  test('Login form displays a "Se souvenir de moi" checkbox unchecked by default', async () => {
+    // Arrange: Go to login page
+    await navbar.clickLogin();
+    await expect(loginPage.isOnPage()).resolves.toBeTruthy();
+
+    // Assert: Checkbox is visible and unchecked by default
+    await expect(loginPage.rememberMeCheckbox).toBeVisible({ timeout: 3000 });
+    await expect(loginPage.rememberMeCheckbox).not.toBeChecked();
+
+    // Act: Check the checkbox
+    await loginPage.rememberMeCheckbox.check();
+
+    // Assert: Checkbox is checked
+    await expect(loginPage.rememberMeCheckbox).toBeChecked();
+  });
+
+  /**
+   * Test 5c: Login without "Se souvenir de moi" stores the token in localStorage, not in a cookie
+   */
+  test('Login without remember me stores token in localStorage only', async ({ page, request }) => {
+    // Arrange: Create a unique test user via the API
+    const suffix = Date.now();
+    const username = `e2e_remember_${suffix}`;
+    const password = 'Password123!';
+    await request.post('/api/auth/register', {
+      data: {
+        username,
+        mail: `${username}@example.com`,
+        password,
+        elapsedMs: 5000,
+      },
+    });
+
+    // Act: Login with the checkbox unchecked
+    await navbar.clickLogin();
+    await loginPage.fillLoginForm(username, password);
+    await loginPage.submit();
+    await page.waitForTimeout(1500);
+
+    // Assert: Token is in localStorage, not in a cookie
+    const localStorageToken = await page.evaluate(() => localStorage.getItem('jdroll_token'));
+    const hasCookieToken = await page.evaluate(() =>
+      document.cookie.split(';').some((c) => c.trim().startsWith('jdroll_token='))
+    );
+    expect(localStorageToken).toBeTruthy();
+    expect(hasCookieToken).toBe(false);
+  });
+
+  /**
+   * Test 5d: Login with "Se souvenir de moi" stores the token in a cookie, not in localStorage
+   */
+  test('Login with remember me checked stores token in a cookie only', async ({ page, request }) => {
+    // Arrange: Create a unique test user via the API
+    const suffix = Date.now();
+    const username = `e2e_remember_${suffix}`;
+    const password = 'Password123!';
+    await request.post('/api/auth/register', {
+      data: {
+        username,
+        mail: `${username}@example.com`,
+        password,
+        elapsedMs: 5000,
+      },
+    });
+
+    // Act: Login with the checkbox checked
+    await navbar.clickLogin();
+    await loginPage.fillLoginForm(username, password);
+    await loginPage.rememberMeCheckbox.check();
+    await loginPage.submit();
+    await page.waitForTimeout(1500);
+
+    // Assert: Token is in a cookie, not in localStorage
+    const localStorageToken = await page.evaluate(() => localStorage.getItem('jdroll_token'));
+    const cookieToken = await page.evaluate(() => {
+      const match = document.cookie.split(';').find((c) => c.trim().startsWith('jdroll_token='));
+      return match ? match.trim().split('=').slice(1).join('=') : null;
+    });
+    expect(cookieToken).toBeTruthy();
+    expect(localStorageToken).toBeNull();
+  });
+
+  /**
    * Test 6: Register form has required fields
    */
   test('Register form has required fields', async () => {

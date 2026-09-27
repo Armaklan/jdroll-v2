@@ -7,7 +7,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: { username: string; password: string }) => Promise<void>;
+  login: (credentials: { username: string; password: string; rememberMe?: boolean }) => Promise<void>;
   register: (data: { username: string; mail: string; password: string; website?: string; elapsedMs?: number }) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
@@ -44,9 +44,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshUser();
   }, []);
 
-  const login = async (credentials: { username: string; password: string }) => {
+  const login = async (credentials: { username: string; password: string; rememberMe?: boolean }) => {
     const res = await authApi.login(credentials);
-    setToken(res.token);
+    setToken(res.token, credentials.rememberMe === true);
     setTokenState(res.token);
     setUser(res.user);
   };

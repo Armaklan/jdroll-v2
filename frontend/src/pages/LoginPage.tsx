@@ -14,6 +14,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegis
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,7 +41,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegis
     setIsSubmitting(true);
 
     try {
-      await login({ username, password });
+      await login({ username, password, rememberMe });
       handleSuccess();
     } catch (err) {
       setError((err as Error).message || 'Erreur lors de la connexion');
@@ -93,6 +94,18 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegis
             placeholder="••••••••"
             className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition text-sm"
           />
+        </div>
+
+        <div className="flex items-center">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 accent-indigo-600 cursor-pointer"
+            />
+            <span className="text-sm text-slate-600">Se souvenir de moi</span>
+          </label>
         </div>
 
         <button
