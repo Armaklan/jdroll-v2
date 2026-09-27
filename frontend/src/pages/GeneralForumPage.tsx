@@ -656,15 +656,17 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
               </button>
             )}
 
+            {isAdmin && (
+              <button
+                onClick={() => handleOpenCreateTopic()}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nouveau sujet</span>
+              </button>
+            )}
             {isAuthenticated && (
               <>
-                <button
-                  onClick={() => handleOpenCreateTopic()}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Nouveau sujet</span>
-                </button>
                 {unreadTopics.length > 0 && (
                   <button
                     onClick={handleMarkAllAsRead}
@@ -989,7 +991,7 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                     {section.topics.length === 0 ? (
                       <div className="p-8 text-center text-xs text-slate-400 italic">
                         Aucun sujet dans cette section.
-                        {isAuthenticated && (
+                        {isAdmin && (
                           <button
                             onClick={() => handleOpenCreateTopic(section.id)}
                             className="block mx-auto mt-2 text-indigo-600 font-bold hover:underline not-italic cursor-pointer"

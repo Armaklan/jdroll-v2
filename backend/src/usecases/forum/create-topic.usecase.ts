@@ -64,13 +64,12 @@ export class CreateTopicUseCase {
     let isClosed = Boolean(input.isClosed);
     if (!section.campagneId) {
       let profil = input.userProfil;
-      if (profil === undefined && (stickable || isClosed)) {
+      if (profil === undefined) {
         const user = await this.userRepo.findById(input.userId);
         profil = user?.profil ?? 0;
       }
       if (profil !== 2) {
-        stickable = false;
-        isClosed = false;
+        throw new ForbiddenError('Seul un administrateur peut créer un sujet dans le forum général');
       }
     }
 

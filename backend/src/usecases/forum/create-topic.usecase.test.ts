@@ -137,6 +137,39 @@ describe('CreateTopicUseCase', () => {
     );
   });
 
+  it('interdit la création de sujet dans le forum général si l utilisateur n est pas administrateur', async () => {
+    await assert.rejects(
+      async () => {
+        await useCase.execute({
+          sectionId: 2,
+          userId: 10,
+          userProfil: 0,
+          title: 'Sujet du forum général',
+        });
+      },
+      (err: any) => {
+        assert(err instanceof ForbiddenError);
+        assert.match(err.message, /administrateur/);
+        return true;
+      }
+    );
+    assert.equal(createdTopics.length, 0);
+  });
+
+  it('crée un sujet dans le forum général si l utilisateur est administrateur', async () => {
+    const result = await useCase.execute({
+      sectionId: 2,
+      userId: 10,
+      userProfil: 2,
+      title: 'Annonce officielle',
+      stickable: true,
+    });
+
+    assert.equal(result.id, 1);
+    assert.equal(result.title, 'Annonce officielle');
+    assert.equal(result.stickable, true);
+  });
+
   it('lève une SectionNotFoundError si la section n existe pas', async () => {
     await assert.rejects(
       async () => {
