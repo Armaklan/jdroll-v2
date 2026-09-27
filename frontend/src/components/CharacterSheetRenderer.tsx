@@ -817,7 +817,7 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
                   height: `${field.height}px`,
                   zIndex: 20,
                 }}
-                className="overflow-hidden p-1 flex items-center bg-white/80 backdrop-blur-xs rounded border border-slate-200/60 shadow-xs"
+                className="overflow-hidden p-1 flex items-center rounded"
               >
                 {field.type === 'textarea' ? (
                   <div className="w-full h-full text-xs text-slate-800 whitespace-pre-wrap leading-tight overflow-y-auto">
