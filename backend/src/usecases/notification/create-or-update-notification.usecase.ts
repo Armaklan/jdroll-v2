@@ -4,6 +4,7 @@ import {
   notificationWebSocketService,
 } from '../../services/notification-websocket.service.js';
 import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
+import { IMailerService, mailerService } from '../../services/mailer.service.js';
 import { ValidationError } from '../../errors/domain.errors.js';
 import { NotificationItem, User } from '../../types/index.js';
 
@@ -25,11 +26,21 @@ const NOTIFICATION_TYPE_TO_SETTING: Record<string, keyof User> = {
   'campaign': 'notif_inscription',
 };
 
+const MAIL_TYPE_TO_SETTING: Record<string, keyof User> = {
+  'mp': 'mail_mp',
+  'chat': 'mail_mp',
+  'topic': 'mail_message',
+  'dice': 'mail_message',
+  'perso': 'mail_perso',
+  'campaign': 'mail_inscription',
+};
+
 export class CreateOrUpdateNotificationUseCase {
   constructor(
     private readonly notifRepo: INotificationRepository = notificationRepository,
     private readonly notifWsService: INotificationWebSocketService = notificationWebSocketService,
-    private readonly userRepo: IUserRepository = userRepository
+    private readonly userRepo: IUserRepository = userRepository,
+    private readonly mailer: IMailerService = mailerService
   ) {}
 
   async execute(input: CreateOrUpdateNotificationInput): Promise<NotificationItem | null> {
@@ -48,48 +59,80 @@ export class CreateOrUpdateNotificationUseCase {
     const trimmedType = (input.type || '').trim().slice(0, 10);
 
     const settingKey = NOTIFICATION_TYPE_TO_SETTING[trimmedType];
-    if (settingKey && (user[settingKey] as number) === 0) {
-      return null;
+    const inAppEnabled = !settingKey || (user[settingKey] as number) !== 0;
+
+    let notification: NotificationItem | null = null;
+
+    if (inAppEnabled) {
+      const existing = await this.notifRepo.findNotification(input.userId, trimmedType, input.targetId);
+
+      if (existing) {
+        await this.notifRepo.updateNotification(existing.id, {
+          nbIncrement: true,
+        });
+        notification = {
+          ...existing,
+          nb: existing.nb + 1,
+          lastUpdate: new Date().toISOString(),
+        };
+      } else {
+        const createdId = await this.notifRepo.createNotification({
+          userId: input.userId,
+          title: trimmedTitle,
+          content: trimmedContent,
+          url: trimmedUrl,
+          type: trimmedType,
+          targetId: input.targetId,
+        });
+        notification = {
+          id: createdId,
+          userId: input.userId,
+          title: trimmedTitle,
+          content: trimmedContent,
+          url: trimmedUrl,
+          type: trimmedType,
+          targetId: input.targetId,
+          nb: 1,
+          lastUpdate: new Date().toISOString(),
+        };
+      }
+
+      this.notifWsService.sendNotification(input.userId, notification);
     }
 
-    const existing = await this.notifRepo.findNotification(input.userId, trimmedType, input.targetId);
-
-    let notification: NotificationItem;
-
-    if (existing) {
-      await this.notifRepo.updateNotification(existing.id, {
-        nbIncrement: true,
-      });
-      notification = {
-        ...existing,
-        nb: existing.nb + 1,
-        lastUpdate: new Date().toISOString(),
-      };
-    } else {
-      const createdId = await this.notifRepo.createNotification({
-        userId: input.userId,
-        title: trimmedTitle,
-        content: trimmedContent,
-        url: trimmedUrl,
-        type: trimmedType,
-        targetId: input.targetId,
-      });
-      notification = {
-        id: createdId,
-        userId: input.userId,
-        title: trimmedTitle,
-        content: trimmedContent,
-        url: trimmedUrl,
-        type: trimmedType,
-        targetId: input.targetId,
-        nb: 1,
-        lastUpdate: new Date().toISOString(),
-      };
-    }
-
-    this.notifWsService.sendNotification(input.userId, notification);
+    await this.sendEmailEquivalent(user, {
+      title: trimmedTitle,
+      content: trimmedContent,
+      url: trimmedUrl,
+      type: trimmedType,
+    });
 
     return notification;
+  }
+
+  private async sendEmailEquivalent(
+    user: User,
+    notification: Pick<NotificationItem, 'title' | 'content' | 'url' | 'type'>
+  ): Promise<void> {
+    const mailSettingKey = MAIL_TYPE_TO_SETTING[notification.type];
+    if (!mailSettingKey || (user[mailSettingKey] as number) !== 1 || !user.mail || user.mail.trim() === '') {
+      return;
+    }
+
+    let html = notification.content;
+    if (this.mailer.siteUrl && notification.url) {
+      html += `<p><a href="${this.mailer.siteUrl}${notification.url}">Voir sur le site</a></p>`;
+    }
+
+    try {
+      await this.mailer.sendEmail({
+        to: user.mail,
+        subject: notification.title,
+        html,
+      });
+    } catch (error) {
+      console.error('[Notification] Échec de la notification par email', { userId: user.id, error });
+    }
   }
 }
 

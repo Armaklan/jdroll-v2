@@ -4,6 +4,7 @@ import { CreateOrUpdateNotificationUseCase } from './create-or-update-notificati
 import { INotificationRepository, CreateNotificationData, UpdateNotificationData } from '../../repositories/notification.repository.js';
 import { INotificationWebSocketService } from '../../services/notification-websocket.service.js';
 import { IUserRepository } from '../../repositories/user.repository.js';
+import { IMailerService, SendEmailInput } from '../../services/mailer.service.js';
 import { NotificationItem, User } from '../../types/index.js';
 import { ValidationError } from '../../errors/domain.errors.js';
 
@@ -12,14 +13,26 @@ describe('CreateOrUpdateNotificationUseCase', () => {
   let mockRepo: INotificationRepository;
   let mockWsService: INotificationWebSocketService;
   let mockUserRepo: IUserRepository;
+  let mockMailer: IMailerService;
   let notifications: NotificationItem[];
   let pushedWsNotifications: { userId: number; notification: NotificationItem }[];
+  let sentEmails: SendEmailInput[];
   let mockUsers: User[];
 
   beforeEach(() => {
     notifications = [];
     pushedWsNotifications = [];
+    sentEmails = [];
     mockUsers = [];
+
+    mockMailer = {
+      siteUrl: 'http://localhost:8080',
+      isConfigured: () => true,
+      sendEmail: async (input) => {
+        sentEmails.push(input);
+        return true;
+      },
+    };
 
     mockUserRepo = {
       findById: async (id: number) => {
@@ -94,7 +107,7 @@ describe('CreateOrUpdateNotificationUseCase', () => {
       getConnectedUserCount: () => 1,
     };
 
-    useCase = new CreateOrUpdateNotificationUseCase(mockRepo, mockWsService, mockUserRepo);
+    useCase = new CreateOrUpdateNotificationUseCase(mockRepo, mockWsService, mockUserRepo, mockMailer);
   });
 
   it('should throw ValidationError if userId is invalid', async () => {
@@ -345,5 +358,284 @@ describe('CreateOrUpdateNotificationUseCase', () => {
     assert.equal(res, null);
     assert.equal(notifications.length, 0);
     assert.equal(pushedWsNotifications.length, 0);
+  });
+
+  it('should send an email equivalent when user has enabled mail_message for topic type', async () => {
+    mockUsers.push({
+      id: 10,
+      username: 'mailuser',
+      mail: 'mail@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 1,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 1,
+      mail_mp: 0,
+      mail_inscription: 0,
+      mail_perso: 0,
+      mail_message: 1,
+    });
+
+    const res = await useCase.execute({
+      userId: 10,
+      title: 'Sujet notifié',
+      content: 'Nouveau message dans le sujet',
+      url: '/topics/12',
+      type: 'topic',
+      targetId: 12,
+    });
+
+    assert.equal(res?.id, notifications[0].id);
+    assert.equal(sentEmails.length, 1);
+    assert.equal(sentEmails[0].to, 'mail@test.com');
+    assert.equal(sentEmails[0].subject, 'Sujet notifié');
+    assert.ok(sentEmails[0].html.includes('Nouveau message dans le sujet'));
+    assert.ok(sentEmails[0].html.includes('http://localhost:8080/topics/12'));
+  });
+
+  it('should not send an email when user has disabled the mail setting for the notification type', async () => {
+    mockUsers.push({
+      id: 11,
+      username: 'nomailuser',
+      mail: 'nomail@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 1,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 1,
+      mail_mp: 1,
+      mail_inscription: 1,
+      mail_perso: 1,
+      mail_message: 0,
+    });
+
+    await useCase.execute({
+      userId: 11,
+      title: 'Sujet notifié',
+      content: 'Nouveau message dans le sujet',
+      url: '/topics/12',
+      type: 'topic',
+      targetId: 12,
+    });
+
+    assert.equal(notifications.length, 1);
+    assert.equal(pushedWsNotifications.length, 1);
+    assert.equal(sentEmails.length, 0);
+  });
+
+  it('should send an email even when the in-app notification is disabled', async () => {
+    mockUsers.push({
+      id: 12,
+      username: 'wsdisabled',
+      mail: 'wsdisabled@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 1,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 0,
+      mail_mp: 1,
+      mail_inscription: 1,
+      mail_perso: 1,
+      mail_message: 1,
+    });
+
+    const res = await useCase.execute({
+      userId: 12,
+      title: 'Sujet notifié',
+      content: 'Nouveau message dans le sujet',
+      url: '/topics/12',
+      type: 'topic',
+      targetId: 12,
+    });
+
+    assert.equal(res, null);
+    assert.equal(notifications.length, 0);
+    assert.equal(pushedWsNotifications.length, 0);
+    assert.equal(sentEmails.length, 1);
+    assert.equal(sentEmails[0].to, 'wsdisabled@test.com');
+    assert.equal(sentEmails[0].subject, 'Sujet notifié');
+    assert.ok(sentEmails[0].html.includes('Nouveau message dans le sujet'));
+    assert.ok(sentEmails[0].html.includes('http://localhost:8080/topics/12'));
+  });
+
+  it('should send neither notification nor email when both channels are disabled', async () => {
+    mockUsers.push({
+      id: 13,
+      username: 'alldisabled',
+      mail: 'alldisabled@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 1,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 0,
+      mail_mp: 0,
+      mail_inscription: 0,
+      mail_perso: 0,
+      mail_message: 0,
+    });
+
+    const res = await useCase.execute({
+      userId: 13,
+      title: 'Sujet notifié',
+      content: 'Nouveau message dans le sujet',
+      url: '/topics/12',
+      type: 'topic',
+      targetId: 12,
+    });
+
+    assert.equal(res, null);
+    assert.equal(notifications.length, 0);
+    assert.equal(pushedWsNotifications.length, 0);
+    assert.equal(sentEmails.length, 0);
+  });
+
+  it('should send an email for each notification type only when its matching mail setting is enabled', async () => {
+    const cases: { type: string; setting: keyof User }[] = [
+      { type: 'mp', setting: 'mail_mp' },
+      { type: 'chat', setting: 'mail_mp' },
+      { type: 'topic', setting: 'mail_message' },
+      { type: 'dice', setting: 'mail_message' },
+      { type: 'perso', setting: 'mail_perso' },
+      { type: 'campaign', setting: 'mail_inscription' },
+    ];
+
+    let userId = 20;
+    for (const { type, setting } of cases) {
+      sentEmails = [];
+      const user: User = {
+        id: userId,
+        username: `user${userId}`,
+        mail: `user${userId}@test.com`,
+        avatar: '',
+        description: '',
+        profil: 0,
+        titre: '',
+        subscribe_date: new Date().toISOString(),
+        notif_mp: 1,
+        notif_inscription: 1,
+        notif_perso: 1,
+        notif_message: 1,
+        mail_mp: 0,
+        mail_inscription: 0,
+        mail_perso: 0,
+        mail_message: 0,
+      };
+      user[setting] = 1;
+      mockUsers.push(user);
+
+      await useCase.execute({
+        userId,
+        title: `Notification ${type}`,
+        content: 'Contenu',
+        url: '/somewhere',
+        type,
+        targetId: 1,
+      });
+
+      assert.equal(sentEmails.length, 1, `expected one email for type ${type}`);
+      assert.equal(sentEmails[0].to, `user${userId}@test.com`);
+      assert.equal(sentEmails[0].subject, `Notification ${type}`);
+      userId += 1;
+    }
+  });
+
+  it('should send an email on each emission, including notification increments', async () => {
+    mockUsers.push({
+      id: 30,
+      username: 'incrementuser',
+      mail: 'increment@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 1,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 1,
+      mail_mp: 0,
+      mail_inscription: 0,
+      mail_perso: 0,
+      mail_message: 1,
+    });
+
+    await useCase.execute({
+      userId: 30,
+      title: 'Sujet notifié',
+      content: 'Premier message',
+      url: '/topics/12',
+      type: 'topic',
+      targetId: 12,
+    });
+
+    await useCase.execute({
+      userId: 30,
+      title: 'Sujet notifié',
+      content: 'Premier message',
+      url: '/topics/12',
+      type: 'topic',
+      targetId: 12,
+    });
+
+    assert.equal(notifications.length, 1);
+    assert.equal(notifications[0].nb, 2);
+    assert.equal(sentEmails.length, 2);
+  });
+
+  it('should keep the notification even when the email sending fails', async () => {
+    mockUsers.push({
+      id: 31,
+      username: 'failingmail',
+      mail: 'failing@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 1,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 1,
+      mail_mp: 0,
+      mail_inscription: 0,
+      mail_perso: 0,
+      mail_message: 1,
+    });
+
+    const useCaseWithFailingMailer = new CreateOrUpdateNotificationUseCase(mockRepo, mockWsService, mockUserRepo, {
+      ...mockMailer,
+      sendEmail: async () => {
+        throw new Error('SMTP unavailable');
+      },
+    });
+
+    const res = await useCaseWithFailingMailer.execute({
+      userId: 31,
+      title: 'Sujet notifié',
+      content: 'Nouveau message dans le sujet',
+      url: '/topics/12',
+      type: 'topic',
+      targetId: 12,
+    });
+
+    assert.notEqual(res, null);
+    assert.equal(notifications.length, 1);
+    assert.equal(pushedWsNotifications.length, 1);
   });
 });

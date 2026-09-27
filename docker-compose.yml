@@ -18,6 +18,17 @@ services:
       --collation-server=utf8mb4_unicode_ci
       --default-authentication-plugin=mysql_native_password
 
+  jd-mailpit:
+    image: axllent/mailpit:latest
+    container_name: jdroll-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Interface web
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+
   jd-phpmyadmin:
     image: phpmyadmin:latest
     container_name: jd-phpmyadmin
