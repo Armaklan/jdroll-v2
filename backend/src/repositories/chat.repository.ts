@@ -59,7 +59,8 @@ export class MysqlChatRepository implements IChatRepository {
          u.profil as userProfil
        FROM chat c
        LEFT JOIN user u ON u.username = c.username
-       WHERE (c.\`to\` = '' OR c.\`to\` IS NULL OR c.\`to\` = '0')
+       WHERE (c.\`to\` = '0')
+          OR ((c.\`to\` = '' OR c.\`to\` IS NULL) AND (c.to_username = '' OR c.to_username IS NULL))
           OR (c.username = ?)
           OR (c.\`to\` = ?)
           OR (c.to_username = ?)

@@ -2,6 +2,21 @@ import { IChatRepository, chatRepository } from '../repositories/chat.repository
 import { IUserRepository, userRepository } from '../repositories/user.repository.js';
 import { ChatMessage } from '../types/index.js';
 
+// Un message est public si `to` est vide/marqueur legacy '0' ET `to_username` vide.
+// Les MP legacy stockent un `to` vide avec `to_username` renseigné : ils ne sont
+// visibles que par leur destinataire ou leur émetteur.
+function isMessageVisibleToUser(message: ChatMessage, userId: number, username: string): boolean {
+  const isPrivate = (message.to !== '' && message.to !== '0') || message.to_username !== '';
+  if (!isPrivate) {
+    return true;
+  }
+  return (
+    message.username === username ||
+    message.to === String(userId) ||
+    message.to_username === username
+  );
+}
+
 export class ChatQueries {
   constructor(
     private readonly chatRepo: IChatRepository = chatRepository,
@@ -11,11 +26,13 @@ export class ChatQueries {
   async getRecentMessages(userId: number, username: string, limit: number = 200): Promise<ChatMessage[]> {
     const messages = await this.chatRepo.getRecentMessages(userId, username, limit);
     // Les messages legacy du tchat ancien stockent `to = '0'` pour les messages publics
-    return messages.map((m) => ({
-      ...m,
-      to: m.to === '0' ? '' : m.to,
-      to_username: m.to === '0' && !m.to_username ? '' : m.to_username,
-    }));
+    return messages
+      .map((m) => ({
+        ...m,
+        to: m.to === '0' ? '' : m.to,
+        to_username: m.to === '0' && !m.to_username ? '' : m.to_username,
+      }))
+      .filter((m) => isMessageVisibleToUser(m, userId, username));
   }
 
   async searchUsers(query: string, currentUserId: number): Promise<{ id: number; username: string; avatar: string }[]> {
