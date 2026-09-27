@@ -454,7 +454,7 @@ export function ChatPage() {
   const renderAvatar = (avatarUrl?: string | null, username?: string, size = 'w-9 h-9 text-sm') => {
     const initial = (username || '?').charAt(0).toUpperCase();
     if (avatarUrl) {
-      const fullUrl = avatarUrl.startsWith('http') ? avatarUrl : `/files/${avatarUrl}`;
+      const fullUrl = avatarUrl.startsWith('http') ? avatarUrl : `${avatarUrl}`;
       return (
         <img
           src={fullUrl}

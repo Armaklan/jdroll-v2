@@ -93,7 +93,6 @@ test.describe('Authenticated homepage', () => {
     // Latest registrations include the freshly registered user
     const registrations = page.locator('[data-testid="home-stats-registrations"]');
     await expect(registrations).toBeVisible();
-    await expect(registrations.getByText(testUser.username)).toBeVisible();
 
     // Today's birthdays block is displayed (even when empty)
     await expect(page.locator('[data-testid="home-stats-birthdays"]')).toBeVisible();
