@@ -134,6 +134,17 @@ export const CampaignCartesPage: React.FC = () => {
     }
   };
 
+  // Navigation SPA au clic simple ; ctrl/cmd/shift/alt+clic et clic droit
+  // retombent sur le comportement natif du <a> (nouvel onglet, etc.)
+  const handleOpenCarte = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    carteId: number
+  ) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigate(`/campaigns/${campaignId}/cartes/${carteId}`);
+  };
+
   const handleDeleteCarte = async () => {
     if (!carteToDelete) return;
 
@@ -250,9 +261,10 @@ export const CampaignCartesPage: React.FC = () => {
                 className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition flex flex-col group"
               >
                 {/* Aperçu Image */}
-                <div
-                  onClick={() => navigate(`/campaigns/${campaignId}/cartes/${carte.id}`)}
-                  className="relative h-44 bg-slate-100 overflow-hidden cursor-pointer"
+                <a
+                  href={`/campaigns/${campaignId}/cartes/${carte.id}`}
+                  onClick={(e) => handleOpenCarte(e, carte.id)}
+                  className="relative h-44 bg-slate-100 overflow-hidden cursor-pointer block"
                 >
                   {carte.image ? (
                     <img
@@ -283,15 +295,18 @@ export const CampaignCartesPage: React.FC = () => {
                       </span>
                     )}
                   </div>
-                </div>
+                </a>
 
                 {/* Contenu */}
                 <div className="p-4 flex-1 flex flex-col">
-                  <h3
-                    onClick={() => navigate(`/campaigns/${campaignId}/cartes/${carte.id}`)}
-                    className="font-bold text-slate-800 text-base group-hover:text-indigo-600 transition cursor-pointer line-clamp-1"
-                  >
-                    {carte.name}
+                  <h3 className="font-bold text-slate-800 text-base group-hover:text-indigo-600 transition line-clamp-1">
+                    <a
+                      href={`/campaigns/${campaignId}/cartes/${carte.id}`}
+                      onClick={(e) => handleOpenCarte(e, carte.id)}
+                      className="hover:text-indigo-600"
+                    >
+                      {carte.name}
+                    </a>
                   </h3>
 
                   {carte.description ? (
@@ -306,13 +321,14 @@ export const CampaignCartesPage: React.FC = () => {
 
                   {/* Actions */}
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => navigate(`/campaigns/${campaignId}/cartes/${carte.id}`)}
+                    <a
+                      href={`/campaigns/${campaignId}/cartes/${carte.id}`}
+                      onClick={(e) => handleOpenCarte(e, carte.id)}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-semibold transition cursor-pointer"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                       <span>Ouvrir la carte</span>
-                    </button>
+                    </a>
 
                     {isMj && (
                       <button

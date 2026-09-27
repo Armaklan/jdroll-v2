@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
+import { PIN_GEOMETRY, getPinAnchorStyle, getPinPointeColor } from '../utils/carte-tokens';
 import {
   CarteDetail,
   CarteMarker,
@@ -786,22 +787,21 @@ export const CampaignCarteViewerPage: React.FC = () => {
                               handleMarkerClick(marker);
                             }}
                             style={{
-                              left: `${pos.left}px`,
-                              top: `${pos.top}px`,
-                              transform: 'translate(-50%, -50%)',
+                              ...getPinAnchorStyle(pos),
                               zIndex: isSelected || draggingMarkerId === marker.id ? 50 : 20,
                             }}
-                            className={`absolute flex flex-col items-center group cursor-pointer transition-transform duration-75`}
+                            className="absolute group cursor-pointer"
                         >
                           {/* Badge / Cercle Avatar */}
                           <div
-                              className={`relative w-11 h-11 rounded-full p-0.5 shadow-lg flex items-center justify-center transition ${
+                              className={`absolute left-1/2 -translate-x-1/2 origin-bottom w-11 h-11 rounded-full p-0.5 shadow-lg flex items-center justify-center transition ${
                                   isOwner
                                       ? 'ring-3 ring-emerald-400 ring-offset-2 ring-offset-slate-950 bg-emerald-500'
                                       : isDraggable
                                           ? 'ring-2 ring-indigo-400 ring-offset-2 ring-offset-slate-950 bg-indigo-600'
                                           : 'ring-1 ring-slate-400 bg-slate-700'
                               } ${isSelected ? 'scale-115 ring-4 ring-amber-400' : 'hover:scale-110'}`}
+                              style={{ bottom: PIN_GEOMETRY.badgeBottomOffset }}
                           >
                             {markerAvatar ? (
                                 <img
@@ -824,8 +824,21 @@ export const CampaignCarteViewerPage: React.FC = () => {
                             )}
                           </div>
 
+                          {/* Pointe : son extrémité basse repose sur la position exacte du marqueur */}
+                          <div
+                              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0"
+                              style={{
+                                borderLeft: `${PIN_GEOMETRY.triangleHalfWidth}px solid transparent`,
+                                borderRight: `${PIN_GEOMETRY.triangleHalfWidth}px solid transparent`,
+                                borderTop: `${PIN_GEOMETRY.triangleHeight}px solid ${getPinPointeColor({ isOwner, isDraggable })}`,
+                              }}
+                          />
+
                           {/* Étiquette du Nom */}
-                          <span className="mt-1 px-1.5 py-0.5 rounded bg-slate-950/90 text-white text-[10px] font-bold shadow-md border border-slate-800 whitespace-nowrap pointer-events-none group-hover:bg-indigo-950 transition">
+                          <span
+                              className="absolute left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded bg-slate-950/90 text-white text-[10px] font-bold shadow-md border border-slate-800 whitespace-nowrap pointer-events-none group-hover:bg-indigo-950 transition"
+                              style={{ top: PIN_GEOMETRY.labelTop }}
+                          >
                       {markerName}
                     </span>
                         </div>
