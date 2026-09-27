@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {useNavigate, useParams} from 'react-router-dom';
+import {Link, useNavigate, useParams} from 'react-router-dom';
 import {campaignsApi} from '../api/campaigns';
 import {
   CampaignForumData,
@@ -1175,7 +1175,11 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                     return (
                       <div
                         key={`unread-${topic.id}`}
-                        onClick={() => handleSelectTopic(topic.id)}
+                        onClick={(e) => {
+                          // Laisser le navigateur gérer ctrl+clic / cmd+clic (nouvel onglet)
+                          if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+                          handleSelectTopic(topic.id);
+                        }}
                         style={{
                           backgroundColor: rowBg || undefined,
                           color: rowTextColor || undefined,
@@ -1229,16 +1233,14 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                   </span>
                                 ) : null}
 
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleSelectTopic(topic.id);
-                                  }}
+                                <Link
+                                  to={`/forum/${effectiveCampaignId}/${topic.id}`}
+                                  onClick={(e) => e.stopPropagation()}
                                   style={{ color: rowLinkColor || undefined }}
                                   className="font-bold text-sm hover:underline text-left line-clamp-2 text-slate-900"
                                 >
                                   {topic.title}
-                                </button>
+                                </Link>
                               </div>
 
                               {(topic.isPrivate === 1 || topic.isPrivate === true) && (
@@ -1512,7 +1514,9 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                 handleTopicDropOnTopic(e, section.id, topicIdx)
                               }
                               onDragEnd={handleTopicDragEnd}
-                              onClick={() => {
+                              onClick={(e) => {
+                                // Laisser le navigateur gérer ctrl+clic / cmd+clic (nouvel onglet)
+                                if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
                                 if (!isAdminMode) {
                                   handleSelectTopic(topic.id);
                                 }
@@ -1585,11 +1589,10 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                         </span>
                                       ) : null}
 
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleSelectTopic(topic.id);
-                                        }}
+                                      <Link
+                                        to={`/forum/${effectiveCampaignId}/${topic.id}`}
+                                        draggable={false}
+                                        onClick={(e) => e.stopPropagation()}
                                         style={{ color: rowLinkColor || undefined }}
                                         className={`font-semibold text-sm hover:underline text-left line-clamp-2 ${
                                           topic.isRead
@@ -1598,7 +1601,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                                         }`}
                                       >
                                         {topic.title}
-                                      </button>
+                                      </Link>
                                     </div>
 
                                     {(topic.isPrivate === 1 || topic.isPrivate === true) && (

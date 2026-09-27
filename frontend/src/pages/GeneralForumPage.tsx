@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
 import { GeneralForumData, ForumSectionSummary, ForumTopicSummary } from '../types/campaign';
 import { AppView, viewToPath } from '../components/Navbar';
@@ -818,12 +818,12 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                                 Fermé
                               </span>
                             )}
-                            <button
-                              onClick={() => handleSelectTopic(topic.id)}
+                            <Link
+                              to={`/forum/0/${topic.id}`}
                               className="text-sm font-bold truncate text-left hover:text-indigo-600 transition cursor-pointer text-slate-900"
                             >
                               {topic.title}
-                            </button>
+                            </Link>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
@@ -853,12 +853,12 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                       </div>
 
                       <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => handleSelectTopic(topic.id)}
+                        <Link
+                          to={`/forum/0/${topic.id}`}
                           className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 border border-slate-200 transition cursor-pointer"
                         >
                           Voir
-                        </button>
+                        </Link>
                       </div>
                     </div>
                   ))}
@@ -1067,14 +1067,15 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                                       Fermé
                                     </span>
                                   )}
-                                  <button
-                                    onClick={() => handleSelectTopic(topic.id)}
+                                  <Link
+                                    to={`/forum/0/${topic.id}`}
+                                    draggable={false}
                                     className={`text-sm font-bold truncate text-left hover:text-indigo-600 transition cursor-pointer ${
                                       topic.isRead ? 'text-slate-800 font-semibold' : 'text-slate-900 font-bold'
                                     }`}
                                   >
                                     {topic.title}
-                                  </button>
+                                  </Link>
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
@@ -1126,12 +1127,13 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
                                 </>
                               )}
 
-                              <button
-                                onClick={() => handleSelectTopic(topic.id)}
+                              <Link
+                                to={`/forum/0/${topic.id}`}
+                                draggable={false}
                                 className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700 border border-slate-200 transition cursor-pointer"
                               >
                                 Voir
-                              </button>
+                              </Link>
                             </div>
                           </div>
                         );
