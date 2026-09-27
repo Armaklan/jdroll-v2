@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PresenceProvider } from './contexts/PresenceContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -47,6 +47,20 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Redirection de l'ancienne URL /messages vers /messagerie
+// (/messages?id=X vers /messagerie/view/X, pour les notifications existantes)
+function MessagesRedirect() {
+  const [searchParams] = useSearchParams();
+  const id = searchParams.get('id');
+  if (id) {
+    return <Navigate to={`/messagerie/view/${id}`} replace />;
+  }
+  const params = new URLSearchParams(searchParams);
+  params.delete('id');
+  const qs = params.toString();
+  return <Navigate to={`/messagerie${qs ? `?${qs}` : ''}`} replace />;
+}
+
 export function AppContent() {
   const location = useLocation();
   const isCarteViewer = Boolean(
@@ -82,13 +96,23 @@ export function AppContent() {
 
           {/* Messagerie */}
           <Route
-            path="/messages"
+            path="/messagerie"
             element={
               <ProtectedRoute>
                 <MessagesPage />
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/messagerie/view/:id"
+            element={
+              <ProtectedRoute>
+                <MessagesPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Redirection ancienne URL /messages vers /messagerie */}
+          <Route path="/messages" element={<MessagesRedirect />} />
           {/* Tchat */}
           <Route
             path="/chat"

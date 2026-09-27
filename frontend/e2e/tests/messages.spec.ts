@@ -28,8 +28,8 @@ test.describe('Messages', () => {
     // Act: Click on Messages link
     await navbar.clickMessages();
     
-    // Assert: URL should be /messages or login
-    await expect(navbar.getPage()).toHaveURL(/messages|login/);
+    // Assert: URL should be /messagerie or login
+    await expect(navbar.getPage()).toHaveURL(/messagerie|login/);
   });
 
   /**
@@ -39,11 +39,11 @@ test.describe('Messages', () => {
     // Act: Navigate to messages
     await navbar.clickMessages();
     
-    // Assert: URL should be /messages or login
-    await expect(navbar.getPage()).toHaveURL(/messages|login/);
+    // Assert: URL should be /messagerie or login
+    await expect(navbar.getPage()).toHaveURL(/messagerie|login/);
     
-    // If we're on messages page (authenticated), check for messages content
-    if (navbar.getPage().url().includes('/messages')) {
+    // If we're on messagerie page (authenticated), check for messages content
+    if (navbar.getPage().url().includes('/messagerie')) {
       await expect(navbar.getPage().locator('body')).toContainText(/message|messagerie/i);
     }
   });
@@ -53,10 +53,10 @@ test.describe('Messages', () => {
    */
   test('Messages page is accessible directly via URL', async ({ page }) => {
     // Act: Navigate directly to messages
-    await page.goto('/messages');
+    await page.goto('/messagerie');
     
-    // Assert: URL should be /messages or login
-    await expect(page).toHaveURL(/messages|login/);
+    // Assert: URL should be /messagerie or login
+    await expect(page).toHaveURL(/messagerie|login/);
   });
 
   /**

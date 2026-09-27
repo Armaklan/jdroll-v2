@@ -175,5 +175,9 @@ describe('SendMessageUseCase', () => {
     assert.equal(createdMessages[0].title, 'Plan de jeu pour vendredi');
     assert.equal(createdMessages[0].recipients.length, 2);
     assert.equal(notificationsSent.length, 2);
+    for (const notification of notificationsSent) {
+      assert.equal(notification.url, `/messagerie/view/${result.messageId}`);
+      assert.equal(notification.targetId, result.messageId);
+    }
   });
 });

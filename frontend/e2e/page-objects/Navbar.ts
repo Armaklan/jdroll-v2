@@ -128,7 +128,7 @@ export class Navbar extends BasePage {
   async clickMessages(): Promise<void> {
     await this.click(this.messagesLink);
     // May navigate to messages or login (if not authenticated)
-    await this.page.waitForURL(/\/messages|\/login/);
+    await this.page.waitForURL(/\/messagerie|\/login/);
   }
 
   /**

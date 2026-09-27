@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { messagesApi } from '../api/messages';
 import {
@@ -36,11 +36,13 @@ type TabType = 'inbox' | 'sent' | 'compose';
 
 export const MessagesPage: React.FC = () => {
   const { user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const { id: routeMessageId } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const activeTab = (searchParams.get('tab') as TabType) || 'inbox';
-  const selectedMessageId = searchParams.get('id')
-    ? parseInt(searchParams.get('id')!, 10)
+  const selectedMessageId = routeMessageId
+    ? parseInt(routeMessageId, 10)
     : null;
 
   // Data states
@@ -177,25 +179,29 @@ export const MessagesPage: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const buildSearchParams = () => {
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('id');
+    return newParams.toString();
+  };
+
   const handleTabChange = (tab: TabType) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('tab', tab);
     newParams.delete('id');
-    setSearchParams(newParams);
+    navigate(`/messagerie?${newParams.toString()}`);
     setComposeError(null);
     setComposeSuccess(null);
   };
 
   const handleSelectMessage = (id: number) => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.set('id', id.toString());
-    setSearchParams(newParams);
+    const qs = buildSearchParams();
+    navigate(`/messagerie/view/${id}${qs ? `?${qs}` : ''}`);
   };
 
   const handleBackToList = () => {
-    const newParams = new URLSearchParams(searchParams);
-    newParams.delete('id');
-    setSearchParams(newParams);
+    const qs = buildSearchParams();
+    navigate(`/messagerie${qs ? `?${qs}` : ''}`);
   };
 
   // Add recipient chip

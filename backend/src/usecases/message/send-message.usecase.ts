@@ -98,7 +98,7 @@ export class SendMessageUseCase {
             userId: recipient.id,
             title: 'Nouveau message privé',
             content: `Message privé reçu de <strong>${input.fromUsername}</strong> : ${trimmedTitle}`,
-            url: `/messages?id=${messageId}`,
+            url: `/messagerie/view/${messageId}`,
             type: 'mp',
             targetId: messageId,
           });

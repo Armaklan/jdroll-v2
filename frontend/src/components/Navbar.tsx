@@ -43,7 +43,7 @@ export const viewToPath = (view: AppView): string => {
     case 'register':
       return '/register';
     case 'messages':
-      return '/messages';
+      return '/messagerie';
     case 'chat':
       return '/chat';
     case 'my-campaigns':
@@ -131,7 +131,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
     if (path === '/') return 'home';
     if (path === '/login') return 'login';
     if (path === '/register') return 'register';
-    if (path === '/messages') return 'messages';
+    if (path.startsWith('/messagerie')) return 'messages';
     if (path === '/chat') return 'chat';
     if (path === '/my-campaigns') return 'my-campaigns';
     if (path === '/campaigns/new' || path === '/create-campaign') return 'create-campaign';
@@ -260,7 +260,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
 
             {/* Messagerie */}
             <a
-                href="/messages"
+                href="/messagerie"
                 onClick={(e) => handleLinkClick(e, 'messages')}
                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition cursor-pointer ${
                     activeView === 'messages'
@@ -473,7 +473,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
 
             {/* Messagerie */}
             <a
-                href="/messages"
+                href="/messagerie"
                 onClick={(e) => handleLinkClick(e, 'messages')}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium ${
                     activeView === 'messages'

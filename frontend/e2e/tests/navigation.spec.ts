@@ -80,8 +80,8 @@ test.describe('Navigation', () => {
     // Act: Click on messages link in navbar
     await navbar.clickMessages();
     
-    // Assert: URL should be /messages or login (if not auth)
-    await expect(navbar.getPage()).toHaveURL(/messages|login/);
+    // Assert: URL should be /messagerie or login (if not auth)
+    await expect(navbar.getPage()).toHaveURL(/messagerie|login/);
   });
 
   /**

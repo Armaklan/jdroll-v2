@@ -83,7 +83,7 @@ const mainMenuItems = [
   { 
     key: 'messages', 
     label: 'Messagerie', 
-    path: '/messages', 
+    path: '/messagerie', 
     icon: Mail,
     bgColor: 'bg-rose-600',
     textColor: 'text-white',
