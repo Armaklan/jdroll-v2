@@ -1,5 +1,5 @@
-import React from 'react';
-import { Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PresenceProvider } from './contexts/PresenceContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -61,6 +61,23 @@ function MessagesRedirect() {
   return <Navigate to={`/messagerie${qs ? `?${qs}` : ''}`} replace />;
 }
 
+// Remet le scroll en haut de la fenêtre à chaque changement de page.
+// En navigation SPA (sans rechargement), le navigateur ne le fait pas seul.
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  const navigationType = useNavigationType();
+
+  useEffect(() => {
+    // Une ancre (#message-123) est gérée par la page elle-même (TopicViewPage)
+    if (hash) return;
+    // En navigation arrière/avant (POP), le navigateur restaure la position
+    if (navigationType === 'POP') return;
+    window.scrollTo(0, 0);
+  }, [pathname, hash, navigationType]);
+
+  return null;
+}
+
 export function AppContent() {
   const location = useLocation();
   const isCarteViewer = Boolean(
@@ -72,16 +89,20 @@ export function AppContent() {
 
   if (isCarteViewer) {
     return (
-      <Routes>
-        <Route path="/campaigns/:campaignId/cartes/:carteId" element={<CampaignCarteViewerPage />} />
-        <Route path="/campaigns/:campaignId/carte/:carteId" element={<CampaignCarteViewerPage />} />
-        <Route path="/cartes/:carteId" element={<CampaignCarteViewerPage />} />
-      </Routes>
+      <>
+        <ScrollToTop />
+        <Routes>
+          <Route path="/campaigns/:campaignId/cartes/:carteId" element={<CampaignCarteViewerPage />} />
+          <Route path="/campaigns/:campaignId/carte/:carteId" element={<CampaignCarteViewerPage />} />
+          <Route path="/cartes/:carteId" element={<CampaignCarteViewerPage />} />
+        </Routes>
+      </>
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-indigo-100 selection:text-indigo-900">
+      <ScrollToTop />
       <Navbar />
 
       <main
