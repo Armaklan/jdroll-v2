@@ -46,6 +46,7 @@ services:
       FILES_DIR: /app/files
     volumes:
       - uploads_data:/app/files
+      - ./backend/smtp.json:/app/smtp.json:ro
     depends_on:
       db:
         condition: service_healthy
