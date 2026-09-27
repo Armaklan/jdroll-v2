@@ -1434,8 +1434,8 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           placeholder="Code HTML brut..."
-          style={{ minHeight }}
-          className="w-full p-4 font-mono text-xs bg-slate-900 text-slate-100 focus:outline-none resize-y"
+          style={{ minHeight, maxHeight: '400px' }}
+          className="w-full p-4 font-mono text-xs bg-slate-900 text-slate-100 focus:outline-none resize-y overflow-y-auto"
         />
       ) : (
         <div
@@ -1450,7 +1450,7 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           onMouseUp={checkCursorPosition}
           onClick={checkCursorPosition}
           onFocus={checkCursorPosition}
-          style={{ minHeight }}
+          style={{ minHeight, maxHeight: '400px' }}
           data-placeholder={placeholder}
           className={`wysiwyg-content wysiwyg-editor-area p-4 text-sm sm:text-base text-slate-900 focus:outline-none overflow-y-auto leading-relaxed empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none ${
             disabled ? 'bg-slate-50 cursor-not-allowed opacity-60' : ''
