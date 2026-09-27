@@ -35,6 +35,19 @@ export class UserController {
   }
 
   /**
+   * GET /api/users
+   * Liste des membres ayant publié au moins 1 post (authentifié)
+   */
+  async getMembers(request: FastifyRequest, reply: FastifyReply) {
+    try {
+      const members = await this.userQueryService.getMembers();
+      return reply.status(200).send({ members });
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
+  /**
    * GET /api/users/:userId/profile
    * Consultation du profil public d'un utilisateur (authentifié)
    */
@@ -89,6 +102,9 @@ export class UserController {
   }
 
   registerRoutes(app: FastifyInstance) {
+    app.get('/api/users', { preHandler: [app.authenticate] }, (req, rep) =>
+      this.getMembers(req, rep)
+    );
     app.get('/api/users/:userId/profile', { preHandler: [app.authenticate] }, (req, rep) =>
       this.getPublicProfile(req, rep)
     );

@@ -6,6 +6,16 @@ export interface ProfileCampaign {
   isArchived: boolean;
 }
 
+export interface MemberSummary {
+  id: number;
+  username: string;
+  avatar: string;
+  profil: number;
+  titre: string;
+  subscribeDate: string | null;
+  lastActionDate: string | null;
+}
+
 export interface PublicUserProfile {
   id: number;
   username: string;

@@ -1,4 +1,4 @@
-import { PublicUserProfile } from '../types/user';
+import { PublicUserProfile, MemberSummary } from '../types/user';
 import { getToken } from './auth';
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -30,6 +30,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 }
 
 export const usersApi = {
+  async getMembers(): Promise<{ members: MemberSummary[] }> {
+    return request<{ members: MemberSummary[] }>(`/api/users`);
+  },
+
   async getPublicProfile(userId: number | string): Promise<{ profile: PublicUserProfile }> {
     return request<{ profile: PublicUserProfile }>(`/api/users/${userId}/profile`);
   },

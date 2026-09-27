@@ -22,9 +22,11 @@ import { UserNotFoundError } from '../errors/domain.errors.js';
 
 class MockUserRepository implements IUserRepository {
   private users: User[] = [];
+  private members: any[] = [];
 
-  constructor(users: User[] = []) {
+  constructor(users: User[] = [], members: any[] = []) {
     this.users = users;
+    this.members = members;
   }
 
   async findById(id: number): Promise<User | null> {
@@ -47,6 +49,10 @@ class MockUserRepository implements IUserRepository {
 
   async searchByUsername(query: string, limit?: number): Promise<any[]> {
     return this.users.filter((u) => u.username.toLowerCase().includes(query.toLowerCase()));
+  }
+
+  async findMembersWithAtLeastOnePost(): Promise<any[]> {
+    return this.members;
   }
 
   async create(data: CreateUserData): Promise<User> {
@@ -263,6 +269,57 @@ describe('UserQueries', () => {
 
     const result = await queries.getUserById(999);
     assert.equal(result, null);
+  });
+
+  describe('getMembers', () => {
+    it('should list the members having at least one post', async () => {
+      const members = [
+        { id: 1, username: 'joueur1', avatar: 'a.png', profil: 0, titre: '', subscribeDate: '2026-01-10', lastActionDate: '2026-09-26 18:30:00' },
+        { id: 2, username: 'mj_master', avatar: 'avatar.png', profil: 1, titre: 'Le Conteur', subscribeDate: '2026-09-13', lastActionDate: null },
+      ];
+      const repo = new MockUserRepository([sampleUser], members);
+      const queries = new UserQueries(repo);
+
+      const result = await queries.getMembers();
+      assert.equal(result.length, 2);
+      assert.equal(result[0].username, 'joueur1');
+      assert.equal(result[0].avatar, 'a.png');
+      assert.equal(result[0].lastActionDate, '2026-09-26 18:30:00');
+      assert.equal(result[1].username, 'mj_master');
+    });
+
+    it('should return the last action date of each member', async () => {
+      const members = [
+        { id: 1, username: 'joueur1', avatar: 'a.png', profil: 0, titre: '', subscribeDate: '2026-01-10', lastActionDate: '2026-09-27 09:00:00' },
+        { id: 2, username: 'joueur2', avatar: '', profil: 0, titre: '', subscribeDate: '2026-01-11', lastActionDate: null },
+      ];
+      const repo = new MockUserRepository([sampleUser], members);
+      const queries = new UserQueries(repo);
+
+      const result = await queries.getMembers();
+      assert.equal(result[0].lastActionDate, '2026-09-27 09:00:00');
+      assert.equal(result[1].lastActionDate, null);
+    });
+
+    it('should return an empty list when no member has posted', async () => {
+      const repo = new MockUserRepository([sampleUser], []);
+      const queries = new UserQueries(repo);
+
+      const result = await queries.getMembers();
+      assert.deepEqual(result, []);
+    });
+
+    it('should not expose private data (mail, notification settings)', async () => {
+      const members = [
+        { id: 1, username: 'joueur1', avatar: 'a.png', profil: 0, titre: '', subscribeDate: '2026-01-10', lastActionDate: null },
+      ];
+      const repo = new MockUserRepository([sampleUser], members);
+      const queries = new UserQueries(repo);
+
+      const result = await queries.getMembers();
+      assert.equal(Object.prototype.hasOwnProperty.call(result[0], 'mail'), false);
+      assert.equal(Object.prototype.hasOwnProperty.call(result[0], 'password'), false);
+    });
   });
 
   describe('getPublicProfile', () => {

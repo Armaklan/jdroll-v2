@@ -51,6 +51,16 @@ export interface HomeUserSummary {
   birthDate?: string | null;
 }
 
+export interface MemberSummary {
+  id: number;
+  username: string;
+  avatar: string;
+  profil: number;
+  titre: string;
+  subscribeDate: string | null;
+  lastActionDate: string | null;
+}
+
 export interface HomeCommunityStats {
   latestRegistrations: HomeUserSummary[];
   todayBirthdays: HomeUserSummary[];

@@ -4,7 +4,7 @@ import {
   ICampaignRepository,
   campaignRepository,
 } from '../repositories/campaign.repository.js';
-import { User, PublicUserProfile, ProfileCampaign, CampaignSummary } from '../types/index.js';
+import { User, PublicUserProfile, ProfileCampaign, CampaignSummary, MemberSummary } from '../types/index.js';
 import { UserNotFoundError } from '../errors/domain.errors.js';
 
 /** Campagne visible sur un profil public : jamais en préparation (statut 3). */
@@ -40,6 +40,14 @@ export class UserQueries {
    */
   async getUserById(userId: number): Promise<User | null> {
     return this.userRepo.findById(userId);
+  }
+
+  /**
+   * Liste des membres : uniquement les utilisateurs ayant publié au moins 1 post.
+   * N'expose ni le mail, ni les paramètres de notification.
+   */
+  async getMembers(): Promise<MemberSummary[]> {
+    return this.userRepo.findMembersWithAtLeastOnePost();
   }
 
   /**

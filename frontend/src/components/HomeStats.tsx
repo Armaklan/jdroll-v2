@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { homeApi } from '../api/home';
 import { usePresence } from '../contexts/PresenceContext';
 import { HomeCommunityStats } from '../types/home';
@@ -79,6 +80,13 @@ export const HomeStats: React.FC = () => {
         ) : (
           <p className="text-sm text-slate-400">Personne d'autre en ligne pour le moment.</p>
         )}
+        <Link
+          to="/members"
+          data-testid="home-stats-members-link"
+          className="inline-block mt-3 text-xs font-semibold text-indigo-600 hover:text-indigo-500 hover:underline"
+        >
+          Voir les membres
+        </Link>
       </div>
 
       {/* Latest registrations */}

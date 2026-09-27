@@ -22,6 +22,7 @@ import { CampaignFormPage } from './pages/CampaignFormPage';
 import { GeneralForumPage } from './pages/GeneralForumPage';
 import { TopicViewPage } from './pages/TopicViewPage';
 import { MessagesPage } from './pages/MessagesPage';
+import { MembersPage } from './pages/MembersPage';
 import { ChatPage } from './pages/ChatPage';
 import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
 import {
@@ -193,6 +194,14 @@ export function AppContent() {
             }
           />
           <Route path="/join-campaign" element={<JoinCampaignPage />} />
+          <Route
+            path="/members"
+            element={
+              <ProtectedRoute>
+                <MembersPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/all-campaigns" element={<Navigate to="/join-campaign?filter=all" replace />} />
           <Route path="/campaigns" element={<Navigate to="/join-campaign?filter=all" replace />} />
           <Route path="/campaigns/:campaignId" element={<CampaignForumPage />} />

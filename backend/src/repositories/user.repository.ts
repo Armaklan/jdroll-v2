@@ -1,5 +1,5 @@
 import { query, queryOne, execute } from '../db/mysql.js';
-import { User, UserWithPassword, CreateUserData, UpdateUserProfileData, NotificationSettings, HomeUserSummary } from '../types/index.js';
+import { User, UserWithPassword, CreateUserData, UpdateUserProfileData, NotificationSettings, HomeUserSummary, MemberSummary } from '../types/index.js';
 
 export interface IUserRepository {
   findById(id: number): Promise<User | null>;
@@ -14,6 +14,7 @@ export interface IUserRepository {
   updateLastAction(id: number): Promise<void>;
   findLatestRegistrations(limit: number): Promise<HomeUserSummary[]>;
   findTodayBirthdays(): Promise<HomeUserSummary[]>;
+  findMembersWithAtLeastOnePost(): Promise<MemberSummary[]>;
 }
 
 export interface PasswordResetToken {
@@ -288,6 +289,18 @@ export class MysqlUserRepository implements IUserRepository {
          AND DAY(birthDate) = DAY(CURDATE())
        ORDER BY username ASC
        LIMIT 20`
+    );
+  }
+
+  async findMembersWithAtLeastOnePost(): Promise<MemberSummary[]> {
+    return query<MemberSummary>(
+      `SELECT u.id, u.username, u.avatar, u.profil, u.titre,
+              u.subscribe_date as subscribeDate,
+              la.time as lastActionDate
+       FROM user u
+       LEFT JOIN last_action la ON la.user_id = u.id
+       WHERE EXISTS (SELECT 1 FROM posts WHERE posts.user_id = u.id)
+       ORDER BY u.username ASC`
     );
   }
 }
