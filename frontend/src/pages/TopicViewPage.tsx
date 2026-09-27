@@ -31,7 +31,6 @@ import {
   BookmarkCheck,
   ChevronLeft,
   ChevronRight,
-  ArrowUp,
   FolderOpen,
   Send,
   Eye,
@@ -622,10 +621,6 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     }
   };
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   if (isLoading && !topicDetail) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
@@ -705,6 +700,99 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     '--color-rp2': topicDetail.rp2Color || '#5EFF6C',
     '--hr-image': topicDetail.campaign?.hr ? `url(${topicDetail.campaign?.hr})` : 'none',
   } as React.CSSProperties;
+
+  const renderPaginationInfo = () => (
+    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+      <MessageSquare className="w-4 h-4 text-indigo-600" />
+      <span>
+        {topicDetail.page === 0 ? (
+          <>Affichage de tous les messages</>
+        ) : (
+          <>
+            Page <strong className="text-slate-900">{topicDetail.page}</strong> sur{' '}
+            <strong className="text-slate-900">{topicDetail.totalPages}</strong>
+            {topicDetail.page === 1 && (
+              <span className="ml-1 text-indigo-600 font-semibold">(Messages les plus récents)</span>
+            )}
+          </>
+        )}
+      </span>
+    </div>
+  );
+
+  const renderPaginationControls = () => (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <button
+        onClick={() => handlePageChange(topicDetail.page - 1)}
+        disabled={topicDetail.page <= 1}
+        className={`p-2 rounded-xl border text-xs font-medium transition flex items-center gap-1 ${
+          topicDetail.page <= 1
+            ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
+            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+        }`}
+        title="Page précédente (messages plus récents)"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        <span className="hidden sm:inline">Précédent</span>
+      </button>
+
+      {topicDetail.page === 0 ? (
+        <button
+          key="all"
+          onClick={() => handlePageChange(1)}
+          className="min-w-8 h-8 px-2.5 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-xs"
+        >
+          Tous
+        </button>
+      ) : (
+        <>
+          {Array.from({ length: topicDetail.totalPages }, (_, i) => i + 1).map((pageNum) => (
+            <button
+              key={pageNum}
+              onClick={() => handlePageChange(pageNum)}
+              className={`min-w-8 h-8 px-2.5 rounded-xl text-xs font-bold transition ${
+                pageNum === topicDetail.page
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {pageNum === 1 ? '1 (Récents)' : pageNum}
+            </button>
+          ))}
+          <button
+            onClick={() => handlePageChange(0)}
+            className="min-w-8 h-8 px-2.5 rounded-xl text-xs font-medium transition bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+            title="Afficher tous les messages"
+          >
+            Tous
+          </button>
+        </>
+      )}
+
+      <button
+        onClick={() => handlePageChange(topicDetail.page + 1)}
+        disabled={topicDetail.page >= topicDetail.totalPages}
+        className={`p-2 rounded-xl border text-xs font-medium transition flex items-center gap-1 ${
+          topicDetail.page >= topicDetail.totalPages
+            ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
+            : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+        }`}
+        title="Page suivante (historique antérieur)"
+      >
+        <span className="hidden sm:inline">Suivant</span>
+        <ChevronRight className="w-4 h-4" />
+      </button>
+    </div>
+  );
+
+  const renderPaginationBar = () => (
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+      {renderPaginationInfo()}
+
+      {/* Contrôles de pagination */}
+      {renderPaginationControls()}
+    </div>
+  );
 
   return (
     <div className="space-y-6" style={campaignStyles}>
@@ -837,88 +925,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
       </div>
 
       {/* Barre de pagination supérieure */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xs">
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
-          <MessageSquare className="w-4 h-4 text-indigo-600" />
-          <span>
-            {topicDetail.page === 0 ? (
-              <>Affichage de tous les messages</>
-            ) : (
-              <>
-                Page <strong className="text-slate-900">{topicDetail.page}</strong> sur{' '}
-                <strong className="text-slate-900">{topicDetail.totalPages}</strong>
-                {topicDetail.page === 1 && (
-                  <span className="ml-1 text-indigo-600 font-semibold">(Messages les plus récents)</span>
-                )}
-              </>
-            )}
-          </span>
-        </div>
-
-        {/* Contrôles de pagination */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          <button
-            onClick={() => handlePageChange(topicDetail.page - 1)}
-            disabled={topicDetail.page <= 1}
-            className={`p-2 rounded-xl border text-xs font-medium transition flex items-center gap-1 ${
-              topicDetail.page <= 1
-                ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
-                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
-            title="Page précédente (messages plus récents)"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Précédent</span>
-          </button>
-
-          {topicDetail.page === 0 ? (
-            <button
-              key="all"
-              onClick={() => handlePageChange(1)}
-              className="min-w-8 h-8 px-2.5 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-xs"
-            >
-              Tous
-            </button>
-          ) : (
-            <>
-              {Array.from({ length: topicDetail.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => handlePageChange(pageNum)}
-                  className={`min-w-8 h-8 px-2.5 rounded-xl text-xs font-bold transition ${
-                    pageNum === topicDetail.page
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  {pageNum === 1 ? '1 (Récents)' : pageNum}
-                </button>
-              ))}
-              <button
-                onClick={() => handlePageChange(0)}
-                className="min-w-8 h-8 px-2.5 rounded-xl text-xs font-medium transition bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-                title="Afficher tous les messages"
-              >
-                Tous
-              </button>
-            </>
-          )}
-
-          <button
-            onClick={() => handlePageChange(topicDetail.page + 1)}
-            disabled={topicDetail.page >= topicDetail.totalPages}
-            className={`p-2 rounded-xl border text-xs font-medium transition flex items-center gap-1 ${
-              topicDetail.page >= topicDetail.totalPages
-                ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
-                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
-            title="Page suivante (historique antérieur)"
-          >
-            <span className="hidden sm:inline">Suivant</span>
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+      {renderPaginationBar()}
 
       {/* Liste des messages du sujet */}
       {topicDetail.posts.length === 0 ? (
@@ -1397,90 +1404,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
       )}
 
       {/* Barre de pagination inférieure */}
-      {(topicDetail.totalPages > 1 || topicDetail.page === 0) && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xs">
-          <button
-            onClick={handleBackToForum}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-50 border border-slate-200 text-slate-700 hover:bg-slate-100 transition"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Retour au forum</span>
-          </button>
-
-          <div className="flex flex-wrap items-center gap-1.5">
-            {topicDetail.page !== 0 && (
-              <button
-                onClick={() => handlePageChange(topicDetail.page - 1)}
-                disabled={topicDetail.page <= 1}
-                className={`p-2 rounded-xl border text-xs font-medium transition flex items-center gap-1 ${
-                  topicDetail.page <= 1
-                    ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Précédent</span>
-              </button>
-            )}
-
-            {topicDetail.page === 0 ? (
-              <button
-                key="all"
-                onClick={() => handlePageChange(1)}
-                className="min-w-8 h-8 px-2.5 rounded-xl text-xs font-bold transition bg-indigo-600 text-white shadow-xs"
-              >
-                Tous
-              </button>
-            ) : (
-              <>
-                {Array.from({ length: topicDetail.totalPages }, (_, i) => i + 1).map((pageNum) => (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`min-w-8 h-8 px-2.5 rounded-xl text-xs font-bold transition ${
-                      pageNum === topicDetail.page
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    {pageNum === 1 ? '1 (Récents)' : pageNum}
-                  </button>
-                ))}
-                <button
-                  onClick={() => handlePageChange(0)}
-                  className="min-w-8 h-8 px-2.5 rounded-xl text-xs font-medium transition bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
-                  title="Afficher tous les messages"
-                >
-                  Tous
-                </button>
-              </>
-            )}
-
-            {topicDetail.page !== 0 && (
-              <button
-                onClick={() => handlePageChange(topicDetail.page + 1)}
-                disabled={topicDetail.page >= topicDetail.totalPages}
-                className={`p-2 rounded-xl border text-xs font-medium transition flex items-center gap-1 ${
-                  topicDetail.page >= topicDetail.totalPages
-                    ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <span className="hidden sm:inline">Suivant</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          <button
-            onClick={scrollToTop}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition"
-          >
-            <ArrowUp className="w-3.5 h-3.5" />
-            <span>Haut de page</span>
-          </button>
-        </div>
-      )}
+      {renderPaginationBar()}
 
       {/* Bloc de réponse WYSIWYG / Formulaire de publication */}
       <div ref={formRef} className="pt-2 space-y-4">
