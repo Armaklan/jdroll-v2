@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { CreatePostUseCase } from './create-post.usecase.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository } from '../../repositories/user.repository.js';
 import {
   TopicNotFoundError,
   TopicClosedError,
@@ -18,6 +19,7 @@ import {
 describe('CreatePostUseCase', () => {
   let useCase: CreatePostUseCase;
   let mockForumRepo: IForumRepository;
+  let mockUserRepo: IUserRepository;
 
   const mockTopic: RawTopicDetail = {
     id: 10,
@@ -91,6 +93,7 @@ describe('CreatePostUseCase', () => {
         if (topicId === 15) return { ...mockTopic, id: 15, isPrivate: 1 };
         if (topicId === 18) return { ...mockTopic, id: 18, isPrivate: 2 };
         if (topicId === 99) return { ...mockTopic, id: 99, isClosed: 1 };
+        if (topicId === 21) return { ...mockTopic, id: 21, campagneId: null, isClosed: 1 };
         if (topicId === 20) return { ...mockTopic, id: 20, campagneId: null };
         return null;
       },
@@ -161,7 +164,24 @@ describe('CreatePostUseCase', () => {
       },
     };
 
-    useCase = new CreatePostUseCase(mockForumRepo);
+    mockUserRepo = {
+      findById: async (id: number) => ({
+        id,
+        username: `user${id}`,
+        mail: `user${id}@test.com`,
+        profil: id === 10 ? 2 : 0, // id 10 est admin
+        avatar: '',
+        description: '',
+        titre: '',
+      }),
+      findByUsernameOrEmail: async () => null,
+      findByUsernames: async () => [],
+      searchByUsername: async () => [],
+      existsByUsernameOrEmail: async () => false,
+      create: async (d) => ({ id: 999, ...d, avatar: '', description: '', profil: 0, titre: '' }),
+    };
+
+    useCase = new CreatePostUseCase(mockForumRepo, undefined as any, mockUserRepo);
   });
 
   it('crée avec succès un message posté par un joueur avec son personnage', async () => {
@@ -302,13 +322,63 @@ describe('CreatePostUseCase', () => {
     );
   });
 
-  it('refuse de poster dans un sujet fermé', async () => {
+  it('permet au MJ de poster dans un sujet fermé', async () => {
+    const post = await useCase.execute({
+      topicId: 99, // Sujet fermé
+      userId: 1, // MJ
+      content: '<p>Un dernier mot...</p>',
+    });
+
+    assert.equal(post.topicId, 99);
+    assert.equal(post.user.id, 1);
+  });
+
+  it('interdit à un joueur de poster dans un sujet fermé', async () => {
     await assert.rejects(
       async () => {
         await useCase.execute({
           topicId: 99, // Sujet fermé
-          userId: 1,
+          userId: 2, // Joueur
           content: '<p>Un dernier mot...</p>',
+        });
+      },
+      (err: any) => {
+        assert.ok(err instanceof TopicClosedError);
+        return true;
+      }
+    );
+  });
+
+  it("permet à un admin de poster dans un sujet fermé du forum général (userProfil fourni)", async () => {
+    const post = await useCase.execute({
+      topicId: 21, // Sujet fermé du forum général
+      userId: 5,
+      content: '<p>Mot de la modération</p>',
+      userProfil: 2, // Admin
+    });
+
+    assert.equal(post.topicId, 21);
+    assert.equal(post.user.id, 5);
+  });
+
+  it("permet à un admin de poster dans un sujet fermé du forum général (profil résolu via userRepo)", async () => {
+    const post = await useCase.execute({
+      topicId: 21, // Sujet fermé du forum général
+      userId: 10, // Admin selon mockUserRepo
+      content: '<p>Mot de la modération</p>',
+    });
+
+    assert.equal(post.topicId, 21);
+    assert.equal(post.user.id, 10);
+  });
+
+  it("interdit à un utilisateur standard de poster dans un sujet fermé du forum général", async () => {
+    await assert.rejects(
+      async () => {
+        await useCase.execute({
+          topicId: 21, // Sujet fermé du forum général
+          userId: 2,
+          content: '<p>Tentative de réponse</p>',
         });
       },
       (err: any) => {

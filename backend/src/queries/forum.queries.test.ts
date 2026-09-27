@@ -715,6 +715,48 @@ describe('ForumQueries', () => {
     assert.equal(result.availableCharacters.length, 0);
   });
 
+  it('should allow the GM to post in a closed campaign topic (players remain blocked)', async () => {
+    const closedTopic: RawTopicDetail = { ...mockTopic, isClosed: 1 };
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(mockSections, closedTopic, 5, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+
+    const mjResult = await queries.getTopicPosts(101, 1, 1); // User 1 = MJ
+    assert.equal(mjResult.isClosed, true);
+    assert.equal(mjResult.canPost, true);
+    assert.equal(mjResult.userRole, 'mj');
+
+    const playerResult = await queries.getTopicPosts(101, 1, 2); // User 2 = Joueur
+    assert.equal(playerResult.canPost, false);
+    assert.equal(playerResult.userRole, 'player');
+  });
+
+  it('should allow a site admin to post in a closed general forum topic (users remain blocked)', async () => {
+    const closedGeneralTopic: RawTopicDetail = {
+      id: 201,
+      sectionId: 100,
+      sectionTitle: 'Taverne & Annonces',
+      campagneId: null,
+      campaignTitle: null,
+      title: 'Annonce importante',
+      stickable: 1,
+      isPrivate: 0,
+      isClosed: 1,
+      ordre: 1,
+    };
+
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository([], closedGeneralTopic, 5, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+
+    const adminResult = await queries.getTopicPosts(201, 1, 999, 2); // profil 2 = admin
+    assert.equal(adminResult.isClosed, true);
+    assert.equal(adminResult.canPost, true);
+
+    const userResult = await queries.getTopicPosts(201, 1, 999, 0); // profil 0 = standard
+    assert.equal(userResult.canPost, false);
+  });
+
   it('should return general forum sections when getGeneralForum is called', async () => {
     const generalSections: ForumSectionSummary[] = [
       {

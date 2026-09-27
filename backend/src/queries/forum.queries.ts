@@ -86,7 +86,12 @@ export class ForumQueries {
    * Récupère les messages d'un topic avec pagination inversée (Page 1 = 10 derniers messages)
    * et résolution automatique de la page du dernier message lu si la page n'est pas spécifiée.
    */
-  async getTopicPosts(topicId: number, requestedPage?: number, userId?: number): Promise<TopicDetail> {
+  async getTopicPosts(
+    topicId: number,
+    requestedPage?: number,
+    userId?: number,
+    userProfil?: number
+  ): Promise<TopicDetail> {
     const topic = await this.forumRepo.findTopicById(topicId);
     if (!topic) {
       throw new TopicNotFoundError(`Le sujet avec l'identifiant ${topicId} n'existe pas`);
@@ -236,7 +241,7 @@ export class ForumQueries {
           }
         }
 
-        if (!isClosed) {
+        if (!isClosed || isMj) {
           if (isPrivateVal === 1) {
             const isCanRead = isMj ? true : await this.forumRepo.isUserTopicCanRead(topic.id, userId);
             if (isMj || isCanRead) canPost = true;
@@ -256,6 +261,9 @@ export class ForumQueries {
           } else {
             canPost = true;
           }
+        } else if (userProfil === 2) {
+          // Sujet fermé du forum général : seul un admin peut encore répondre
+          canPost = true;
         }
       }
     }

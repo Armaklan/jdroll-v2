@@ -279,7 +279,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
       return;
     }
 
-    if (!topicDetail.canPost || topicDetail.isClosed) {
+    if (!topicDetail.canPost) {
       return;
     }
 
@@ -1408,7 +1408,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
       {/* Bloc de réponse WYSIWYG / Formulaire de publication */}
       <div ref={formRef} className="pt-2 space-y-4">
-        {topicDetail.isClosed ? (
+        {topicDetail.isClosed && !topicDetail.canPost ? (
           <div className="bg-slate-100 border border-slate-200 rounded-2xl p-6 text-center text-slate-600">
             <Lock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
             <h4 className="font-bold text-sm text-slate-800">Ce sujet est fermé</h4>

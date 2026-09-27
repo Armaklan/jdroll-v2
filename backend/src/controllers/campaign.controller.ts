@@ -875,15 +875,17 @@ export class CampaignController {
     const { page } = parseQuery.data;
 
     let userId: number | undefined;
+    let userProfil: number | undefined;
     try {
       await request.jwtVerify();
       userId = (request.user as JWTPayload)?.id;
+      userProfil = (request.user as JWTPayload)?.profil;
     } catch {
       // Utilisateur non connecté / invité
     }
 
     try {
-      const data = await this.forumQueryService.getTopicPosts(topicId, page, userId);
+      const data = await this.forumQueryService.getTopicPosts(topicId, page, userId, userProfil);
       return reply.status(200).send(data);
     } catch (error) {
       if (error instanceof TopicNotFoundError) {
@@ -925,6 +927,7 @@ export class CampaignController {
         userId: user.id,
         content,
         persoId: persoId ?? null,
+        userProfil: user.profil,
       });
 
       return reply.status(201).send({ post });
@@ -1153,6 +1156,7 @@ export class CampaignController {
         userId: user.id,
         formula,
         description,
+        userProfil: user.profil,
       });
 
       return reply.status(201).send(result);

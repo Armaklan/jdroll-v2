@@ -1,5 +1,6 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
 import { IDicerRepository, dicerRepository } from '../../repositories/dicer.repository.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import { IEventBus, domainEventBus } from '../../events/event-bus.js';
 import { ForumPost } from '../../types/index.js';
 import {
@@ -20,6 +21,7 @@ export interface RollDiceDTO {
   userId: number;
   formula: string;
   description?: string;
+  userProfil?: number;
 }
 
 export interface RollDiceResult {
@@ -33,7 +35,8 @@ export class RollDiceUseCase {
     private readonly forumRepo: IForumRepository = forumRepository,
     private readonly dicerRepo: IDicerRepository = dicerRepository,
     private readonly rng: RngFunction = Math.random,
-    private readonly eventBus: IEventBus = domainEventBus
+    private readonly eventBus: IEventBus = domainEventBus,
+    private readonly userRepo: IUserRepository = userRepository
   ) {}
 
   async execute(dto: RollDiceDTO): Promise<RollDiceResult> {
@@ -49,10 +52,6 @@ export class RollDiceUseCase {
       throw new TopicNotFoundError(`Le sujet avec l'identifiant ${dto.topicId} n'existe pas`);
     }
 
-    if (Boolean(topic.isClosed)) {
-      throw new TopicClosedError('Ce sujet est fermé aux réponses');
-    }
-
     // Vérification des droits d'accès au topic
     let isPrivateVal = 0;
     const rawIsPrivate = Number(topic.isPrivate || 0);
@@ -64,6 +63,11 @@ export class RollDiceUseCase {
 
     if (topic.campagneId && topic.campagneId > 0) {
       const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, dto.userId);
+
+      if (Boolean(topic.isClosed) && !isMj) {
+        throw new TopicClosedError('Ce sujet est fermé aux réponses');
+      }
+
       const isParticipant = isMj
         ? true
         : await this.forumRepo.isUserCampaignParticipant(topic.campagneId, dto.userId);
@@ -83,6 +87,17 @@ export class RollDiceUseCase {
       // isPrivateVal === 2 (Grand public) : tout le monde peut poster / lancer les dés
     } else {
       // Forum Général
+      if (Boolean(topic.isClosed)) {
+        let profil = dto.userProfil;
+        if (profil === undefined) {
+          const user = await this.userRepo.findById(dto.userId);
+          profil = user?.profil ?? 0;
+        }
+        if (profil !== 2) {
+          throw new TopicClosedError('Ce sujet est fermé aux réponses');
+        }
+      }
+
       if (isPrivateVal === 1) {
         const isCanRead = await this.forumRepo.isUserTopicCanRead(topic.id, dto.userId);
         if (!isCanRead) {

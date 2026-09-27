@@ -1,4 +1,5 @@
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
+import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import { IEventBus, domainEventBus } from '../../events/event-bus.js';
 import { ForumPost } from '../../types/index.js';
 import {
@@ -13,12 +14,14 @@ export interface CreatePostDTO {
   userId: number;
   content: string;
   persoId?: number | null;
+  userProfil?: number;
 }
 
 export class CreatePostUseCase {
   constructor(
     private readonly forumRepo: IForumRepository = forumRepository,
-    private readonly eventBus: IEventBus = domainEventBus
+    private readonly eventBus: IEventBus = domainEventBus,
+    private readonly userRepo: IUserRepository = userRepository
   ) {}
 
   async execute(dto: CreatePostDTO): Promise<ForumPost> {
@@ -34,10 +37,6 @@ export class CreatePostUseCase {
       throw new TopicNotFoundError(`Le sujet avec l'identifiant ${dto.topicId} n'existe pas`);
     }
 
-    if (Boolean(topic.isClosed)) {
-      throw new TopicClosedError('Ce sujet est fermé aux réponses');
-    }
-
     let isPrivateVal = 0;
     const rawIsPrivate = Number(topic.isPrivate || 0);
     if (rawIsPrivate === 1) {
@@ -50,6 +49,11 @@ export class CreatePostUseCase {
 
     if (topic.campagneId && topic.campagneId > 0) {
       const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, dto.userId);
+
+      if (Boolean(topic.isClosed) && !isMj) {
+        throw new TopicClosedError('Ce sujet est fermé aux réponses');
+      }
+
       const isParticipant = isMj
         ? true
         : await this.forumRepo.isUserCampaignParticipant(topic.campagneId, dto.userId);
@@ -80,6 +84,17 @@ export class CreatePostUseCase {
       }
     } else {
       // Forum Général
+      if (Boolean(topic.isClosed)) {
+        let profil = dto.userProfil;
+        if (profil === undefined) {
+          const user = await this.userRepo.findById(dto.userId);
+          profil = user?.profil ?? 0;
+        }
+        if (profil !== 2) {
+          throw new TopicClosedError('Ce sujet est fermé aux réponses');
+        }
+      }
+
       if (isPrivateVal === 1) {
         const isCanRead = await this.forumRepo.isUserTopicCanRead(topic.id, dto.userId);
         if (!isCanRead) {

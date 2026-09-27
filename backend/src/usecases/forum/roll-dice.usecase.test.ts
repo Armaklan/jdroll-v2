@@ -79,6 +79,7 @@ describe('RollDiceUseCase', () => {
       findTopicById: async (topicId: number): Promise<RawTopicDetail | null> => {
         if (topicId === 10) return { ...mockTopic };
         if (topicId === 99) return { ...mockTopic, id: 99, isClosed: 1 };
+        if (topicId === 21) return { ...mockTopic, id: 21, campagneId: null, isClosed: 1 };
         if (topicId === 20) return { ...mockTopic, id: 20, campagneId: null };
         return null;
       },
@@ -187,13 +188,52 @@ describe('RollDiceUseCase', () => {
     );
   });
 
-  it('interdit le jet dans un sujet fermé', async () => {
+  it('permet au MJ de lancer les dés dans un sujet fermé', async () => {
+    const result = await useCase.execute({
+      topicId: 99,
+      userId: 1, // MJ
+      formula: '1d20',
+      description: 'Jet MJ sur sujet fermé',
+    });
+
+    assert.ok(result);
+    assert.strictEqual(createdPosts.length, 1);
+    assert.strictEqual(createdPosts[0].topicId, 99);
+  });
+
+  it('interdit le jet à un joueur dans un sujet fermé', async () => {
     await assert.rejects(
       useCase.execute({
         topicId: 99,
-        userId: 1,
+        userId: 2, // Joueur
         formula: '1d20',
         description: 'Sujet fermé',
+      }),
+      TopicClosedError
+    );
+  });
+
+  it('permet à un admin de lancer les dés dans un sujet fermé du forum général', async () => {
+    const result = await useCase.execute({
+      topicId: 21,
+      userId: 10, // Admin
+      formula: '1d20',
+      description: 'Jet admin sur sujet fermé',
+      userProfil: 2,
+    });
+
+    assert.ok(result);
+    assert.strictEqual(createdPosts[0].topicId, 21);
+  });
+
+  it('interdit le jet à un utilisateur standard dans un sujet fermé du forum général', async () => {
+    await assert.rejects(
+      useCase.execute({
+        topicId: 21,
+        userId: 2,
+        formula: '1d20',
+        description: 'Sujet fermé',
+        userProfil: 0,
       }),
       TopicClosedError
     );
