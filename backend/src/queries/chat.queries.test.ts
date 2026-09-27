@@ -35,6 +35,8 @@ describe('ChatQueries', () => {
       return mockMessages;
     },
     getMessageById: async (id: number) => mockMessages.find((m) => m.id === id) || null,
+    deleteMessage: async () => {},
+    deleteAllMessages: async () => 0,
   };
 
   const mockUserRepo: IUserRepository = {
@@ -73,6 +75,8 @@ describe('ChatQueries', () => {
         },
       ],
       getMessageById: async () => null,
+      deleteMessage: async () => {},
+      deleteAllMessages: async () => 0,
     };
     const legacyQueries = new ChatQueries(legacyRepo, mockUserRepo);
 

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { HomePage } from '../page-objects/HomePage';
 import { Navbar } from '../page-objects/Navbar';
+import { RegisterPage } from '../page-objects/RegisterPage';
 
 /**
  * Chat Tests
@@ -73,3 +74,4 @@ test.describe('Chat', () => {
     await expect(homePage.heroTitle).toBeVisible({ timeout: 5000 });
   });
 });
+

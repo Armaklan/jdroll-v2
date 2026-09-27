@@ -156,6 +156,19 @@ export class ChatWebSocketService {
     }
   }
 
+  broadcastChatMessageDeleted(messageId: number) {
+    this.broadcast({
+      type: 'chat_message_deleted',
+      id: messageId,
+    });
+  }
+
+  broadcastChatCleared() {
+    this.broadcast({
+      type: 'chat_cleared',
+    });
+  }
+
   private async notifyOfflineRecipient(message: ChatMessage) {
     try {
       let recipientId = Number(message.to);

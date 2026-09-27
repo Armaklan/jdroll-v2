@@ -24,6 +24,7 @@ import {
   Lock,
   MessageCircle,
   Smile,
+  Trash2,
 } from 'lucide-react';
 
 export function ChatPage() {
@@ -65,6 +66,7 @@ export function ChatPage() {
 
   const currentUsername = user?.username || '';
   const currentUserId = user?.id;
+  const isAdmin = user?.profil === 2;
 
   const selectChannel = useCallback((channel: ChatActiveChannel) => {
     setActiveChannel(channel);
@@ -217,6 +219,12 @@ export function ChatPage() {
                   }
                 }
               }
+            } else if (data.type === 'chat_message_deleted' && data.id) {
+              // Un administrateur a supprimé un message : retrait local
+              setMessages((prev) => prev.filter((m) => m.id !== data.id));
+            } else if (data.type === 'chat_cleared') {
+              // Un administrateur a vidé le tchat
+              setMessages([]);
             }
           } catch {
             // ignore non-json
@@ -385,6 +393,32 @@ export function ChatPage() {
       setError(err.message || "Erreur lors de l'envoi du message");
     } finally {
       setIsSending(false);
+    }
+  };
+
+  // Admin: delete a single chat message
+  const handleDeleteMessage = async (msg: ChatMessage) => {
+    if (!msg.id || !isAdmin) return;
+    if (!window.confirm(`Supprimer ce message de ${msg.username} ?`)) return;
+
+    try {
+      await chatApi.deleteMessage(msg.id);
+      setMessages((prev) => prev.filter((m) => m.id !== msg.id));
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors de la suppression du message');
+    }
+  };
+
+  // Admin: clear the entire chat
+  const handleClearChat = async () => {
+    if (!isAdmin) return;
+    if (!window.confirm('Vider entièrement le tchat ? Cette action est irréversible.')) return;
+
+    try {
+      await chatApi.clearChat();
+      setMessages([]);
+    } catch (err: any) {
+      setError(err.message || 'Erreur lors du vidage du tchat');
     }
   };
 
@@ -751,9 +785,6 @@ export function ChatPage() {
                         Public
                       </span>
                     </h2>
-                    <p className="text-xs text-slate-500 truncate">
-                      Historique des 200 derniers messages de la taverne
-                    </p>
                   </div>
                 </>
               ) : (
@@ -794,6 +825,17 @@ export function ChatPage() {
             </div>
 
             <div className="flex items-center space-x-2">
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={handleClearChat}
+                  title="Vider le tchat"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Vider le tchat</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsSearchOpen(true)}
@@ -916,6 +958,18 @@ export function ChatPage() {
                           {replaceEmoticons(msg.message)}
                         </div>
                       </div>
+
+                      {/* Admin: delete message */}
+                      {isAdmin && msg.id && (
+                        <button
+                          type="button"
+                          title="Supprimer ce message"
+                          onClick={() => handleDeleteMessage(msg)}
+                          className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition self-start"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </React.Fragment>
                 );

@@ -6,6 +6,14 @@ import {
   SendChatMessageUseCase,
 } from '../usecases/chat/send-chat-message.usecase.js';
 import {
+  deleteChatMessageUseCase,
+  DeleteChatMessageUseCase,
+} from '../usecases/chat/delete-chat-message.usecase.js';
+import {
+  clearChatUseCase,
+  ClearChatUseCase,
+} from '../usecases/chat/clear-chat.usecase.js';
+import {
   chatWebSocketService,
   ChatWebSocketService,
 } from '../services/chat-websocket.service.js';
@@ -13,6 +21,7 @@ import {
   DomainError,
   ValidationError,
   UserNotFoundError,
+  ForbiddenError,
 } from '../errors/domain.errors.js';
 import { JWTPayload } from '../types/index.js';
 
@@ -30,10 +39,16 @@ const searchUsersQuerySchema = z.object({
   q: z.string().optional().default(''),
 });
 
+const messageIdParamsSchema = z.object({
+  id: z.coerce.number().int().min(1),
+});
+
 export class ChatController {
   constructor(
     private readonly queries: ChatQueries = chatQueries,
     private readonly sendUseCase: SendChatMessageUseCase = sendChatMessageUseCase,
+    private readonly deleteUseCase: DeleteChatMessageUseCase = deleteChatMessageUseCase,
+    private readonly clearUseCase: ClearChatUseCase = clearChatUseCase,
     private readonly wsService: ChatWebSocketService = chatWebSocketService
   ) {}
 
@@ -43,6 +58,9 @@ export class ChatController {
     }
     if (error instanceof UserNotFoundError) {
       return reply.status(404).send({ error: error.message });
+    }
+    if (error instanceof ForbiddenError) {
+      return reply.status(403).send({ error: error.message });
     }
     if (error instanceof DomainError) {
       return reply.status(400).send({ error: error.message });
@@ -89,6 +107,46 @@ export class ChatController {
     }
   }
 
+  async deleteMessage(request: FastifyRequest, reply: FastifyReply) {
+    const user = request.user as JWTPayload;
+    const parseResult = messageIdParamsSchema.safeParse(request.params);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de message invalide',
+        details: parseResult.error.format(),
+      });
+    }
+
+    try {
+      const result = await this.deleteUseCase.execute({
+        messageId: parseResult.data.id,
+        userId: user.id,
+        userProfil: user.profil,
+      });
+
+      this.wsService.broadcastChatMessageDeleted(result.deletedMessageId);
+      return reply.status(200).send(result);
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
+  async clearChat(request: FastifyRequest, reply: FastifyReply) {
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.clearUseCase.execute({
+        userId: user.id,
+        userProfil: user.profil,
+      });
+
+      this.wsService.broadcastChatCleared();
+      return reply.status(200).send(result);
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
   async getOnlineUsers(request: FastifyRequest, reply: FastifyReply) {
     const users = this.wsService.getOnlineUsers();
     return reply.status(200).send({ users });
@@ -119,6 +177,14 @@ export class ChatController {
 
     app.post('/api/chat/messages', { preHandler: [app.authenticate] }, (req, rep) =>
       this.sendMessage(req, rep)
+    );
+
+    app.delete('/api/chat/messages/:id', { preHandler: [app.authenticate] }, (req, rep) =>
+      this.deleteMessage(req, rep)
+    );
+
+    app.delete('/api/chat/messages', { preHandler: [app.authenticate] }, (req, rep) =>
+      this.clearChat(req, rep)
     );
 
     app.get('/api/chat/users/online', { preHandler: [app.authenticate] }, (req, rep) =>

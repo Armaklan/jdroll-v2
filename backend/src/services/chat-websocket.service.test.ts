@@ -88,6 +88,8 @@ describe('ChatWebSocketService', () => {
       }),
       getRecentMessages: async () => [],
       getMessageById: async () => null,
+      deleteMessage: async () => {},
+      deleteAllMessages: async () => 0,
     };
 
     const mockUserRepo: IUserRepository = {
@@ -298,5 +300,47 @@ describe('ChatWebSocketService', () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     assert.equal(notifications.length, 0);
+  });
+
+  it('diffuse la suppression d’un message à tous les clients connectés', async () => {
+    const { wsService } = setup();
+
+    const socket1 = new MockWebSocket() as any;
+    const user1: JWTPayload = { id: 1, username: 'Alice', mail: 'alice@test.com', profil: 1 };
+    await wsService.handleConnection(socket1, user1);
+
+    const socket2 = new MockWebSocket() as any;
+    const user2: JWTPayload = { id: 2, username: 'Bob', mail: 'bob@test.com', profil: 0 };
+    await wsService.handleConnection(socket2, user2);
+
+    wsService.broadcastChatMessageDeleted(42);
+
+    const lastMsg1 = JSON.parse(socket1.sentMessages[socket1.sentMessages.length - 1]);
+    const lastMsg2 = JSON.parse(socket2.sentMessages[socket2.sentMessages.length - 1]);
+
+    assert.equal(lastMsg1.type, 'chat_message_deleted');
+    assert.equal(lastMsg1.id, 42);
+    assert.equal(lastMsg2.type, 'chat_message_deleted');
+    assert.equal(lastMsg2.id, 42);
+  });
+
+  it('diffuse le vidage du tchat à tous les clients connectés', async () => {
+    const { wsService } = setup();
+
+    const socket1 = new MockWebSocket() as any;
+    const user1: JWTPayload = { id: 1, username: 'Alice', mail: 'alice@test.com', profil: 1 };
+    await wsService.handleConnection(socket1, user1);
+
+    const socket2 = new MockWebSocket() as any;
+    const user2: JWTPayload = { id: 2, username: 'Bob', mail: 'bob@test.com', profil: 0 };
+    await wsService.handleConnection(socket2, user2);
+
+    wsService.broadcastChatCleared();
+
+    const lastMsg1 = JSON.parse(socket1.sentMessages[socket1.sentMessages.length - 1]);
+    const lastMsg2 = JSON.parse(socket2.sentMessages[socket2.sentMessages.length - 1]);
+
+    assert.equal(lastMsg1.type, 'chat_cleared');
+    assert.equal(lastMsg2.type, 'chat_cleared');
   });
 });

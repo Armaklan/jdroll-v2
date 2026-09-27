@@ -26,6 +26,8 @@ describe('SendChatMessageUseCase', () => {
       },
       getRecentMessages: async () => [],
       getMessageById: async () => null,
+      deleteMessage: async () => {},
+      deleteAllMessages: async () => 0,
     };
 
     const mockUsers: User[] = [

@@ -12,6 +12,8 @@ export interface IChatRepository {
   createMessage(data: CreateChatMessageData): Promise<ChatMessage>;
   getRecentMessages(userId: number, username: string, limit?: number): Promise<ChatMessage[]>;
   getMessageById(id: number): Promise<ChatMessage | null>;
+  deleteMessage(id: number): Promise<void>;
+  deleteAllMessages(): Promise<number>;
 }
 
 export class MysqlChatRepository implements IChatRepository {
@@ -122,6 +124,15 @@ export class MysqlChatRepository implements IChatRepository {
       to: row.to ?? '',
       to_username: row.to_username ?? '',
     };
+  }
+
+  async deleteMessage(id: number): Promise<void> {
+    await execute('DELETE FROM chat WHERE id = ?', [id]);
+  }
+
+  async deleteAllMessages(): Promise<number> {
+    const result = await execute('DELETE FROM chat');
+    return result.affectedRows;
   }
 }
 

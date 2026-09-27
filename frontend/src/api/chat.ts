@@ -46,6 +46,18 @@ export const chatApi = {
     });
   },
 
+  async deleteMessage(messageId: number): Promise<{ success: boolean; deletedMessageId: number }> {
+    return request<{ success: boolean; deletedMessageId: number }>(`/api/chat/messages/${messageId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async clearChat(): Promise<{ success: boolean; deletedCount: number }> {
+    return request<{ success: boolean; deletedCount: number }>('/api/chat/messages', {
+      method: 'DELETE',
+    });
+  },
+
   async getOnlineUsers(): Promise<{ users: ChatConnectedUser[] }> {
     return request<{ users: ChatConnectedUser[] }>('/api/chat/users/online');
   },
