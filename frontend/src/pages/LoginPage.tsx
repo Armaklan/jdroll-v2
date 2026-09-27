@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, AlertCircle, Loader2 } from 'lucide-react';
+import { authApi } from '../api/auth';
+import { LogIn, AlertCircle, Loader2, KeyRound, CheckCircle2 } from 'lucide-react';
 
 interface LoginPageProps {
   onSuccess?: () => void;
@@ -17,6 +18,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegis
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mode, setMode] = useState<'login' | 'forgot'>('login');
+  const [resetIdentifier, setResetIdentifier] = useState('');
+  const [resetSent, setResetSent] = useState(false);
 
   const handleSuccess = () => {
     if (onSuccess) {
@@ -49,6 +53,106 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegis
       setIsSubmitting(false);
     }
   };
+
+  const handleSwitchToForgotPassword = () => {
+    setMode('forgot');
+    setResetIdentifier(username);
+    setResetSent(false);
+    setError(null);
+  };
+
+  const handleBackToLogin = () => {
+    setMode('login');
+    setResetSent(false);
+    setError(null);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      await authApi.forgotPassword(resetIdentifier);
+      setResetSent(true);
+    } catch (err) {
+      setError((err as Error).message || "Erreur lors de l'envoi de l'email");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (mode === 'forgot') {
+    return (
+      <div className="max-w-md mx-auto mt-6 bg-white border border-slate-200 p-8 rounded-2xl shadow-sm">
+        <div className="text-center mb-6">
+          <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3 border border-indigo-100">
+            <KeyRound className="w-6 h-6" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900">Mot de passe oublié</h2>
+          <p className="text-sm text-slate-600 mt-1">
+            Indiquez votre pseudo ou votre email pour recevoir un lien de renouvellement
+          </p>
+        </div>
+
+        {resetSent && (
+          <div className="mb-4 p-3.5 bg-green-50 border border-green-200 rounded-xl flex items-center gap-2 text-green-700 text-sm">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-green-600" />
+            <span>
+              Si un compte existe pour cet identifiant, un email de réinitialisation a été envoyé (valable 30 minutes).
+            </span>
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4 p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700 text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-red-600" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleForgotPassword} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase text-slate-700 mb-1.5">
+              Identifiant ou Email
+            </label>
+            <input
+              type="text"
+              required
+              value={resetIdentifier}
+              onChange={(e) => setResetIdentifier(e.target.value)}
+              placeholder="Pseudo ou adresse email"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-100 transition text-sm"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium rounded-xl flex items-center justify-center gap-2 transition mt-2 shadow-sm"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Envoi en cours...</span>
+              </>
+            ) : (
+              <span>Envoyer le lien de réinitialisation</span>
+            )}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center text-sm text-slate-600">
+          <button
+            onClick={handleBackToLogin}
+            className="text-indigo-600 hover:text-indigo-700 font-semibold underline-offset-4 hover:underline"
+          >
+            Retour à la connexion
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-md mx-auto mt-6 bg-white border border-slate-200 p-8 rounded-2xl shadow-sm">
@@ -96,7 +200,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegis
           />
         </div>
 
-        <div className="flex items-center">
+        <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -106,6 +210,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onSuccess, onSwitchToRegis
             />
             <span className="text-sm text-slate-600">Se souvenir de moi</span>
           </label>
+          <button
+            type="button"
+            onClick={handleSwitchToForgotPassword}
+            className="text-sm text-indigo-600 hover:text-indigo-700 font-semibold underline-offset-4 hover:underline"
+          >
+            Mot de passe oublié ?
+          </button>
         </div>
 
         <button

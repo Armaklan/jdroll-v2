@@ -6,6 +6,7 @@
 export { BasePage } from './BasePage';
 export { Navbar } from './Navbar';
 export { LoginPage } from './LoginPage';
+export { ResetPasswordPage } from './ResetPasswordPage';
 export { RegisterPage } from './RegisterPage';
 export { HomePage } from './HomePage';
 export { MyCampaignsPage } from './MyCampaignsPage';

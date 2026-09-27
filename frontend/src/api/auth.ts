@@ -119,4 +119,18 @@ export const authApi = {
       body: JSON.stringify(data),
     });
   },
+
+  async forgotPassword(identifier: string): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ identifier }),
+    });
+  },
+
+  async resetPassword(data: { userId: number; alea: string; newPassword: string }): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };

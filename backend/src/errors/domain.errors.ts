@@ -115,3 +115,15 @@ export class AntibotError extends DomainError {
     super(message);
   }
 }
+
+export class InvalidPasswordResetTokenError extends DomainError {
+  constructor(message = 'Lien de réinitialisation invalide') {
+    super(message);
+  }
+}
+
+export class ExpiredPasswordResetTokenError extends DomainError {
+  constructor(message = 'Ce lien de réinitialisation a expiré (validité de 30 minutes)') {
+    super(message);
+  }
+}

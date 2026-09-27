@@ -17,6 +17,11 @@ export class LoginPage extends BasePage {
   readonly rememberMeCheckbox: Locator;
   readonly switchToRegisterLink: Locator;
   readonly form: Locator;
+  readonly forgotPasswordLink: Locator;
+  readonly forgotTitle: Locator;
+  readonly forgotSubmitButton: Locator;
+  readonly forgotSuccessMessage: Locator;
+  readonly backToLoginButton: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -37,6 +42,11 @@ export class LoginPage extends BasePage {
     this.rememberMeCheckbox = page.getByLabel(/Se souvenir de moi/i);
     this.switchToRegisterLink = page.getByRole('button', { name: /Créer un compte/i });
     this.form = page.locator('form');
+    this.forgotPasswordLink = page.getByRole('button', { name: /Mot de passe oublié/i });
+    this.forgotTitle = page.getByRole('heading', { name: /Mot de passe oublié/i, level: 2 });
+    this.forgotSubmitButton = page.getByRole('button', { name: /Envoyer le lien de réinitialisation/i });
+    this.forgotSuccessMessage = page.getByText(/valable 30 minutes/i);
+    this.backToLoginButton = page.getByRole('button', { name: /Retour à la connexion/i });
   }
 
   /**
@@ -106,6 +116,31 @@ export class LoginPage extends BasePage {
   async goToRegister(): Promise<void> {
     await this.switchToRegisterLink.click();
     await this.page.waitForURL(/\/register/);
+  }
+
+  /**
+   * Switch the login page to the "forgot password" form
+   */
+  async goToForgotPassword(): Promise<void> {
+    await this.forgotPasswordLink.click();
+    await this.forgotTitle.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Request a password reset email for the given identifier (username or email)
+   */
+  async requestPasswordReset(identifier: string): Promise<void> {
+    await this.fill(this.usernameInput, identifier);
+    await this.forgotSubmitButton.click();
+    await this.forgotSuccessMessage.waitFor({ state: 'visible', timeout: 10000 });
+  }
+
+  /**
+   * Go back from the "forgot password" form to the login form
+   */
+  async backToLogin(): Promise<void> {
+    await this.backToLoginButton.click();
+    await this.title.waitFor({ state: 'visible' });
   }
 
   /**

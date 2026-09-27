@@ -16,6 +16,19 @@ export interface IUserRepository {
   findTodayBirthdays(): Promise<HomeUserSummary[]>;
 }
 
+export interface PasswordResetToken {
+  reinitAlea: string;
+  /** Date de génération du token : Date, chaîne ISO ou timestamp en millisecondes */
+  reinitDate: Date | string | number;
+}
+
+export interface IUserPasswordResetRepository {
+  findByUsernameOrEmail(identifier: string): Promise<UserWithPassword | null>;
+  setPasswordResetToken(id: number, alea: string): Promise<void>;
+  findPasswordResetToken(id: number): Promise<PasswordResetToken | null>;
+  resetPasswordWithToken(id: number, alea: string, newPasswordHash: string): Promise<void>;
+}
+
 export class MysqlUserRepository implements IUserRepository {
   async findById(id: number): Promise<User | null> {
     const user = await queryOne<User>(
@@ -222,6 +235,38 @@ export class MysqlUserRepository implements IUserRepository {
     );
   }
 
+  async setPasswordResetToken(id: number, alea: string): Promise<void> {
+    await execute(
+      `UPDATE user SET reinitAlea = ?, reinitDate = NOW() WHERE id = ?`,
+      [alea, id]
+    );
+  }
+
+  async findPasswordResetToken(id: number): Promise<PasswordResetToken | null> {
+    // UNIX_TIMESTAMP retourne un epoch invariant de fuseau horaire
+    // (NOW() écrit et relit avec la même horloge côté base)
+    const token = await queryOne<{ reinitAlea: string; reinitDate: number }>(
+      `SELECT reinitAlea, UNIX_TIMESTAMP(reinitDate) * 1000 AS reinitDate
+       FROM user
+       WHERE id = ? AND reinitAlea IS NOT NULL AND reinitDate IS NOT NULL
+       LIMIT 1`,
+      [id]
+    );
+    return token || null;
+  }
+
+  async resetPasswordWithToken(id: number, alea: string, newPasswordHash: string): Promise<void> {
+    const result = await execute(
+      `UPDATE user SET password = ?, reinitAlea = NULL, reinitDate = NULL
+       WHERE id = ? AND reinitAlea = ?`,
+      [newPasswordHash, id, alea]
+    );
+
+    if (result.affectedRows === 0) {
+      throw new Error('Token de réinitialisation invalide ou expiré');
+    }
+  }
+
   async findLatestRegistrations(limit: number): Promise<HomeUserSummary[]> {
     const safeLimit = Math.min(Math.max(1, limit), 50);
     return query<HomeUserSummary>(
@@ -247,4 +292,4 @@ export class MysqlUserRepository implements IUserRepository {
   }
 }
 
-export const userRepository: IUserRepository = new MysqlUserRepository();
+export const userRepository: IUserRepository & IUserPasswordResetRepository = new MysqlUserRepository();

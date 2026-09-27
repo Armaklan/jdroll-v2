@@ -6,6 +6,8 @@ import { updateUserProfileUseCase, UpdateUserProfileUseCase } from '../usecases/
 import { uploadUserAvatarUseCase, UploadUserAvatarUseCase } from '../usecases/auth/upload-user-avatar.usecase.js';
 import { updateNotificationSettingsUseCase, UpdateNotificationSettingsUseCase } from '../usecases/auth/update-notification-settings.usecase.js';
 import { updatePasswordUseCase, UpdatePasswordUseCase } from '../usecases/auth/update-password.usecase.js';
+import { requestPasswordResetUseCase, RequestPasswordResetUseCase } from '../usecases/auth/request-password-reset.usecase.js';
+import { resetPasswordUseCase, ResetPasswordUseCase } from '../usecases/auth/reset-password.usecase.js';
 import { userQueries, UserQueries } from '../queries/user.queries.js';
 import { validateRegistrationAntibot } from '../services/antibot.service.js';
 import {
@@ -53,6 +55,16 @@ const updatePasswordSchema = z.object({
   newPassword: z.string().min(3),
 });
 
+const forgotPasswordSchema = z.object({
+  identifier: z.string().min(1),
+});
+
+const resetPasswordSchema = z.object({
+  userId: z.number().int().positive(),
+  alea: z.string().min(1),
+  newPassword: z.string().min(3),
+});
+
 export class AuthController {
   private readonly registerUseCase: RegisterUserUseCase;
   private readonly loginUseCase: LoginUserUseCase;
@@ -60,6 +72,8 @@ export class AuthController {
   private readonly uploadAvatarUseCase: UploadUserAvatarUseCase;
   private readonly updateNotificationSettingsUseCase: UpdateNotificationSettingsUseCase;
   private readonly updatePasswordUseCase: UpdatePasswordUseCase;
+  private readonly requestPasswordResetUseCase: RequestPasswordResetUseCase;
+  private readonly resetPasswordUseCase: ResetPasswordUseCase;
   private readonly userQueryService: UserQueries;
 
   constructor(
@@ -69,7 +83,9 @@ export class AuthController {
     uploadAvatarUC?: UploadUserAvatarUseCase,
     updateNotifSettingsUC?: UpdateNotificationSettingsUseCase,
     updatePwdUC?: UpdatePasswordUseCase,
-    userQuerySvc?: UserQueries
+    userQuerySvc?: UserQueries,
+    requestPwdResetUC?: RequestPasswordResetUseCase,
+    resetPwdUC?: ResetPasswordUseCase
   ) {
     this.registerUseCase = registerUC || registerUserUseCase;
     this.loginUseCase = loginUC || loginUserUseCase;
@@ -77,6 +93,8 @@ export class AuthController {
     this.uploadAvatarUseCase = uploadAvatarUC || uploadUserAvatarUseCase;
     this.updateNotificationSettingsUseCase = updateNotifSettingsUC || updateNotificationSettingsUseCase;
     this.updatePasswordUseCase = updatePwdUC || updatePasswordUseCase;
+    this.requestPasswordResetUseCase = requestPwdResetUC || requestPasswordResetUseCase;
+    this.resetPasswordUseCase = resetPwdUC || resetPasswordUseCase;
     this.userQueryService = userQuerySvc || userQueries;
   }
 
@@ -283,6 +301,50 @@ export class AuthController {
   }
 
   /**
+   * POST /api/auth/forgot-password
+   * Demande de réinitialisation de mot de passe : génère un token (reinitAlea/reinitDate)
+   * et envoie un mail avec le lien de renouvellement.
+   * La réponse est identique que le compte existe ou non (anti-énumération).
+   */
+  async forgotPassword(request: FastifyRequest, reply: FastifyReply) {
+    const parseResult = forgotPasswordSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Données invalides',
+        details: parseResult.error.format(),
+      });
+    }
+
+    await this.requestPasswordResetUseCase.execute(parseResult.data);
+
+    return reply.status(200).send({
+      success: true,
+      message: "Si un compte existe pour cet identifiant, un email de réinitialisation a été envoyé (valable 30 minutes).",
+    });
+  }
+
+  /**
+   * POST /api/auth/reset-password
+   * Définition d'un nouveau mot de passe à partir du lien reçu par mail (userId + alea)
+   */
+  async resetPassword(request: FastifyRequest, reply: FastifyReply) {
+    const parseResult = resetPasswordSchema.safeParse(request.body);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Données invalides',
+        details: parseResult.error.format(),
+      });
+    }
+
+    try {
+      await this.resetPasswordUseCase.execute(parseResult.data);
+      return reply.status(200).send({ success: true, message: 'Mot de passe mis à jour avec succès' });
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
+  /**
    * Déclaration des routes du contrôleur sur l'instance Fastify
    */
   registerRoutes(app: FastifyInstance) {
@@ -293,6 +355,8 @@ export class AuthController {
     app.post('/api/auth/avatar', { preHandler: [app.authenticate] }, (req, rep) => this.uploadAvatar(req, rep));
     app.put('/api/auth/notification-settings', { preHandler: [app.authenticate] }, (req, rep) => this.updateNotificationSettings(req, rep));
     app.put('/api/auth/password', { preHandler: [app.authenticate] }, (req, rep) => this.updatePassword(req, rep));
+    app.post('/api/auth/forgot-password', (req, rep) => this.forgotPassword(req, rep));
+    app.post('/api/auth/reset-password', (req, rep) => this.resetPassword(req, rep));
   }
 }
 
