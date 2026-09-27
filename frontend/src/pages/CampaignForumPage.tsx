@@ -1745,7 +1745,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                   <div className="flex items-center gap-3">
                     {candidate.avatar ? (
                       <img
-                        src={candidate.avatar.startsWith('http') ? candidate.avatar : `/files/${candidate.avatar}`}
+                        src={candidate.avatar}
                         alt={candidate.username}
                         className="w-10 h-10 rounded-full object-cover border border-slate-200"
                       />

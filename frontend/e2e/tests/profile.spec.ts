@@ -103,6 +103,71 @@ test.describe('Profil public', () => {
     await expect(page.getByTestId('user-profile-current-absences')).toContainText('Congés bien mérités');
   });
 
+  test("le profil affiche les parties que le membre maîtrise et celles où il joue", async ({ page, request }) => {
+    const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`;
+    const password = 'Password123';
+    const viewer = await registerUser(request, `e2e_prof_pc_v_${suffix}`, password);
+    const mj = await registerUser(request, `e2e_prof_pc_m_${suffix}`, password);
+
+    // Le MJ crée une campagne active
+    const createResponse = await request.post('/api/campaigns', {
+      headers: { Authorization: `Bearer ${mj.token}` },
+      data: {
+        name: `Campagne parties profil ${suffix}`,
+        systeme: 'D&D 5e',
+        univers: 'Test',
+        description: 'Campagne de test des parties du profil',
+        nbJoueurs: 4,
+      },
+    });
+    expect(createResponse.ok(), await createResponse.text()).toBeTruthy();
+    const { campaign } = await createResponse.json();
+
+    // Le joueur rejoint la campagne et est validé par le MJ
+    const joinResponse = await request.post(`/api/campaigns/${campaign.id}/join`, {
+      headers: { Authorization: `Bearer ${viewer.token}` },
+    });
+    expect(joinResponse.ok(), await joinResponse.text()).toBeTruthy();
+
+    const acceptResponse = await request.post(`/api/campaigns/${campaign.id}/participants/${viewer.user.id}/accept`, {
+      headers: { Authorization: `Bearer ${mj.token}` },
+    });
+    expect(acceptResponse.ok(), await acceptResponse.text()).toBeTruthy();
+
+    // Le profil du MJ affiche la campagne dans ses parties maîtrisées, avec l'indicateur ouverte
+    await setBrowserToken(page, viewer.token);
+    await page.goto(`/users/${mj.user.id}`);
+
+    const masteredSection = page.getByTestId('user-profile-mastered-campaigns');
+    await expect(masteredSection).toBeVisible();
+    const masteredLink = masteredSection.getByRole('link', { name: `Campagne parties profil ${suffix}` });
+    await expect(masteredLink).toBeVisible();
+    await expect(masteredLink).toHaveAttribute('href', `/campaigns/${campaign.id}`);
+    await expect(masteredSection.getByTestId('user-profile-campaign-status')).toHaveText('Ouverte');
+
+    // Le profil du joueur affiche la campagne dans ses parties jouées, avec l'indicateur ouverte
+    await page.goto(`/users/${viewer.user.id}`);
+
+    const playedSection = page.getByTestId('user-profile-played-campaigns');
+    await expect(playedSection).toBeVisible();
+    const playedLink = playedSection.getByRole('link', { name: `Campagne parties profil ${suffix}` });
+    await expect(playedLink).toBeVisible();
+    await expect(playedLink).toHaveAttribute('href', `/campaigns/${campaign.id}`);
+    await expect(playedSection.getByTestId('user-profile-campaign-status')).toHaveText('Ouverte');
+
+    // Le MJ archive sa campagne : les deux profils affichent l'indicateur archivée
+    const archiveResponse = await request.put(`/api/campaigns/${campaign.id}`, {
+      headers: { Authorization: `Bearer ${mj.token}` },
+      data: { statut: 2 },
+    });
+    expect(archiveResponse.ok(), await archiveResponse.text()).toBeTruthy();
+
+    await page.goto(`/users/${mj.user.id}`);
+    await expect(masteredSection.getByTestId('user-profile-campaign-status')).toHaveText('Archivée');
+    await page.goto(`/users/${viewer.user.id}`);
+    await expect(playedSection.getByTestId('user-profile-campaign-status')).toHaveText('Archivée');
+  });
+
   test("les derniers inscrits n'affichent que les membres qui se sont déjà connectés", async ({ page, request }) => {
     const suffix = `${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`;
     const password = 'Password123';

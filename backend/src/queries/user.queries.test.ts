@@ -3,7 +3,21 @@ import assert from 'node:assert/strict';
 import { UserQueries } from './user.queries.js';
 import { IUserRepository } from '../repositories/user.repository.js';
 import { IAbsenceRepository } from '../repositories/absence.repository.js';
-import { User, UserWithPassword, CreateUserData, Absence } from '../types/index.js';
+import {
+  ICampaignRepository,
+  CreateCampaignData,
+  UpdateCampaignData,
+} from '../repositories/campaign.repository.js';
+import {
+  User,
+  UserWithPassword,
+  CreateUserData,
+  Absence,
+  CampaignSummary,
+  RawCampaignCharacterRow,
+  RawPnjCategoryRow,
+  CampaignParticipant,
+} from '../types/index.js';
 import { UserNotFoundError } from '../errors/domain.errors.js';
 
 class MockUserRepository implements IUserRepository {
@@ -89,6 +103,123 @@ class MockAbsenceRepository implements IAbsenceRepository {
   }
 }
 
+class MockCampaignRepository implements ICampaignRepository {
+  constructor(
+    private mastered: CampaignSummary[] = [],
+    private player: CampaignSummary[] = []
+  ) {}
+
+  async findMasteredCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]> {
+    return this.mastered.filter((c) => c.mjId === userId && (includeArchived || !c.isArchived));
+  }
+
+  async findPlayerCampaigns(userId: number, includeArchived?: boolean): Promise<CampaignSummary[]> {
+    return this.player.filter((c) => (includeArchived || !c.isArchived));
+  }
+
+  async findObservedCampaigns(): Promise<CampaignSummary[]> {
+    return [];
+  }
+
+  async findAllCampaigns(): Promise<CampaignSummary[]> {
+    return [];
+  }
+
+  async findById(): Promise<CampaignSummary | null> {
+    return null;
+  }
+
+  async createCampaign(data: CreateCampaignData): Promise<number> {
+    return 1;
+  }
+
+  async updateCampaign(id: number, data: UpdateCampaignData): Promise<void> {}
+
+  async findCampaignCharacters(): Promise<RawCampaignCharacterRow[]> {
+    return [];
+  }
+
+  async searchCampaignCharacters(): Promise<RawCampaignCharacterRow[]> {
+    return [];
+  }
+
+  async findCampaignPnjCategories(): Promise<RawPnjCategoryRow[]> {
+    return [];
+  }
+
+  async findPnjCategoryById(): Promise<RawPnjCategoryRow | null> {
+    return null;
+  }
+
+  async createPnjCategory(): Promise<number> {
+    return 1;
+  }
+
+  async updatePnjCategory(): Promise<void> {}
+
+  async deletePnjCategory(): Promise<void> {}
+
+  async findCharacterById(): Promise<RawCampaignCharacterRow | null> {
+    return null;
+  }
+
+  async createCharacter(): Promise<number> {
+    return 1;
+  }
+
+  async updateCharacter(): Promise<void> {}
+
+  async deleteCharacter(): Promise<void> {}
+
+  async updateCampaignBanner(): Promise<void> {}
+
+  async findCampaignParticipants(): Promise<CampaignParticipant[]> {
+    return [];
+  }
+
+  async findPendingCampaignParticipants(): Promise<CampaignParticipant[]> {
+    return [];
+  }
+
+  async isUserCampaignParticipant(): Promise<boolean> {
+    return false;
+  }
+
+  async getCampaignParticipantStatus(): Promise<number | null> {
+    return null;
+  }
+
+  async isUserCampaignPending(): Promise<boolean> {
+    return false;
+  }
+
+  async addCampaignParticipant(): Promise<void> {}
+
+  async validateCampaignParticipant(): Promise<void> {}
+
+  async removeCampaignParticipant(): Promise<void> {}
+
+  async isUserCampaignObserver(): Promise<boolean> {
+    return false;
+  }
+
+  async addCampaignObserver(): Promise<void> {}
+
+  async removeCampaignObserver(): Promise<void> {}
+
+  async findCampaignObservers(): Promise<Array<{ id: number; username: string; avatar: string | null }>> {
+    return [];
+  }
+
+  async isUserCampaignAlert(): Promise<boolean> {
+    return false;
+  }
+
+  async addCampaignAlert(): Promise<void> {}
+
+  async removeCampaignAlert(): Promise<void> {}
+}
+
 describe('UserQueries', () => {
   const sampleUser: User = {
     id: 42,
@@ -143,10 +274,61 @@ describe('UserQueries', () => {
       commentaire: 'Vacances en famille',
     };
 
+    const masteredActiveCampaign: CampaignSummary = {
+      id: 101,
+      name: 'La Tour de l\'Archimage',
+      mjId: 42,
+      mjUsername: 'mj_master',
+      nbJoueurs: 4,
+      nbJoueursActuel: 3,
+      banniere: '',
+      systeme: 'D&D 5e',
+      univers: 'Fantasy',
+      description: 'Une aventure épique',
+      statut: 0,
+      isArchived: false,
+      isRecrutementOpen: true,
+      hasUnread: true,
+      hasAlert: true,
+    };
+
+    const masteredPreparationCampaign: CampaignSummary = {
+      ...masteredActiveCampaign,
+      id: 102,
+      name: 'Projet secret',
+      statut: 3,
+    };
+
+    const playedCampaign: CampaignSummary = {
+      id: 201,
+      name: 'Les Marais de Corvèche',
+      mjId: 77,
+      mjUsername: 'autre_mj',
+      nbJoueurs: 5,
+      nbJoueursActuel: 5,
+      banniere: '',
+      systeme: ' Pathfinder',
+      univers: 'Dark Fantasy',
+      description: 'Une autre aventure',
+      statut: 0,
+      isArchived: false,
+      isRecrutementOpen: false,
+      hasUnread: false,
+      hasAlert: false,
+    };
+
+    const playedArchivedCampaign: CampaignSummary = {
+      ...playedCampaign,
+      id: 202,
+      name: 'Vieille campagne archivée',
+      statut: 2,
+      isArchived: true,
+    };
+
     it('should return the public profile with current absences', async () => {
       const userRepo = new MockUserRepository([sampleUser]);
       const absenceRepo = new MockAbsenceRepository([currentAbsence]);
-      const queries = new UserQueries(userRepo, absenceRepo);
+      const queries = new UserQueries(userRepo, absenceRepo, new MockCampaignRepository());
 
       const profile = await queries.getPublicProfile(42);
 
@@ -161,10 +343,92 @@ describe('UserQueries', () => {
       assert.deepEqual(profile.currentAbsences, [currentAbsence]);
     });
 
+    it('should list the campaigns the user masters (id, name, archived flag)', async () => {
+      const userRepo = new MockUserRepository([sampleUser]);
+      const queries = new UserQueries(
+        userRepo,
+        new MockAbsenceRepository(),
+        new MockCampaignRepository([masteredActiveCampaign], [])
+      );
+
+      const profile = await queries.getPublicProfile(42);
+
+      assert.deepEqual(profile.masteredCampaigns, [
+        { id: 101, name: "La Tour de l'Archimage", isArchived: false },
+      ]);
+    });
+
+    it('should list the campaigns the user plays in (id, name, archived flag)', async () => {
+      const userRepo = new MockUserRepository([sampleUser]);
+      const queries = new UserQueries(
+        userRepo,
+        new MockAbsenceRepository(),
+        new MockCampaignRepository([], [playedCampaign])
+      );
+
+      const profile = await queries.getPublicProfile(42);
+
+      assert.deepEqual(profile.playedCampaigns, [
+        { id: 201, name: 'Les Marais de Corvèche', isArchived: false },
+      ]);
+    });
+
+    it('should not expose read indicators or other campaign details', async () => {
+      const userRepo = new MockUserRepository([sampleUser]);
+      const queries = new UserQueries(
+        userRepo,
+        new MockAbsenceRepository(),
+        new MockCampaignRepository([masteredActiveCampaign], [playedCampaign])
+      );
+
+      const profile = await queries.getPublicProfile(42);
+
+      const mastered = profile.masteredCampaigns[0] as unknown as Record<string, unknown>;
+      const played = profile.playedCampaigns[0] as unknown as Record<string, unknown>;
+      assert.deepEqual(Object.keys(mastered).sort(), ['id', 'isArchived', 'name']);
+      assert.deepEqual(Object.keys(played).sort(), ['id', 'isArchived', 'name']);
+    });
+
+    it('should exclude preparation campaigns but include archived ones', async () => {
+      const userRepo = new MockUserRepository([sampleUser]);
+      const queries = new UserQueries(
+        userRepo,
+        new MockAbsenceRepository(),
+        new MockCampaignRepository(
+          [masteredActiveCampaign, masteredPreparationCampaign],
+          [playedCampaign, playedArchivedCampaign]
+        )
+      );
+
+      const profile = await queries.getPublicProfile(42);
+
+      assert.deepEqual(profile.masteredCampaigns, [
+        { id: 101, name: "La Tour de l'Archimage", isArchived: false },
+      ]);
+      assert.deepEqual(profile.playedCampaigns, [
+        { id: 201, name: 'Les Marais de Corvèche', isArchived: false },
+        { id: 202, name: 'Vieille campagne archivée', isArchived: true },
+      ]);
+    });
+
+    it('should return empty campaign lists when the user has none', async () => {
+      const userRepo = new MockUserRepository([sampleUser]);
+      const queries = new UserQueries(
+        userRepo,
+        new MockAbsenceRepository(),
+        new MockCampaignRepository()
+      );
+
+      const profile = await queries.getPublicProfile(42);
+
+      assert.deepEqual(profile.masteredCampaigns, []);
+      assert.deepEqual(profile.playedCampaigns, []);
+    });
+
     it('should not expose private data (mail, notification settings)', async () => {
       const userRepo = new MockUserRepository([sampleUser]);
       const absenceRepo = new MockAbsenceRepository([currentAbsence]);
-      const queries = new UserQueries(userRepo, absenceRepo);
+      const queries = new UserQueries(userRepo, absenceRepo, new MockCampaignRepository());
 
       const profile = await queries.getPublicProfile(42) as any;
 
@@ -176,7 +440,7 @@ describe('UserQueries', () => {
     it('should return an empty list of absences when the user has none in progress', async () => {
       const userRepo = new MockUserRepository([sampleUser]);
       const absenceRepo = new MockAbsenceRepository();
-      const queries = new UserQueries(userRepo, absenceRepo);
+      const queries = new UserQueries(userRepo, absenceRepo, new MockCampaignRepository());
 
       const profile = await queries.getPublicProfile(42);
 
@@ -186,7 +450,7 @@ describe('UserQueries', () => {
     it('should throw UserNotFoundError when user is not found', async () => {
       const userRepo = new MockUserRepository([sampleUser]);
       const absenceRepo = new MockAbsenceRepository();
-      const queries = new UserQueries(userRepo, absenceRepo);
+      const queries = new UserQueries(userRepo, absenceRepo, new MockCampaignRepository());
 
       await assert.rejects(
         async () => {

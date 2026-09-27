@@ -1,5 +1,11 @@
 import { Absence } from './absence';
 
+export interface ProfileCampaign {
+  id: number;
+  name: string;
+  isArchived: boolean;
+}
+
 export interface PublicUserProfile {
   id: number;
   username: string;
@@ -10,4 +16,6 @@ export interface PublicUserProfile {
   subscribeDate: string | null;
   birthDate?: string | null;
   currentAbsences: Absence[];
+  masteredCampaigns: ProfileCampaign[];
+  playedCampaigns: ProfileCampaign[];
 }

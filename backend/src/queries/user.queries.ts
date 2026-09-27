@@ -1,12 +1,26 @@
 import { IUserRepository, userRepository } from '../repositories/user.repository.js';
 import { IAbsenceRepository, absenceRepository } from '../repositories/absence.repository.js';
-import { User, PublicUserProfile } from '../types/index.js';
+import {
+  ICampaignRepository,
+  campaignRepository,
+} from '../repositories/campaign.repository.js';
+import { User, PublicUserProfile, ProfileCampaign, CampaignSummary } from '../types/index.js';
 import { UserNotFoundError } from '../errors/domain.errors.js';
+
+/** Campagne visible sur un profil public : jamais en préparation (statut 3). */
+function isVisibleOnProfile(campaign: CampaignSummary): boolean {
+  return campaign.statut !== 3;
+}
+
+function toProfileCampaign(campaign: CampaignSummary): ProfileCampaign {
+  return { id: campaign.id, name: campaign.name, isArchived: campaign.statut === 2 };
+}
 
 export class UserQueries {
   constructor(
     private readonly userRepo: IUserRepository = userRepository,
-    private readonly absenceRepo: IAbsenceRepository = absenceRepository
+    private readonly absenceRepo: IAbsenceRepository = absenceRepository,
+    private readonly campaignRepo: ICampaignRepository = campaignRepository
   ) {}
 
   /**
@@ -30,7 +44,8 @@ export class UserQueries {
 
   /**
    * Récupère le profil public d'un utilisateur (consultation par un autre membre) :
-   * nom, avatar, description, titre et absences en cours.
+   * nom, avatar, description, titre, absences en cours, parties maîtrisées
+   * et parties jouées (nom uniquement, sans indicateur de lecture ni d'alerte).
    * N'expose ni le mail, ni les paramètres de notification.
    * Lève une UserNotFoundError si l'utilisateur n'existe pas.
    */
@@ -40,7 +55,11 @@ export class UserQueries {
       throw new UserNotFoundError(`Utilisateur avec l'ID ${userId} introuvable`);
     }
 
-    const currentAbsences = await this.absenceRepo.findCurrentByUser(userId);
+    const [currentAbsences, masteredCampaigns, playedCampaigns] = await Promise.all([
+      this.absenceRepo.findCurrentByUser(userId),
+      this.campaignRepo.findMasteredCampaigns(userId, true),
+      this.campaignRepo.findPlayerCampaigns(userId, true),
+    ]);
 
     return {
       id: user.id,
@@ -52,6 +71,8 @@ export class UserQueries {
       subscribeDate: user.subscribe_date,
       birthDate: user.birthDate ?? null,
       currentAbsences,
+      masteredCampaigns: masteredCampaigns.filter(isVisibleOnProfile).map(toProfileCampaign),
+      playedCampaigns: playedCampaigns.filter(isVisibleOnProfile).map(toProfileCampaign),
     };
   }
 }

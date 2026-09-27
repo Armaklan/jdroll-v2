@@ -5,7 +5,7 @@ import { PublicUserProfile } from '../types/user';
 import { getUserColorClass, isUserAdmin } from '../utils/user';
 import { formatDayDate } from '../utils/date';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, CalendarOff, BadgeCheck } from 'lucide-react';
+import { ArrowLeft, CalendarOff, BadgeCheck, Crown, Swords } from 'lucide-react';
 
 /**
  * Profil public d'un membre : avatar, pseudo, titre, description,
@@ -89,7 +89,7 @@ export function UserProfilePage() {
   }
 
   const avatarUrl = profile.avatar
-    ? profile.avatar.startsWith('http') ? profile.avatar : `/files/${profile.avatar}`
+    ? profile.avatar.startsWith('http') ? profile.avatar : `${profile.avatar}`
     : '';
 
   return (
@@ -179,6 +179,70 @@ export function UserProfilePage() {
             />
           </div>
         ) : null}
+
+        {/* Parties maîtrisées */}
+        {profile.masteredCampaigns.length > 0 && (
+          <div className="p-6 border-t border-slate-100" data-testid="user-profile-mastered-campaigns">
+            <div className="flex items-center gap-2 mb-3">
+              <Crown className="w-4 h-4 text-indigo-600" />
+              <h2 className="text-sm font-bold text-slate-900">Parties maîtrisées</h2>
+            </div>
+            <ul className="space-y-1.5">
+              {profile.masteredCampaigns.map((campaign) => (
+                <li key={campaign.id} className="flex items-center gap-2">
+                  <span
+                    data-testid="user-profile-campaign-status"
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                      campaign.isArchived
+                        ? 'bg-slate-200 text-slate-600'
+                        : 'bg-emerald-100 text-emerald-700'
+                    }`}
+                  >
+                    {campaign.isArchived ? 'Archivée' : 'Ouverte'}
+                  </span>
+                  <Link
+                    to={`/campaigns/${campaign.id}`}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-500 hover:underline transition"
+                  >
+                    {campaign.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Parties jouées */}
+        {profile.playedCampaigns.length > 0 && (
+          <div className="p-6 border-t border-slate-100" data-testid="user-profile-played-campaigns">
+            <div className="flex items-center gap-2 mb-3">
+              <Swords className="w-4 h-4 text-indigo-600" />
+              <h2 className="text-sm font-bold text-slate-900">Parties jouées</h2>
+            </div>
+            <ul className="space-y-1.5">
+              {profile.playedCampaigns.map((campaign) => (
+                <li key={campaign.id} className="flex items-center gap-2">
+                  <span
+                    data-testid="user-profile-campaign-status"
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                      campaign.isArchived
+                        ? 'bg-slate-200 text-slate-600'
+                        : 'bg-emerald-100 text-emerald-700'
+                    }`}
+                  >
+                    {campaign.isArchived ? 'Archivée' : 'Ouverte'}
+                  </span>
+                  <Link
+                    to={`/campaigns/${campaign.id}`}
+                    className="text-sm font-medium text-indigo-600 hover:text-indigo-500 hover:underline transition"
+                  >
+                    {campaign.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Absences en cours */}
         {profile.currentAbsences.length > 0 && (

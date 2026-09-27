@@ -22,6 +22,12 @@ export interface UserWithPassword extends User {
   password?: string;
 }
 
+export interface ProfileCampaign {
+  id: number;
+  name: string;
+  isArchived: boolean;
+}
+
 export interface PublicUserProfile {
   id: number;
   username: string;
@@ -32,6 +38,8 @@ export interface PublicUserProfile {
   subscribeDate: string | null;
   birthDate?: string | null;
   currentAbsences: Absence[];
+  masteredCampaigns: ProfileCampaign[];
+  playedCampaigns: ProfileCampaign[];
 }
 
 export interface HomeUserSummary {
