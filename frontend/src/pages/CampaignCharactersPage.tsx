@@ -1223,33 +1223,39 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                 );
               })()}
 
-              {/* Character Sheet (Graphique / Interactif) */}
-              {Boolean(
-                selectedCharacter.templateImg ||
-                selectedCharacter.templateHtml ||
-                data?.campaign?.templateImg ||
-                data?.campaign?.templateHtml ||
-                data?.campaign?.templateFields ||
-                selectedCharacter.templateFields
-              ) && (
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                    <LayoutTemplate className="w-4 h-4 text-indigo-600" />
-                    <span>Feuille de personnage</span>
-                  </h3>
-                  <CharacterSheetRenderer
-                    mode="read-only"
-                    canvasWidth={data?.campaign?.width || '800px'}
-                    bgType={
-                      (selectedCharacter.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
-                    }
-                    templateImg={selectedCharacter.templateImg || data?.campaign?.templateImg}
-                    templateHtml={selectedCharacter.templateHtml || data?.campaign?.templateHtml}
-                    templateFields={selectedCharacter.templateFields || data?.campaign?.templateFields}
-                    persoFields={selectedCharacter.persoFields}
-                  />
-                </div>
-              )}
+              {/* Character Sheet (Visible MJ & propriétaire) */}
+              {(() => {
+                const isOwner = Boolean(user && selectedCharacter.userId === user.id);
+                if (!(isMj || isOwner)) return null;
+                if (!Boolean(
+                  selectedCharacter.templateImg ||
+                  selectedCharacter.templateHtml ||
+                  data?.campaign?.templateImg ||
+                  data?.campaign?.templateHtml ||
+                  data?.campaign?.templateFields ||
+                  selectedCharacter.templateFields
+                )) return null;
+
+                return (
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <LayoutTemplate className="w-4 h-4 text-indigo-600" />
+                      <span>Feuille de personnage</span>
+                    </h3>
+                    <CharacterSheetRenderer
+                      mode="read-only"
+                      canvasWidth={data?.campaign?.width || '800px'}
+                      bgType={
+                        (selectedCharacter.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
+                      }
+                      templateImg={selectedCharacter.templateImg || data?.campaign?.templateImg}
+                      templateHtml={selectedCharacter.templateHtml || data?.campaign?.templateHtml}
+                      templateFields={selectedCharacter.templateFields || data?.campaign?.templateFields}
+                      persoFields={selectedCharacter.persoFields}
+                    />
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Modal Footer */}

@@ -306,8 +306,8 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
                 );
               })()}
 
-              {/* Character Sheet (Graphique / Interactif) */}
-              {Boolean(
+              {/* Character Sheet (Visible MJ & propriétaire) */}
+              {canSeePrivate && Boolean(
                 character.templateImg ||
                 character.templateHtml ||
                 campaign?.templateImg ||
