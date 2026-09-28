@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
 import { PIN_GEOMETRY, getPinAnchorStyle, getPinCounterScaleStyle, getPinPointeColor } from '../utils/carte-tokens';
+import { hasPreviousHistoryEntry } from '../utils/back-navigation';
 import {
   CarteDetail,
   CarteMarker,
@@ -42,6 +43,18 @@ export const CampaignCarteViewerPage: React.FC = () => {
 
   const campaignId = params.campaignId ? Number(params.campaignId) : 0;
   const carteId = params.carteId ? Number(params.carteId) : 0;
+
+  // Un précédent existe si la page a été ouverte par navigation dans le
+  // même onglet (idx > 0 dans history.state). En ouverture directe
+  // (nouvel onglet), idx = 0 : le bouton ramène alors au listing.
+  const hasPreviousPage = hasPreviousHistoryEntry(window.history.state);
+  const goBackOrCartesList = () => {
+    if (hasPreviousPage) {
+      navigate(-1);
+    } else {
+      navigate(campaignId ? `/campaigns/${campaignId}/cartes` : '/');
+    }
+  };
 
   // État des données
   const [carte, setCarte] = useState<CarteDetail | null>(null);
@@ -609,11 +622,11 @@ export const CampaignCarteViewerPage: React.FC = () => {
         <header className="h-14 bg-slate-950/90 border-b border-slate-800 px-4 flex items-center justify-between shrink-0 z-30 backdrop-blur-md">
           <div className="flex items-center gap-3">
             <button
-                onClick={() => navigate(`/campaigns/${campaignId}/cartes`)}
+                onClick={goBackOrCartesList}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold transition cursor-pointer"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Toutes les cartes</span>
+              <span>{hasPreviousPage ? 'Retour' : 'Toutes les cartes'}</span>
             </button>
 
             <div className="h-4 w-px bg-slate-800 hidden sm:block" />

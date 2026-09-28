@@ -60,6 +60,18 @@ describe('Frontend BBCode & Message Parser', () => {
       assert.ok(result.includes('/cartes/999'));
       assert.ok(result.includes('La taverne'));
     });
+
+    it('ouvre la carte dans le même onglet par défaut (pas de target="_blank")', () => {
+      const input = 'Explorez [carte=1451]Carte de test[/carte]';
+      const result = parseBbcode(input, { campaignId: 42 });
+      assert.ok(!result.includes('target="_blank"'));
+    });
+
+    it('reste un vrai lien href pour permettre ctrl+clic / clic milieu en nouvel onglet', () => {
+      const input = 'Explorez [carte=1451]Carte de test[/carte]';
+      const result = parseBbcode(input, { campaignId: 42 });
+      assert.ok(result.includes('href="/campaigns/42/cartes/1451"'));
+    });
   });
 
   describe('[private=...]', () => {

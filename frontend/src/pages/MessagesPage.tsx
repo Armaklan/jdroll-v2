@@ -11,6 +11,7 @@ import {
 import { getUserColorClass } from '../utils/user';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { parseMessageContent } from '../utils/bbcode-parser';
+import { handleCarteLinkClick } from '../utils/carte-link-navigation';
 import { formatMessageDate as formatDate } from '../utils/date';
 import {
   Inbox,
@@ -202,6 +203,15 @@ export const MessagesPage: React.FC = () => {
   const handleBackToList = () => {
     const qs = buildSearchParams();
     navigate(`/messagerie${qs ? `?${qs}` : ''}`);
+  };
+
+  // Lien [carte] : navigation SPA au clic simple, nouvel onglet natif
+  // pour ctrl/cmd/shift/alt+clic et clic milieu
+  const handleMessageContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const carteLinkElement = (e.target as HTMLElement).closest('a.carte-link');
+    if (carteLinkElement) {
+      handleCarteLinkClick(e, carteLinkElement.getAttribute('href'), navigate);
+    }
   };
 
   // Add recipient chip
@@ -576,6 +586,7 @@ export const MessagesPage: React.FC = () => {
                   {/* Body Content */}
                   <div
                     className="wysiwyg-content prose prose-slate max-w-none p-6 rounded-xl border border-slate-200/80 bg-white min-h-[200px]"
+                    onClick={handleMessageContentClick}
                     dangerouslySetInnerHTML={{
                       __html: parseMessageContent(currentMessage.content, {
                         currentUser: user,

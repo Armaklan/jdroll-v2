@@ -19,6 +19,7 @@ import {
   mergeCharacterWidgets,
 } from '../utils/widgets';
 import { parseMessageContent } from '../utils/bbcode-parser';
+import { handleCarteLinkClick } from '../utils/carte-link-navigation';
 import {
   ArrowLeft,
   Pin,
@@ -656,6 +657,14 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
   const previewConcept = selectedCharacter?.concept || '';
 
   const handlePostContentClick = async (e: React.MouseEvent<HTMLDivElement>) => {
+    // Lien [carte] : navigation SPA au clic simple, nouvel onglet natif
+    // pour ctrl/cmd/shift/alt+clic et clic milieu
+    const carteLinkElement = (e.target as HTMLElement).closest('a.carte-link');
+    if (carteLinkElement) {
+      handleCarteLinkClick(e, carteLinkElement.getAttribute('href'), navigate);
+      return;
+    }
+
     const pnjElement = (e.target as HTMLElement).closest('[data-pnj]');
     if (pnjElement) {
       e.preventDefault();

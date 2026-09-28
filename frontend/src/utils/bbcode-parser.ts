@@ -185,7 +185,7 @@ export function parseBbcode(rawHtml: string, options?: ParseMessageOptions): str
         const carteUrl = campaignId ? `/campaigns/${campaignId}/cartes/${encodeURIComponent(target)}` : `/cartes/${encodeURIComponent(target)}`;
 
         return `
-<a href="${carteUrl}" target="_blank" rel="noopener noreferrer" class="carte-link inline-flex items-center gap-1.5 px-2.5 py-1 mx-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 hover:text-emerald-950 border border-emerald-300 text-xs sm:text-sm font-semibold transition no-underline shadow-2xs" title="Ouvrir la carte : ${escapeHtml(label)}">
+<a href="${carteUrl}" class="carte-link inline-flex items-center gap-1.5 px-2.5 py-1 mx-0.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 hover:text-emerald-950 border border-emerald-300 text-xs sm:text-sm font-semibold transition no-underline shadow-2xs" title="Ouvrir la carte : ${escapeHtml(label)}">
   <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="18"/><line x1="15" x2="15" y1="6" y2="21"/></svg>
   <span>${escapeHtml(label)}</span>
 </a>`.trim();
