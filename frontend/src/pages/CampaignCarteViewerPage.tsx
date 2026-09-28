@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
-import { PIN_GEOMETRY, getPinAnchorStyle, getPinPointeColor } from '../utils/carte-tokens';
+import { PIN_GEOMETRY, getPinAnchorStyle, getPinCounterScaleStyle, getPinPointeColor } from '../utils/carte-tokens';
 import {
   CarteDetail,
   CarteMarker,
@@ -788,6 +788,7 @@ export const CampaignCarteViewerPage: React.FC = () => {
                             }}
                             style={{
                               ...getPinAnchorStyle(pos),
+                              ...getPinCounterScaleStyle(zoom),
                               zIndex: isSelected || draggingMarkerId === marker.id ? 50 : 20,
                             }}
                             className="absolute group cursor-pointer"

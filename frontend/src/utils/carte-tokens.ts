@@ -44,8 +44,8 @@ export interface PinAnchorPosition {
 /**
  * Style d'ancrage du pion sur la carte : la position (extrémité de la
  * pointe) est utilisée telle quelle, sans centrage sur le badge.
- * Le pion reste dans le calque mis à l'échelle par le zoom de la carte,
- * il n'y a donc aucun contredézoomage à appliquer ici.
+ * Le contredézoomage du zoom carte est appliqué séparément via
+ * getPinCounterScaleStyle.
  */
 export function getPinAnchorStyle(position: PinAnchorPosition): {
   left: string;
@@ -54,6 +54,25 @@ export function getPinAnchorStyle(position: PinAnchorPosition): {
   return {
     left: `${position.left}px`,
     top: `${position.top}px`,
+  };
+}
+
+/**
+ * Contredézoomage du pion : la carte est rendue dans un calque mis à
+ * l'échelle par le zoom, et le pion annule localement cette échelle
+ * (scale(1/zoom)) pour conserver une taille constante à l'écran.
+ * L'origine du contredézoomage est le coin haut-gauche du conteneur du
+ * pion, c'est-à-dire la pointe, qui reste ainsi fixée sur la position
+ * enregistrée du marqueur.
+ */
+export function getPinCounterScaleStyle(zoom: number): {
+  transform: string;
+  transformOrigin: string;
+} {
+  const safeZoom = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  return {
+    transform: `scale(${1 / safeZoom})`,
+    transformOrigin: 'left top',
   };
 }
 

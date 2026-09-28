@@ -4,6 +4,7 @@ import {
   PIN_GEOMETRY,
   getPinAnchorStyle,
   getPinPointeColor,
+  getPinCounterScaleStyle,
 } from './carte-tokens.js';
 
 describe('carte-tokens (pions épingles)', () => {
@@ -29,5 +30,31 @@ describe('carte-tokens (pions épingles)', () => {
     assert.equal(getPinPointeColor({ isOwner: true, isDraggable: true }), '#10b981');
     assert.equal(getPinPointeColor({ isOwner: false, isDraggable: true }), '#4f46e5');
     assert.equal(getPinPointeColor({ isOwner: false, isDraggable: false }), '#334155');
+  });
+
+  it("le pion annule le zoom de la carte pour garder une taille d'écran constante", () => {
+    assert.deepEqual(getPinCounterScaleStyle(2), {
+      transform: 'scale(0.5)',
+      transformOrigin: 'left top',
+    });
+    assert.deepEqual(getPinCounterScaleStyle(0.5), {
+      transform: 'scale(2)',
+      transformOrigin: 'left top',
+    });
+    assert.deepEqual(getPinCounterScaleStyle(1), {
+      transform: 'scale(1)',
+      transformOrigin: 'left top',
+    });
+  });
+
+  it('un zoom invalide neutralise le contredézoomage plutôt que de casser le rendu', () => {
+    assert.deepEqual(getPinCounterScaleStyle(0), {
+      transform: 'scale(1)',
+      transformOrigin: 'left top',
+    });
+    assert.deepEqual(getPinCounterScaleStyle(NaN), {
+      transform: 'scale(1)',
+      transformOrigin: 'left top',
+    });
   });
 });
