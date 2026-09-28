@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { usersApi } from '../api/users';
 import { MemberSummary } from '../types/user';
 import { UserPseudoLink } from '../components/UserPseudoLink';
+import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
 import { formatDate } from '../utils/date';
 import { Users, Search } from 'lucide-react';
 
@@ -124,6 +125,8 @@ export const MembersPage: React.FC = () => {
           ))}
         </ul>
       )}
+
+      <GlobalFloatingSearch activeTab="none" />
     </div>
   );
 };

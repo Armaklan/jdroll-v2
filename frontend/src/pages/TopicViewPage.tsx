@@ -9,6 +9,7 @@ import { UserPseudoLink } from '../components/UserPseudoLink';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignHeader } from '../components/CampaignHeader';
+import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
 import { CharacterWidgetsRenderer } from '../components/CharacterWidgetsRenderer';
 import { CharacterDetailModal } from '../components/CharacterDetailModal';
 import { formatDate } from '../utils/date';
@@ -1754,6 +1755,9 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
             }
           }}
         />
+        {(!topicDetail.campagneId || topicDetail.campagneId === 0) && (
+          <GlobalFloatingSearch activeTab="general-forum" />
+        )}
       </div>
     </div>
   );

@@ -109,7 +109,7 @@ export function AppContent() {
 
       <main
         className={`flex-1 max-w-7xl w-full mx-auto ${
-          isChatPage ? 'px-0 py-0 sm:px-6 sm:py-8' : 'px-4 sm:px-6 py-8'
+          isChatPage ? 'px-0 py-0 sm:px-6 sm:py-8' : 'px-4 sm:px-6 py-8 pb-[100px]'
         }`}
       >
         <Routes>
