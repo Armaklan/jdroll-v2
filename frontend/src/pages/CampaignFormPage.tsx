@@ -8,6 +8,8 @@ import {
   Activity,
   AlertCircle,
   BookOpen,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Dices,
   FileText,
@@ -170,6 +172,39 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
   // Active tab in form
   const [activeTab, setActiveTab] = useState<'general' | 'gameplay' | 'appearance' | 'sheet' | 'widgets'>('general');
+
+  // Flèches de navigation de la barre d'onglets (scroll horizontal, utile sur mobile)
+  const tabsScrollRef = useRef<HTMLDivElement>(null);
+  const [tabsCanScrollLeft, setTabsCanScrollLeft] = useState(false);
+  const [tabsCanScrollRight, setTabsCanScrollRight] = useState(false);
+
+  const updateTabsScrollArrows = () => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    setTabsCanScrollLeft(el.scrollLeft > 1);
+    setTabsCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  };
+
+  // La barre d'onglets n'est rendue qu'une fois la campagne chargée (mode édition) :
+  // rattacher les listeners quand isLoading/loadError changent
+  useEffect(() => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    updateTabsScrollArrows();
+    el.addEventListener('scroll', updateTabsScrollArrows);
+    window.addEventListener('resize', updateTabsScrollArrows);
+    return () => {
+      el.removeEventListener('scroll', updateTabsScrollArrows);
+      window.removeEventListener('resize', updateTabsScrollArrows);
+    };
+  }, [isLoading, loadError]);
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    const el = tabsScrollRef.current;
+    if (!el) return;
+    const delta = el.clientWidth * 0.8 * (direction === 'right' ? 1 : -1);
+    el.scrollBy({left: delta, behavior: 'smooth'});
+  };
 
   // Load existing campaign data for edit mode
   useEffect(() => {
@@ -887,7 +922,12 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-px overflow-x-auto">
+      <div className="relative">
+        <div
+          ref={tabsScrollRef}
+          data-testid="campaign-form-tabs-scroll"
+          className="flex items-center gap-2 border-b border-slate-200 pb-px overflow-x-auto"
+        >
         <button
           type="button"
           onClick={() => setActiveTab('general')}
@@ -957,6 +997,28 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
             </span>
           )}
         </button>
+        </div>
+
+        {tabsCanScrollLeft && (
+          <button
+            type="button"
+            aria-label="Onglets précédents"
+            onClick={() => scrollTabs('left')}
+            className="absolute left-0 -bottom-1 z-10 translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-600 shadow-md hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        )}
+        {tabsCanScrollRight && (
+          <button
+            type="button"
+            aria-label="Onglets suivants"
+            onClick={() => scrollTabs('right')}
+            className="absolute right-0 -bottom-1 z-10 translate-y-1/2 flex items-center justify-center w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-600 shadow-md hover:bg-slate-50 hover:text-slate-900 cursor-pointer"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Form Body */}

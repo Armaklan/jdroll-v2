@@ -17,6 +17,10 @@ export class CampaignFormPage extends BasePage {
   readonly errorMessage: Locator;
   readonly loadingSpinner: Locator;
   readonly form: Locator;
+  readonly tabsScrollContainer: Locator;
+  readonly tabsScrollLeftButton: Locator;
+  readonly tabsScrollRightButton: Locator;
+  readonly tabButtons: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -31,6 +35,28 @@ export class CampaignFormPage extends BasePage {
     this.errorMessage = page.locator('.bg-red-50, .border-red-200, .text-red-700').filter({ hasText: /Erreur|Error/i });
     this.loadingSpinner = page.locator('.animate-spin:visible');
     this.form = page.locator('form');
+
+    // Barre d'onglets (Informations Générales, Règles, Bannières, ...)
+    this.tabsScrollContainer = page.getByTestId('campaign-form-tabs-scroll');
+    this.tabsScrollLeftButton = page.getByRole('button', { name: /onglets précédents/i });
+    this.tabsScrollRightButton = page.getByRole('button', { name: /onglets suivants/i });
+    this.tabButtons = this.tabsScrollContainer.getByRole('button');
+  }
+
+  /**
+   * Position de scroll horizontale de la barre d'onglets
+   */
+  async getTabsScrollLeft(): Promise<number> {
+    return await this.tabsScrollContainer.evaluate((el) => el.scrollLeft);
+  }
+
+  /**
+   * Indique si la barre d'onglets déborde (scroll horizontal nécessaire)
+   */
+  async tabsOverflow(): Promise<boolean> {
+    return await this.tabsScrollContainer.evaluate(
+      (el) => el.scrollWidth > el.clientWidth + 1,
+    );
   }
 
   /**
