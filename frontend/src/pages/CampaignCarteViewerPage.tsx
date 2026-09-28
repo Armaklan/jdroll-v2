@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
 import { PIN_GEOMETRY, getPinAnchorStyle, getPinCounterScaleStyle, getPinPointeColor } from '../utils/carte-tokens';
+import { computeFitView, computePinchView } from '../utils/carte-view';
 import { hasPreviousHistoryEntry } from '../utils/back-navigation';
 import {
   CarteDetail,
@@ -71,6 +72,9 @@ export const CampaignCarteViewerPage: React.FC = () => {
   const [panStart, setPanStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
+  // La vue n'est cadrée qu'une fois les dimensions réelles de l'image connues
+  const [isViewInitialized, setIsViewInitialized] = useState<boolean>(false);
+
   // Dimensions réelles de l'image
   const [imageSize, setImageSize] = useState<{ width: number; height: number }>({
     width: 1200,
@@ -85,6 +89,16 @@ export const CampaignCarteViewerPage: React.FC = () => {
   // Déplacement de token
   const [draggingMarkerId, setDraggingMarkerId] = useState<string | number | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Pincement à deux doigts en cours (mobile) : milieu, écart et vue de référence
+  const pinchRef = useRef<{
+    mid: { x: number; y: number };
+    dist: number;
+    view: { zoom: number; pan: { x: number; y: number } };
+  } | null>(null);
+
+  // Origine du déplacement à un doigt en cours (mobile)
+  const touchPanStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Popup / Détail du marqueur sélectionné
   const [selectedMarker, setSelectedMarker] = useState<CarteMarker | null>(null);
@@ -151,15 +165,6 @@ export const CampaignCarteViewerPage: React.FC = () => {
       campaignsApi.getCampaign(campaignId).then(setCampaign).catch(() => {});
     }
   }, [campaignId]);
-
-  // Détection des dimensions de l'image chargée
-  const handleImageLoaded = () => {
-    if (imageRef.current) {
-      const nw = imageRef.current.naturalWidth || 1200;
-      const nh = imageRef.current.naturalHeight || 800;
-      setImageSize({ width: nw, height: nh });
-    }
-  };
 
   const isMj = Boolean(carte?.isMj);
 
@@ -309,6 +314,75 @@ export const CampaignCarteViewerPage: React.FC = () => {
       // Fin du glisser-déposer : persistance en base
       setDraggingMarkerId(null);
       saveConfig(carte.config);
+    }
+  };
+
+  // Gestes tactiles : déplacement à un doigt, zoom par pincement à deux doigts
+  const getTouchCenter = (touches: React.TouchList) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    return {
+      mid: {
+        x: (touches[0].clientX + touches[1].clientX) / 2 - (rect?.left ?? 0),
+        y: (touches[0].clientY + touches[1].clientY) / 2 - (rect?.top ?? 0),
+      },
+      dist: Math.hypot(
+        touches[0].clientX - touches[1].clientX,
+        touches[0].clientY - touches[1].clientY
+      ),
+    };
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      // Même règle que la souris : le pan ne démarre que sur le fond de carte
+      if (e.target === containerRef.current || (e.target as HTMLElement).tagName === 'IMG') {
+        touchPanStartRef.current = {
+          x: e.touches[0].clientX - pan.x,
+          y: e.touches[0].clientY - pan.y,
+        };
+        setIsPanning(true);
+      }
+    } else if (e.touches.length >= 2) {
+      touchPanStartRef.current = null;
+      const { mid, dist } = getTouchCenter(e.touches);
+      pinchRef.current = { mid, dist, view: { zoom, pan } };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length >= 2 && pinchRef.current) {
+      const { mid, dist } = getTouchCenter(e.touches);
+      const next = computePinchView(pinchRef.current.view, {
+        previousMid: pinchRef.current.mid,
+        currentMid: mid,
+        previousDist: pinchRef.current.dist,
+        currentDist: dist,
+      });
+      setZoom(next.zoom);
+      setPan(next.pan);
+      pinchRef.current = { mid, dist, view: next };
+    } else if (e.touches.length === 1 && touchPanStartRef.current) {
+      setPan({
+        x: e.touches[0].clientX - touchPanStartRef.current.x,
+        y: e.touches[0].clientY - touchPanStartRef.current.y,
+      });
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) {
+      pinchRef.current = null;
+      touchPanStartRef.current = null;
+      setIsPanning(false);
+    } else if (e.touches.length === 1) {
+      // Fin du pincement : le doigt restant reprend le déplacement de la carte
+      const currentPan = pinchRef.current?.view.pan ?? pan;
+      pinchRef.current = null;
+      touchPanStartRef.current = {
+        x: e.touches[0].clientX - currentPan.x,
+        y: e.touches[0].clientY - currentPan.y,
+      };
+      setIsPanning(true);
     }
   };
 
@@ -575,29 +649,46 @@ export const CampaignCarteViewerPage: React.FC = () => {
     });
   };
 
-  // Réinitialiser la vue
+  // Réinitialiser la vue : ajuste la carte à la zone d'affichage et la centre
   const resetView = () => {
     if (!containerRef.current) return;
-    const cw = containerRef.current.clientWidth;
-    const ch = containerRef.current.clientHeight;
-
-    const scaleX = (cw - 40) / imageSize.width;
-    const scaleY = (ch - 40) / imageSize.height;
-    const fitZoom = Math.min(Math.max(Math.min(scaleX, scaleY), 0.2), 1.5);
-
-    setZoom(fitZoom);
-    setPan({
-      x: (cw - imageSize.width * fitZoom) / 2,
-      y: (ch - imageSize.height * fitZoom) / 2,
-    });
+    const view = computeFitView(
+      imageSize,
+      { width: containerRef.current.clientWidth, height: containerRef.current.clientHeight }
+    );
+    setZoom(view.zoom);
+    setPan(view.pan);
   };
 
-  // Initialisation du cadrage dès que l'image est prête
+  // Cadrage initial : mesure les dimensions réelles de l'image (chargée ou déjà
+  // en cache), puis centre la carte dans la zone d'affichage
   useEffect(() => {
-    if (imageSize.width && containerRef.current) {
-      resetView();
+    const img = imageRef.current;
+    if (!img) return;
+
+    const applyInitialView = () => {
+      const width = img.naturalWidth || 1200;
+      const height = img.naturalHeight || 800;
+      setImageSize({ width, height });
+      if (containerRef.current) {
+        const view = computeFitView(
+          { width, height },
+          { width: containerRef.current.clientWidth, height: containerRef.current.clientHeight }
+        );
+        setZoom(view.zoom);
+        setPan(view.pan);
+      }
+      setIsViewInitialized(true);
+    };
+
+    if (img.complete && img.naturalWidth > 0) {
+      applyInitialView();
+      return;
     }
-  }, [imageSize.width]);
+
+    img.addEventListener('load', applyInitialView, { once: true });
+    return () => img.removeEventListener('load', applyInitialView);
+  }, [carte?.image]);
 
   // Bascule Plein écran
   const toggleFullscreen = () => {
@@ -746,6 +837,10 @@ export const CampaignCarteViewerPage: React.FC = () => {
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
               className={`flex-1 relative overflow-hidden bg-slate-950 flex items-center justify-center ${
                   isPanning ? 'cursor-grabbing' : 'cursor-grab'
               }`}
@@ -753,7 +848,9 @@ export const CampaignCarteViewerPage: React.FC = () => {
           >
             {carte && (
                 <div
-                    className="absolute transition-transform duration-75 origin-top-left"
+                    className={`absolute left-0 top-0 transition-transform duration-75 origin-top-left ${
+                        isViewInitialized ? '' : 'invisible'
+                    }`}
                     style={{
                       transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                       width: `${imageSize.width}px`,
@@ -765,7 +862,6 @@ export const CampaignCarteViewerPage: React.FC = () => {
                       ref={imageRef}
                       src={carte.image}
                       alt={carte.name}
-                      onLoad={handleImageLoaded}
                       draggable={false}
                       className="w-full h-full object-contain pointer-events-auto rounded shadow-2xl"
                   />
