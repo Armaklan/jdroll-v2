@@ -395,6 +395,9 @@ describe('CreateOrUpdateNotificationUseCase', () => {
     assert.equal(sentEmails[0].subject, 'Sujet notifié');
     assert.ok(sentEmails[0].html.includes('Nouveau message dans le sujet'));
     assert.ok(sentEmails[0].html.includes('http://localhost:8080/topics/12'));
+    assert.ok(sentEmails[0].html.startsWith('<!DOCTYPE html>'), "Le mail doit utiliser le gabarit HTML stylé de l'application");
+    assert.ok(sentEmails[0].html.includes('background-color:#8844CC'), 'Le lien "Voir sur le site" doit être mis en valeur par un bouton');
+    assert.ok(sentEmails[0].html.includes('Voir sur le site'));
   });
 
   it('should not send an email when user has disabled the mail setting for the notification type', async () => {

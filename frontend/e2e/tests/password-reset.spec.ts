@@ -34,9 +34,10 @@ async function getResetLinkFromMail(request: APIRequestContext, toMail: string):
       const detailResponse = await request.get(`${MAILPIT_API}/message/${message.ID}`);
       const detail = await detailResponse.json();
       const html = String(detail.HTML || '');
-      const match = html.match(/https?:\/\/[^"'<\s]*\/reset-password\?user=\d+&alea=[0-9a-f]+/);
+      // Le gabarit des mails échappe les & en &amp; dans les liens (HTML valide)
+      const match = html.match(/https?:\/\/[^"'<\s]*\/reset-password\?user=\d+&(?:amp;)?alea=[0-9a-f]+/);
       if (match) {
-        return match[0];
+        return match[0].replace(/&amp;/g, '&');
       }
     }
 

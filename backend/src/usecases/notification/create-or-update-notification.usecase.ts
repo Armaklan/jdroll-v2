@@ -5,6 +5,7 @@ import {
 } from '../../services/notification-websocket.service.js';
 import { IUserRepository, userRepository } from '../../repositories/user.repository.js';
 import { IMailerService, mailerService } from '../../services/mailer.service.js';
+import { renderEmailTemplate } from '../../services/email-template.js';
 import { ValidationError } from '../../errors/domain.errors.js';
 import { NotificationItem, User } from '../../types/index.js';
 
@@ -119,10 +120,15 @@ export class CreateOrUpdateNotificationUseCase {
       return;
     }
 
-    let html = notification.content;
-    if (this.mailer.siteUrl && notification.url) {
-      html += `<p><a href="${this.mailer.siteUrl}${notification.url}">Voir sur le site</a></p>`;
-    }
+    const siteUrl = this.mailer.siteUrl;
+    const ctaUrl = siteUrl && notification.url ? `${siteUrl}${notification.url}` : null;
+
+    const html = renderEmailTemplate({
+      title: notification.title,
+      bodyHtml: notification.content,
+      ctaUrl: ctaUrl ?? undefined,
+      ctaLabel: 'Voir sur le site',
+    });
 
     try {
       await this.mailer.sendEmail({

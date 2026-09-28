@@ -96,6 +96,11 @@ describe('RequestPasswordResetUseCase', () => {
     assert.ok(email.html.includes('user=1'), "Le lien doit contenir l'identifiant de l'utilisateur");
     assert.ok(email.html.includes(`alea=${alea}`), 'Le lien doit contenir le token');
     assert.ok(email.html.includes('https://www.jdroll.fr/reset-password'), 'Le lien doit pointer vers la page de renouvellement');
+
+    assert.ok(email.html.startsWith('<!DOCTYPE html>'), "Le mail doit utiliser le gabarit HTML stylé de l'application");
+    assert.ok(email.html.includes('background-color:#8844CC'), 'Le lien de renouvellement doit être mis en valeur par un bouton');
+    assert.ok(email.html.includes('Renouveler mon mot de passe'));
+    assert.ok(email.html.includes('valide pendant') && email.html.includes('30 minutes'), 'La durée de validité doit rester mentionnée');
   });
 
   it('trouve aussi le utilisateur par son adresse email', async () => {

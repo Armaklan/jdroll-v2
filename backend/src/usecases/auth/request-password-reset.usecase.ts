@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { IUserPasswordResetRepository, userRepository } from '../../repositories/user.repository.js';
 import { IMailerService, mailerService } from '../../services/mailer.service.js';
+import { renderEmailTemplate } from '../../services/email-template.js';
 import { UserWithPassword } from '../../types/index.js';
 
 export interface RequestPasswordResetInput {
@@ -40,12 +41,16 @@ export class RequestPasswordResetUseCase {
     const siteUrl = this.mailer.siteUrl || '';
     const resetUrl = `${siteUrl}/reset-password?user=${user.id}&alea=${alea}`;
 
-    const html = `
-      <p>Bonjour ${user.username},</p>
-      <p>Vous avez demandé la réinitialisation de votre mot de passe sur JdRoll.</p>
-      <p>Ce lien est valide pendant 30 minutes :</p>
-      <p><a href="${resetUrl}">Renouveler mon mot de passe</a></p>
-      <p>Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer ce message.</p>`;
+    const html = renderEmailTemplate({
+      title: 'Réinitialisation de votre mot de passe',
+      bodyHtml: `
+      <p style="margin:0 0 12px 0;">Bonjour <strong>${user.username}</strong>,</p>
+      <p style="margin:0 0 12px 0;">Vous avez demandé la réinitialisation de votre mot de passe sur JdRoll.</p>
+      <p style="margin:0;">Ce lien est valide pendant <strong>30 minutes</strong>.</p>`,
+      ctaUrl: resetUrl,
+      ctaLabel: 'Renouveler mon mot de passe',
+      footerText: "Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer ce message.",
+    });
 
     try {
       await this.mailer.sendEmail({
