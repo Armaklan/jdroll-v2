@@ -113,7 +113,9 @@ CREATE TABLE `campagne_config` (
                                    `quote_color` varchar(10) DEFAULT NULL,
                                    `width` varchar(8) DEFAULT '800px',
                                    `widgets` mediumtext NOT NULL,
-                                   `default_dice` varchar(50) DEFAULT NULL
+                                   `default_dice` varchar(50) DEFAULT NULL,
+                                   `sheet_mode` varchar(20) DEFAULT NULL,
+                                   `sheet_definition` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
@@ -266,6 +268,19 @@ CREATE TABLE `feedback_vote` (
 -- --------------------------------------------------------
 
 --
+-- Structure de la table `feature_flip`
+--
+
+CREATE TABLE `feature_flip` (
+                                `id` int(11) NOT NULL,
+                                `name` varchar(100) NOT NULL,
+                                `description` varchar(500) DEFAULT NULL,
+                                `enabled` tinyint(1) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+-- --------------------------------------------------------
+
+--
 -- Structure de la table `last_action`
 --
 
@@ -354,7 +369,8 @@ CREATE TABLE `personnages` (
                                `statut` int(11) NOT NULL DEFAULT '0',
                                `cat_id` int(11) DEFAULT NULL,
                                `perso_fields` longtext COLLATE utf8_unicode_ci,
-                               `widgets` mediumtext COLLATE utf8_unicode_ci NOT NULL
+                               `widgets` mediumtext COLLATE utf8_unicode_ci NOT NULL,
+                               `sheet_values` longtext COLLATE utf8_unicode_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 -- --------------------------------------------------------
@@ -618,6 +634,13 @@ ALTER TABLE `feedback_vote`
     ADD PRIMARY KEY (`id`,`user_id`);
 
 --
+-- Index pour la table `feature_flip`
+--
+ALTER TABLE `feature_flip`
+    ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `UNIQ_FEATURE_FLIP_NAME` (`name`);
+
+--
 -- Index pour la table `last_action`
 --
 ALTER TABLE `last_action`
@@ -788,6 +811,12 @@ ALTER TABLE `feedback`
 --
 ALTER TABLE `feedback_comment`
     MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT pour la table `feature_flip`
+--
+ALTER TABLE `feature_flip`
+    MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT pour la table `messages`

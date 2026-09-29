@@ -203,4 +203,24 @@ describe('CreateCampaignUseCase', () => {
     assert.equal(result.defaultPersoId, 42);
     assert.equal(createdList[0].defaultPersoId, 42);
   });
+  describe('CreateCampaignUseCase - mode de feuille de personnage', () => {
+  it('transmet le mode de fiche et la définition de fiche programmée', async () => {
+    const { repo, createdList } = createMockCampaignRepo();
+    const useCase = new CreateCampaignUseCase(repo);
+    const definition = JSON.stringify({
+      version: 1,
+      pages: [{ id: 'page-1', title: 'Identité', sections: [] }],
+    });
+
+    await useCase.execute({
+      mjId: 1,
+      name: 'Campagne Fiche Programmée',
+      sheetMode: 'programmed',
+      sheetDefinition: definition,
+    });
+
+    assert.equal(createdList[0].sheetMode, 'programmed');
+    assert.equal(createdList[0].sheetDefinition, definition);
+  });
+});
 });

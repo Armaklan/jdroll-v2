@@ -20,6 +20,7 @@ export interface UpdateCharacterInput {
   assignedUserId?: number | null;
   statut?: number;
   persoFields?: string | null;
+  sheetValues?: string | null;
   widgets?: string;
 }
 
@@ -36,6 +37,7 @@ export interface UpdateCharacterOutput {
   statut: number;
   catId: number | null;
   persoFields?: string | null;
+  sheetValues?: string | null;
   widgets: string;
 }
 
@@ -108,6 +110,23 @@ export class UpdateCharacterUseCase {
       updatePayload.persoFields = input.persoFields;
     }
 
+    if (input.sheetValues !== undefined) {
+      if (input.sheetValues === null || input.sheetValues === '') {
+        updatePayload.sheetValues = null;
+      } else {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(input.sheetValues);
+        } catch {
+          throw new ValidationError('Les valeurs de la fiche programmée doivent être un JSON valide');
+        }
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+          throw new ValidationError('Les valeurs de la fiche programmée doivent être un objet JSON');
+        }
+        updatePayload.sheetValues = input.sheetValues;
+      }
+    }
+
     if (input.widgets !== undefined) {
       updatePayload.widgets = input.widgets;
     }
@@ -162,6 +181,7 @@ export class UpdateCharacterUseCase {
       statut: updatePayload.statut ?? char.statut,
       catId: updatePayload.catId !== undefined ? updatePayload.catId : char.catId,
       persoFields: updatePayload.persoFields !== undefined ? updatePayload.persoFields : char.persoFields,
+      sheetValues: updatePayload.sheetValues !== undefined ? updatePayload.sheetValues : char.sheetValues,
       widgets: updatePayload.widgets ?? char.widgets ?? '',
     };
   }

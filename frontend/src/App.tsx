@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigationType, useSearchParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { FeatureProvider } from './contexts/FeatureContext';
 import { PresenceProvider } from './contexts/PresenceContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { Navbar } from './components/Navbar';
@@ -23,6 +24,7 @@ import { GeneralForumPage } from './pages/GeneralForumPage';
 import { TopicViewPage } from './pages/TopicViewPage';
 import { MessagesPage } from './pages/MessagesPage';
 import { MembersPage } from './pages/MembersPage';
+import { AdministrationPage } from './pages/AdministrationPage';
 import { ChatPage } from './pages/ChatPage';
 import { SectionPlaceholderPage } from './pages/SectionPlaceholderPage';
 import {
@@ -156,6 +158,16 @@ export function AppContent() {
             }
           />
 
+          {/* Administration (feature flipping, admins uniquement) */}
+          <Route
+            path="/administration"
+            element={
+              <ProtectedRoute>
+                <AdministrationPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Profil public d'un membre */}
           <Route
             path="/users/:userId"
@@ -268,12 +280,14 @@ export function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <PresenceProvider>
-        <NotificationProvider>
-          <AppContent />
-          <PwaUpdateToast />
-        </NotificationProvider>
-      </PresenceProvider>
+      <FeatureProvider>
+        <PresenceProvider>
+          <NotificationProvider>
+            <AppContent />
+            <PwaUpdateToast />
+          </NotificationProvider>
+        </PresenceProvider>
+      </FeatureProvider>
     </AuthProvider>
   );
 }

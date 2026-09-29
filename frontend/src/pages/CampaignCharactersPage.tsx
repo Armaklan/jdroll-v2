@@ -6,6 +6,7 @@ import {WysiwygEditor} from '../components/WysiwygEditor';
 import {DiceTowerModal} from '../components/DiceTowerModal';
 import {CampaignHeader} from '../components/CampaignHeader';
 import {CharacterSheetRenderer} from '../components/CharacterSheetRenderer';
+import {ProgrammedSheetRenderer} from '../components/ProgrammedSheetRenderer';
 import {CharacterWidgetsRenderer} from '../components/CharacterWidgetsRenderer';
 import {CharacterWidgetsEditor} from '../components/CharacterWidgetsEditor';
 import {
@@ -18,6 +19,12 @@ import {
 } from '../types/campaign';
 import {changeWidgetValue, mergeCharacterWidgets, serializeWidgets,} from '../utils/widgets';
 import {parsePersoFields, serializePersoFields} from '../utils/character-sheet';
+import {
+  parseSheetDefinition,
+  parseSheetValues,
+  resolveSheetMode,
+  serializeSheetValues,
+} from '../utils/programmed-sheet';
 import {getUserColorClass} from '../utils/user';
 import {
   Activity,
@@ -64,6 +71,7 @@ interface CharacterFormData {
   privateDescription: string;
   technical: string;
   persoFields: Record<string, string>;
+  sheetValues: Record<string, string | number>;
   widgets: CampaignWidget[];
 }
 
@@ -77,6 +85,7 @@ const emptyFormData: CharacterFormData = {
   privateDescription: '',
   technical: '',
   persoFields: {},
+  sheetValues: {},
   widgets: [],
 };
 
@@ -283,6 +292,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       privateDescription: '',
       technical: data?.campaign?.template || '',
       persoFields: {},
+      sheetValues: {},
       widgets: mergeCharacterWidgets(data?.campaign?.widgets, null),
     });
     setAvatarMode('url');
@@ -306,6 +316,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       privateDescription: char.privateDescription || '',
       technical: char.technical || '',
       persoFields: parsePersoFields(char.persoFields),
+      sheetValues: parseSheetValues(char.sheetValues),
       widgets: mergeCharacterWidgets(data?.campaign?.widgets, char.widgets),
     });
     setAvatarMode(char.avatar && char.avatar.startsWith('/files/') ? 'upload' : 'url');
@@ -360,6 +371,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
     try {
       const serializedPersoFields = serializePersoFields(formData.persoFields);
       const serializedWidgets = serializeWidgets(formData.widgets);
+      const serializedSheetValues = serializeSheetValues(formData.sheetValues);
 
       if (editingCharacter) {
         // Edit mode
@@ -371,6 +383,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           privateDescription: formData.privateDescription,
           technical: formData.technical,
           persoFields: serializedPersoFields,
+          sheetValues: serializedSheetValues,
           widgets: serializedWidgets,
         };
 
@@ -402,6 +415,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
             privateDescription: updated.privateDescription,
             technical: updated.technical,
             persoFields: updated.persoFields ?? serializedPersoFields,
+            sheetValues: updated.sheetValues ?? serializedSheetValues,
             widgets: updated.widgets ?? serializedWidgets,
             catId: updated.catId,
             userId: updated.userId,
@@ -1227,6 +1241,29 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
               {(() => {
                 const isOwner = Boolean(user && selectedCharacter.userId === user.id);
                 if (!(isMj || isOwner)) return null;
+                const sheetMode = resolveSheetMode({
+                  sheetMode: data?.campaign?.sheetMode,
+                  templateHtml: data?.campaign?.templateHtml,
+                  templateImg: data?.campaign?.templateImg,
+                  templateFields: data?.campaign?.templateFields,
+                });
+
+                if (sheetMode === 'programmed') {
+                  return (
+                    <div className="space-y-2 pt-2 border-t border-slate-100" data-testid="programmed-sheet-detail">
+                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-indigo-600" />
+                        <span>Feuille de personnage</span>
+                      </h3>
+                      <ProgrammedSheetRenderer
+                        definition={parseSheetDefinition(data?.campaign?.sheetDefinition)}
+                        values={parseSheetValues(selectedCharacter.sheetValues)}
+                        mode="read-only"
+                      />
+                    </div>
+                  );
+                }
+
                 if (!Boolean(
                   selectedCharacter.templateImg ||
                   selectedCharacter.templateHtml ||
@@ -1665,38 +1702,71 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                 </div>
 
                 {/* Feuille de personnage interactive */}
-                {Boolean(
-                  data?.campaign?.templateImg ||
-                  data?.campaign?.templateHtml ||
-                  data?.campaign?.templateFields ||
-                  editingCharacter?.templateImg ||
-                  editingCharacter?.templateHtml ||
-                  editingCharacter?.templateFields
-                ) && (
-                  <div className="space-y-2 pt-4 border-t border-slate-100">
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <LayoutTemplate className="w-4 h-4 text-indigo-600" />
-                      <span>Feuille de personnage interactive</span>
-                    </label>
-                    <p className="text-xs text-slate-500">
-                      Remplissez les valeurs des champs superposés sur le fond de la fiche.
-                    </p>
-                    <CharacterSheetRenderer
-                      mode="fill"
-                      canvasWidth={data?.campaign?.width || '800px'}
-                      bgType={
-                        (editingCharacter?.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
-                      }
-                      templateImg={editingCharacter?.templateImg || data?.campaign?.templateImg}
-                      templateHtml={editingCharacter?.templateHtml || data?.campaign?.templateHtml}
-                      templateFields={editingCharacter?.templateFields || data?.campaign?.templateFields}
-                      values={formData.persoFields}
-                      onValuesChange={(newValues) =>
-                        setFormData((prev) => ({ ...prev, persoFields: newValues }))
-                      }
-                    />
-                  </div>
-                )}
+                {(() => {
+                  const sheetMode = resolveSheetMode({
+                    sheetMode: data?.campaign?.sheetMode,
+                    templateHtml: data?.campaign?.templateHtml,
+                    templateImg: data?.campaign?.templateImg,
+                    templateFields: data?.campaign?.templateFields,
+                  });
+
+                  if (sheetMode === 'programmed') {
+                    return (
+                      <div className="space-y-2 pt-4 border-t border-slate-100" data-testid="programmed-sheet-fill">
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <FileText className="w-4 h-4 text-indigo-600" />
+                          <span>Feuille de personnage</span>
+                        </label>
+                        <p className="text-xs text-slate-500">
+                          Remplissez les champs de la fiche programmée de la campagne.
+                        </p>
+                        <ProgrammedSheetRenderer
+                          definition={parseSheetDefinition(data?.campaign?.sheetDefinition)}
+                          values={formData.sheetValues}
+                          mode="fill"
+                          onValuesChange={(newValues) =>
+                            setFormData((prev) => ({ ...prev, sheetValues: newValues }))
+                          }
+                        />
+                      </div>
+                    );
+                  }
+
+                  if (!Boolean(
+                    data?.campaign?.templateImg ||
+                    data?.campaign?.templateHtml ||
+                    data?.campaign?.templateFields ||
+                    editingCharacter?.templateImg ||
+                    editingCharacter?.templateHtml ||
+                    editingCharacter?.templateFields
+                  )) return null;
+
+                  return (
+                    <div className="space-y-2 pt-4 border-t border-slate-100">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <LayoutTemplate className="w-4 h-4 text-indigo-600" />
+                        <span>Feuille de personnage interactive</span>
+                      </label>
+                      <p className="text-xs text-slate-500">
+                        Remplissez les valeurs des champs superposés sur le fond de la fiche.
+                      </p>
+                      <CharacterSheetRenderer
+                        mode="fill"
+                        canvasWidth={data?.campaign?.width || '800px'}
+                        bgType={
+                          (editingCharacter?.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
+                        }
+                        templateImg={editingCharacter?.templateImg || data?.campaign?.templateImg}
+                        templateHtml={editingCharacter?.templateHtml || data?.campaign?.templateHtml}
+                        templateFields={editingCharacter?.templateFields || data?.campaign?.templateFields}
+                        values={formData.persoFields}
+                        onValuesChange={(newValues) =>
+                          setFormData((prev) => ({ ...prev, persoFields: newValues }))
+                        }
+                      />
+                    </div>
+                  );
+                })()}
 
                 {/* Widgets du personnage */}
                 {formData.widgets && formData.widgets.length > 0 && (

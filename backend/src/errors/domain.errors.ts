@@ -83,6 +83,12 @@ export class AbsenceNotFoundError extends DomainError {
   }
 }
 
+export class FeatureNotFoundError extends DomainError {
+  constructor(message = 'Feature introuvable') {
+    super(message);
+  }
+}
+
 export class ThemeNotFoundError extends DomainError {
   constructor(message = 'Thème introuvable') {
     super(message);

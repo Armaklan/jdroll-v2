@@ -14,6 +14,7 @@ import {
   CampaignSearchCharacterItem,
 } from '../types/index.js';
 import { CampaignNotFoundError, CharacterNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
+import { resolveSheetMode } from '../schemas/sheet-definition.schema.js';
 
 export class CampaignQueries {
   constructor(
@@ -162,6 +163,7 @@ export class CampaignQueries {
         categoryName: '',
         isPlayer,
         persoFields: canSeePrivate ? raw.persoFields : undefined,
+        sheetValues: canSeePrivate ? raw.sheetValues : undefined,
         widgets: canSeePrivate ? (raw.widgets || '') : undefined,
       };
 
@@ -217,6 +219,7 @@ export class CampaignQueries {
     return {
       campaign: {
         ...campaign,
+        sheetMode: resolveSheetMode(campaign),
         userRole: userRole ?? campaign.userRole,
         isObserving: isObserving || campaign.isObserving,
         hasAlert: hasAlert || Boolean(campaign.hasAlert),
@@ -282,6 +285,7 @@ export class CampaignQueries {
       categoryName: raw.categoryName || (isPlayer ? 'Personnage joueur' : 'Non classées'),
       isPlayer,
       persoFields: canSeePrivate ? raw.persoFields : undefined,
+      sheetValues: canSeePrivate ? raw.sheetValues : undefined,
       templateHtml: campaign.templateHtml,
       templateImg: campaign.templateImg,
       templateFields: campaign.templateFields,
@@ -291,6 +295,7 @@ export class CampaignQueries {
     return {
       campaign: {
         ...campaign,
+        sheetMode: resolveSheetMode(campaign),
         userRole: userRole ?? campaign.userRole,
         isObserving: isObserving || campaign.isObserving,
         hasAlert: hasAlert || Boolean(campaign.hasAlert),
@@ -355,6 +360,7 @@ export class CampaignQueries {
 
     return {
       ...campaign,
+      sheetMode: resolveSheetMode(campaign),
       userRole: userRole ?? campaign.userRole,
       isObserving: isObserving || campaign.isObserving,
       hasAlert: hasAlert || Boolean(campaign.hasAlert),

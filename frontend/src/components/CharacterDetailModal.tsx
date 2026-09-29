@@ -4,6 +4,8 @@ import { campaignsApi } from '../api/campaigns';
 import { CampaignCharacter, CampaignSummary } from '../types/campaign';
 import { CharacterWidgetsRenderer } from './CharacterWidgetsRenderer';
 import { CharacterSheetRenderer } from './CharacterSheetRenderer';
+import { ProgrammedSheetRenderer } from './ProgrammedSheetRenderer';
+import { parseSheetDefinition, parseSheetValues, resolveSheetMode } from '../utils/programmed-sheet';
 import { mergeCharacterWidgets, changeWidgetValue, serializeWidgets } from '../utils/widgets';
 import { getUserColorClass } from '../utils/user';
 import {
@@ -307,32 +309,63 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
               })()}
 
               {/* Character Sheet (Visible MJ & propriétaire) */}
-              {canSeePrivate && Boolean(
-                character.templateImg ||
-                character.templateHtml ||
-                campaign?.templateImg ||
-                campaign?.templateHtml ||
-                campaign?.templateFields ||
-                character.templateFields
-              ) && (
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                    <LayoutTemplate className="w-4 h-4 text-indigo-600" />
-                    <span>Feuille de personnage</span>
-                  </h3>
-                  <CharacterSheetRenderer
-                    mode="read-only"
-                    canvasWidth={campaign?.width || '800px'}
-                    bgType={
-                      (character.templateImg || campaign?.templateImg) ? 'image' : 'html'
-                    }
-                    templateImg={character.templateImg || campaign?.templateImg}
-                    templateHtml={character.templateHtml || campaign?.templateHtml}
-                    templateFields={character.templateFields || campaign?.templateFields}
-                    persoFields={character.persoFields}
-                  />
-                </div>
-              )}
+              {(() => {
+                if (!canSeePrivate) return null;
+                const sheetMode = resolveSheetMode({
+                  sheetMode: campaign?.sheetMode,
+                  templateHtml: campaign?.templateHtml,
+                  templateImg: campaign?.templateImg,
+                  templateFields: campaign?.templateFields,
+                });
+
+                if (sheetMode === 'programmed') {
+                  const definition = parseSheetDefinition(campaign?.sheetDefinition);
+                  return (
+                    <div className="space-y-2 pt-2 border-t border-slate-100" data-testid="programmed-sheet-detail">
+                      <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileText className="w-4 h-4 text-indigo-600" />
+                        <span>Feuille de personnage</span>
+                      </h3>
+                      <ProgrammedSheetRenderer
+                        definition={definition}
+                        values={parseSheetValues(character.sheetValues)}
+                        mode="read-only"
+                      />
+                    </div>
+                  );
+                }
+
+                if (
+                  !Boolean(
+                    character.templateImg ||
+                    character.templateHtml ||
+                    campaign?.templateImg ||
+                    campaign?.templateHtml ||
+                    campaign?.templateFields ||
+                    character.templateFields
+                  )
+                ) return null;
+
+                return (
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <LayoutTemplate className="w-4 h-4 text-indigo-600" />
+                      <span>Feuille de personnage</span>
+                    </h3>
+                    <CharacterSheetRenderer
+                      mode="read-only"
+                      canvasWidth={campaign?.width || '800px'}
+                      bgType={
+                        (character.templateImg || campaign?.templateImg) ? 'image' : 'html'
+                      }
+                      templateImg={character.templateImg || campaign?.templateImg}
+                      templateHtml={character.templateHtml || campaign?.templateHtml}
+                      templateFields={character.templateFields || campaign?.templateFields}
+                      persoFields={character.persoFields}
+                    />
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>

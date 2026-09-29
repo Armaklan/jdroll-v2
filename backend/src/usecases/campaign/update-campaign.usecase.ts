@@ -2,6 +2,12 @@ import { ICampaignRepository, campaignRepository } from '../../repositories/camp
 import { IForumRepository, forumRepository } from '../../repositories/forum.repository.js';
 import { CampaignSummary } from '../../types/index.js';
 import { CampaignNotFoundError, ForbiddenError, ValidationError } from '../../errors/domain.errors.js';
+import { FeatureFlipService, featureFlipService } from '../feature/feature-flip.service.js';
+import {
+  SHEET_MODES,
+  SheetMode,
+  validateSheetDefinition,
+} from '../../schemas/sheet-definition.schema.js';
 
 export interface UpdateCampaignDTO {
   campaignId: number;
@@ -38,12 +44,15 @@ export interface UpdateCampaignDTO {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sheetMode?: string | null;
+  sheetDefinition?: string | null;
 }
 
 export class UpdateCampaignUseCase {
   constructor(
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
-    private readonly forumRepo: IForumRepository = forumRepository
+    private readonly forumRepo: IForumRepository = forumRepository,
+    private readonly featureFlip: FeatureFlipService = featureFlipService
   ) {}
 
   async execute(dto: UpdateCampaignDTO): Promise<CampaignSummary> {
@@ -94,6 +103,43 @@ export class UpdateCampaignUseCase {
       templateHtml = `<img id="zoneImg" src="${templateImg}" style="width: 800px">`;
     }
 
+    let sheetMode: SheetMode | undefined = undefined;
+    if (dto.sheetMode !== undefined) {
+      if (dto.sheetMode === null || !(SHEET_MODES as readonly string[]).includes(dto.sheetMode)) {
+        throw new ValidationError(`Mode de feuille de personnage invalide : ${dto.sheetMode}`);
+      }
+      sheetMode = dto.sheetMode as SheetMode;
+      if (sheetMode === 'programmed') {
+        const isEnabled = await this.featureFlip.isEnabled('programmed-sheet');
+        if (!isEnabled) {
+          throw new ForbiddenError("Le module de fiche de personnage programmée n'est pas activé");
+        }
+      }
+    }
+
+    let sheetDefinition: string | null | undefined = undefined;
+    if (dto.sheetDefinition !== undefined) {
+      if (dto.sheetDefinition === null || dto.sheetDefinition === '') {
+        sheetDefinition = null;
+      } else {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(dto.sheetDefinition);
+        } catch {
+          throw new ValidationError('La définition de fiche programmée doit être un JSON valide');
+        }
+        const validated = validateSheetDefinition(parsed);
+        if (!validated.success) {
+          throw new ValidationError(
+            `Définition de fiche programmée invalide : ${validated.error.issues
+              .map((issue) => `${issue.path.join('.') || 'fiche'} ${issue.message}`)
+              .join('; ')}`
+          );
+        }
+        sheetDefinition = JSON.stringify(validated.data);
+      }
+    }
+
     await this.campaignRepo.updateCampaign(dto.campaignId, {
       name: dto.name !== undefined ? dto.name.trim() : undefined,
       systeme: dto.systeme !== undefined ? dto.systeme.trim() : undefined,
@@ -127,6 +173,8 @@ export class UpdateCampaignUseCase {
       templateImg,
       templateFields: dto.templateFields,
       widgets: dto.widgets,
+      sheetMode,
+      sheetDefinition,
     });
 
     const updated = await this.campaignRepo.findById(dto.campaignId);

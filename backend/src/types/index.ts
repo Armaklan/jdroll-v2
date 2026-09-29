@@ -147,6 +147,8 @@ export interface CampaignSummary {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sheetMode?: string | null;
+  sheetDefinition?: string | null;
   hasUnread?: boolean;
   hasAlert?: boolean;
 }
@@ -266,6 +268,7 @@ export interface RawCampaignCharacterRow {
   categoryName: string | null;
   persoFields: string | null;
   widgets: string | null;
+  sheetValues?: string | null;
 }
 
 export interface RawPnjCategoryRow {
@@ -294,6 +297,7 @@ export interface CampaignCharacter {
   isPlayer: boolean;
   persoFields?: string | null;
   widgets?: string | null;
+  sheetValues?: string | null;
   templateHtml?: string | null;
   templateImg?: string | null;
   templateFields?: string | null;
@@ -575,6 +579,13 @@ export interface ChatMessage {
   message: string;
   to: string;
   to_username: string;
+}
+
+export interface FeatureFlip {
+  id: number;
+  name: string;
+  description: string | null;
+  enabled: boolean;
 }
 
 export interface SendChatMessageInput {

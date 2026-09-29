@@ -126,4 +126,9 @@ INSERT INTO `theme` (
 (3, 'Cyberpunk Néon', '#0d0d0d', '#141414', '#050505', '#00fff0', '#ff00ff', '#e0e0e0', '#00ff00', '#ff0040', '#ffee00', '#00aaff', '#888888'),
 (4, 'Grimoire d''Épouvante', '#10140e', '#161c12', '#0a0d08', '#4a7c59', '#2e5941', '#cfd8c4', '#7fb685', '#9db88a', '#e9d985', '#b28e5a', '#8a9179');
 
+-- Feature flips initiaux (mécanisme de feature flipping, désactivés par défaut)
+INSERT INTO `feature_flip` (`name`, `description`, `enabled`) VALUES
+('sample-feature', 'Feature d''exemple pour valider le mécanisme de feature flipping', 0),
+('programmed-sheet', 'Module de fiche de personnage programmée (construction de fiche par pages, sections et composants)', 0);
+
 SET FOREIGN_KEY_CHECKS = 1;

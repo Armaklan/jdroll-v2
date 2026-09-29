@@ -35,6 +35,8 @@ export interface CreateCampaignData {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sheetMode?: string | null;
+  sheetDefinition?: string | null;
 }
 
 export interface UpdateCampaignData {
@@ -70,6 +72,8 @@ export interface UpdateCampaignData {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sheetMode?: string | null;
+  sheetDefinition?: string | null;
 }
 
 export interface ICampaignRepository {
@@ -722,7 +726,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.template_img AS templateImg,
         cc.template_fields AS templateFields,
         cc.widgets AS widgets,
-        cc.banniere AS banniereForum
+        cc.banniere AS banniereForum,
+        cc.sheet_mode AS sheetMode,
+        cc.sheet_definition AS sheetDefinition
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
@@ -769,6 +775,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       templateImg: string | null;
       templateFields: string | null;
       widgets: string | null;
+      sheetMode: string | null;
+      sheetDefinition: string | null;
     }
 
     const rows = await query<RawCampaignRow>(sql, [id]);
@@ -817,6 +825,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       templateImg: row.templateImg || null,
       templateFields: row.templateFields || null,
       widgets: row.widgets || null,
+      sheetMode: row.sheetMode || null,
+      sheetDefinition: row.sheetDefinition || null,
     };
   }
 
@@ -852,8 +862,9 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         sidebar_color, link_color, template, sidebar_text, link_sidebar_color,
         text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
         quote_color, width, widgets, default_dice, default_perso_id,
-        template_html, template_img, template_fields
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        template_html, template_img, template_fields,
+        sheet_mode, sheet_definition
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     await execute(configSql, [
@@ -879,6 +890,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       data.templateHtml || null,
       data.templateImg || null,
       data.templateFields || null,
+      data.sheetMode || null,
+      data.sheetDefinition || null,
     ]);
 
     return campaignId;
@@ -1025,6 +1038,14 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       configFields.push('widgets = ?');
       configParams.push(data.widgets ?? '');
     }
+    if (data.sheetMode !== undefined) {
+      configFields.push('sheet_mode = ?');
+      configParams.push(data.sheetMode ?? null);
+    }
+    if (data.sheetDefinition !== undefined) {
+      configFields.push('sheet_definition = ?');
+      configParams.push(data.sheetDefinition ?? null);
+    }
 
     if (configFields.length > 0) {
       const existingConfig = await queryOne<{ campagne_id: number }>(
@@ -1095,7 +1116,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         p.cat_id AS catId,
         c.name AS categoryName,
         p.perso_fields AS persoFields,
-        p.widgets
+        p.widgets,
+        p.sheet_values AS sheetValues
       FROM personnages p
       LEFT JOIN user u ON p.user_id = u.id
       LEFT JOIN pnj_category c ON p.cat_id = c.id
@@ -1126,7 +1148,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         p.cat_id AS catId,
         c.name AS categoryName,
         p.perso_fields AS persoFields,
-        p.widgets
+        p.widgets,
+        p.sheet_values AS sheetValues
       FROM personnages p
       LEFT JOIN user u ON p.user_id = u.id
       LEFT JOIN pnj_category c ON p.cat_id = c.id
@@ -1246,7 +1269,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         p.cat_id AS catId,
         c.name AS categoryName,
         p.perso_fields AS persoFields,
-        p.widgets
+        p.widgets,
+        p.sheet_values AS sheetValues
       FROM personnages p
       LEFT JOIN user u ON p.user_id = u.id
       LEFT JOIN pnj_category c ON p.cat_id = c.id
@@ -1319,6 +1343,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       statut: number;
       catId: number | null;
       persoFields: string | null;
+      sheetValues?: string | null;
       widgets: string;
     }>
   ): Promise<void> {
@@ -1364,6 +1389,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     if (character.persoFields !== undefined) {
       fields.push('perso_fields = ?');
       values.push(character.persoFields);
+    }
+    if (character.sheetValues !== undefined) {
+      fields.push('sheet_values = ?');
+      values.push(character.sheetValues);
     }
     if (character.widgets !== undefined) {
       fields.push('widgets = ?');

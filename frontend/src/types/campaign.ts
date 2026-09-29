@@ -45,8 +45,62 @@ export interface CampaignSummary {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sheetMode?: SheetMode | null;
+  sheetDefinition?: string | null;
   hasUnread?: boolean;
   hasAlert?: boolean;
+}
+
+export type SheetMode = 'technical' | 'graphic' | 'programmed';
+
+export type SheetSectionLayout = 'horizontal' | 'vertical';
+
+export type SheetComponentType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'select'
+  | 'radio'
+  | 'scoring'
+  | 'label';
+
+export interface SheetComponent {
+  id: string;
+  type: SheetComponentType;
+  label: string;
+  helpText?: string;
+  defaultValue?: string | number;
+  options?: string[];
+  max?: number;
+  labelPosition?: SheetLabelPosition;
+}
+
+export type SheetLabelPosition = 'above' | 'left';
+
+export interface SheetSection {
+  id: string;
+  title?: string;
+  layout: SheetSectionLayout;
+  borderWidth?: number;
+  borderColor?: string;
+  /**
+   * Enfants de la section : composants et sous-sections mélangés,
+   * dans un ordre libre (le layout de la section s'applique à l'ensemble).
+   */
+  children: Array<SheetComponent | SheetSection>;
+}
+
+export type SheetElement = SheetComponent | SheetSection;
+
+export interface SheetPage {
+  id: string;
+  title: string;
+  sections: SheetSection[];
+}
+
+export interface SheetDefinition {
+  version: 1;
+  pages: SheetPage[];
 }
 
 export interface CreateCampaignPayload {
@@ -82,6 +136,8 @@ export interface CreateCampaignPayload {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sheetMode?: SheetMode | null;
+  sheetDefinition?: string | null;
 }
 
 export type UpdateCampaignPayload = Partial<CreateCampaignPayload>;
@@ -210,6 +266,7 @@ export interface CampaignCharacter {
   categoryName: string;
   isPlayer: boolean;
   persoFields?: string | null;
+  sheetValues?: string | null;
   templateHtml?: string | null;
   templateImg?: string | null;
   templateFields?: string | null;
@@ -258,6 +315,7 @@ export interface CreateCharacterPayload {
   assignedUserId?: number | null;
   statut?: number;
   persoFields?: string | null;
+  sheetValues?: string | null;
   widgets?: string;
 }
 
@@ -272,6 +330,7 @@ export interface UpdateCharacterPayload {
   assignedUserId?: number | null;
   statut?: number;
   persoFields?: string | null;
+  sheetValues?: string | null;
   widgets?: string;
 }
 

@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { messagesApi } from '../api/messages';
 import { NotificationPopover } from './NotificationPopover';
-import { getUserColorClass } from '../utils/user';
+import { getUserColorClass, isUserAdmin } from '../utils/user';
 import {
   LogIn,
   LogOut,
@@ -18,6 +18,7 @@ import {
   Menu,
   X,
   Bell,
+  Shield,
 } from 'lucide-react';
 
 export type AppView =
@@ -32,6 +33,7 @@ export type AppView =
   | 'campaign-forum'
   | 'topic-view'
   | 'forum'
+  | 'administration'
   | 'help';
 
 export const viewToPath = (view: AppView): string => {
@@ -58,6 +60,8 @@ export const viewToPath = (view: AppView): string => {
       return '/forum/0';
     case 'forum':
       return '/forum/0';
+    case 'administration':
+      return '/administration';
     case 'help':
       return '/help';
     default:
@@ -145,6 +149,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
     }
     if (path.startsWith('/campaigns/')) return 'campaign-forum';
     if (path.startsWith('/topics/')) return 'topic-view';
+    if (path.startsWith('/administration')) return 'administration';
     if (path === '/help') return 'help';
     return currentView || 'home';
   };
@@ -276,6 +281,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                 </span>
               )}
             </a>
+
+            {/* Administration (admins uniquement) */}
+            {isAuthenticated && isUserAdmin(user) && (
+              <a
+                href="/administration"
+                onClick={(e) => handleLinkClick(e, 'administration')}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm font-medium transition ${
+                  activeView === 'administration'
+                    ? 'text-red-600 bg-red-50/80 font-semibold'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
+                }`}
+              >
+                <Shield className="w-4 h-4" />
+                <span>Administration</span>
+              </a>
+            )}
           </nav>
         </div>
 
@@ -509,6 +530,20 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
                   <UserIcon className="w-4 h-4 text-indigo-600" />
                   <span>Paramètres</span>
                 </a>
+                {isUserAdmin(user) && (
+                  <a
+                    href="/administration"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setMobileMenuOpen(false);
+                      navigate('/administration');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <Shield className="w-4 h-4 text-red-600" />
+                    <span>Administration</span>
+                  </a>
+                )}
                 <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
                   <span className={`text-sm ${getUserColorClass(user.profil, 'text-slate-800 font-semibold')}`}>
                     {user.username}

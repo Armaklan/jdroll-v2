@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { UpdateCampaignUseCase } from './update-campaign.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
 import { IForumRepository } from '../../repositories/forum.repository.js';
+import { FeatureFlipService } from '../feature/feature-flip.service.js';
 import {
   CampaignNotFoundError,
   ForbiddenError,
@@ -78,6 +79,8 @@ describe('UpdateCampaignUseCase', () => {
           if (data.templateHtml !== undefined) c.templateHtml = data.templateHtml;
           if (data.templateImg !== undefined) c.templateImg = data.templateImg;
           if (data.templateFields !== undefined) c.templateFields = data.templateFields;
+          if (data.sheetMode !== undefined) c.sheetMode = data.sheetMode;
+          if (data.sheetDefinition !== undefined) c.sheetDefinition = data.sheetDefinition;
         }
       },
       findCampaignCharacters: async () => [],
@@ -282,4 +285,121 @@ describe('UpdateCampaignUseCase', () => {
 
     assert.equal(result.defaultPersoId, 15);
   });
+  describe('UpdateCampaignUseCase - mode de feuille de personnage', () => {
+  const validDefinition = {
+    version: 1,
+    pages: [
+      {
+        id: 'page-1',
+        title: 'Identité',
+        sections: [
+          {
+            id: 'sec-1',
+            title: 'Principal',
+            layout: 'vertical',
+            children: [{ id: 'comp-nom', type: 'text', label: 'Nom' }],
+          },
+        ],
+      },
+    ],
+  };
+
+  const createFeatureRepo = (enabled: boolean) => ({
+    findAll: async () => [],
+    findByName: async () => ({ id: 1, name: 'programmed-sheet', description: '', enabled }),
+    setEnabled: async () => {},
+  });
+
+  it('met à jour le mode technique et graphique sans feature flip', async () => {
+    const { repo } = createMockCampaignRepo();
+    const useCase = new UpdateCampaignUseCase(
+      repo,
+      createMockForumRepo(),
+      new FeatureFlipService(createFeatureRepo(false) as any)
+    );
+
+    const result = await useCase.execute({ campaignId: 1, userId: 10, sheetMode: 'graphic' });
+    assert.equal(result.sheetMode, 'graphic');
+  });
+
+  it('lève ValidationError pour un mode inconnu', async () => {
+    const { repo } = createMockCampaignRepo();
+    const useCase = new UpdateCampaignUseCase(
+      repo,
+      createMockForumRepo(),
+      new FeatureFlipService(createFeatureRepo(true) as any)
+    );
+
+    await assert.rejects(
+      () => useCase.execute({ campaignId: 1, userId: 10, sheetMode: 'holographique' }),
+      ValidationError
+    );
+  });
+
+  it('accepte le mode programmé et une définition valide quand la feature est active', async () => {
+    const { repo } = createMockCampaignRepo();
+    const useCase = new UpdateCampaignUseCase(
+      repo,
+      createMockForumRepo(),
+      new FeatureFlipService(createFeatureRepo(true) as any)
+    );
+
+    const result = await useCase.execute({
+      campaignId: 1,
+      userId: 10,
+      sheetMode: 'programmed',
+      sheetDefinition: JSON.stringify(validDefinition),
+    });
+    assert.equal(result.sheetMode, 'programmed');
+    assert.deepEqual(JSON.parse(result.sheetDefinition as string), validDefinition);
+  });
+
+  it('refuse le mode programmé quand la feature est désactivée', async () => {
+    const { repo } = createMockCampaignRepo();
+    const useCase = new UpdateCampaignUseCase(
+      repo,
+      createMockForumRepo(),
+      new FeatureFlipService(createFeatureRepo(false) as any)
+    );
+
+    await assert.rejects(
+      () => useCase.execute({
+        campaignId: 1,
+        userId: 10,
+        sheetMode: 'programmed',
+        sheetDefinition: JSON.stringify(validDefinition),
+      }),
+      ForbiddenError
+    );
+  });
+
+  it('lève ValidationError si la définition de fiche est invalide', async () => {
+    const { repo } = createMockCampaignRepo();
+    const useCase = new UpdateCampaignUseCase(
+      repo,
+      createMockForumRepo(),
+      new FeatureFlipService(createFeatureRepo(true) as any)
+    );
+
+    await assert.rejects(
+      () => useCase.execute({
+        campaignId: 1,
+        userId: 10,
+        sheetMode: 'programmed',
+        sheetDefinition: JSON.stringify({ version: 1, pages: [{ id: 'p', title: 'P' }] }),
+      }),
+      ValidationError
+    );
+
+    await assert.rejects(
+      () => useCase.execute({
+        campaignId: 1,
+        userId: 10,
+        sheetDefinition: 'pas du tout du json',
+      }),
+      ValidationError
+    );
+  });
+});
+
 });

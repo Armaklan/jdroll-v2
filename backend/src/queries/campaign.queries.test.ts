@@ -771,6 +771,98 @@ describe('CampaignQueries', () => {
     });
   });
 
+  describe('mode de feuille de personnage (sheetMode)', () => {
+    const baseCampaign: CampaignSummary = {
+      id: 1,
+      name: 'Campagne Mode',
+      mjId: 1,
+      mjUsername: 'mj_user',
+      nbJoueurs: 4,
+      nbJoueursActuel: 1,
+      banniere: '',
+      systeme: 'D&D 5',
+      univers: 'Gothique',
+      description: 'Test mode',
+      statut: 0,
+      isArchived: false,
+      isRecrutementOpen: true,
+    };
+
+    const characterPj: RawCampaignCharacterRow = {
+      id: 101,
+      userId: 2,
+      userName: 'joueur1',
+      userAvatar: null,
+      userProfil: 1,
+      campagneId: 1,
+      name: 'Kaelen',
+      concept: 'Mage',
+      avatar: '',
+      publicDescription: '',
+      privateDescription: '',
+      technical: '',
+      statut: 0,
+      catId: null,
+      categoryName: null,
+      persoFields: null,
+      widgets: null,
+      sheetValues: '{"comp-nom":"Kaelen"}',
+    };
+
+    it("dérive 'technical' par défaut quand aucun template n'existe", async () => {
+      const repo = new MockCampaignRepository([baseCampaign], [], [], [characterPj]);
+      const queries = new CampaignQueries(repo);
+      const data = await queries.getCampaignCharacters(1, 1);
+      assert.equal(data.campaign.sheetMode, 'technical');
+    });
+
+    it("dérive 'graphic' quand un template graphique existe", async () => {
+      const repo = new MockCampaignRepository([
+        { ...baseCampaign, templateImg: 'fiche.png' },
+      ], [], [], [characterPj]);
+      const queries = new CampaignQueries(repo);
+      const data = await queries.getCampaignCharacters(1, 1);
+      assert.equal(data.campaign.sheetMode, 'graphic');
+    });
+
+    it('expose le mode explicite programmé et la définition de fiche', async () => {
+      const definition = JSON.stringify({
+        version: 1,
+        pages: [{ id: 'page-1', title: 'Identité', sections: [] }],
+      });
+      const repo = new MockCampaignRepository([
+        { ...baseCampaign, sheetMode: 'programmed', sheetDefinition: definition },
+      ], [], [], [characterPj]);
+      const queries = new CampaignQueries(repo);
+      const data = await queries.getCampaignCharacters(1, 1);
+      assert.equal(data.campaign.sheetMode, 'programmed');
+      assert.equal(data.campaign.sheetDefinition, definition);
+    });
+
+    it('expose les valeurs de fiche programmée au MJ et au propriétaire uniquement', async () => {
+      const repo = new MockCampaignRepository([baseCampaign], [], [], [characterPj]);
+      const queries = new CampaignQueries(repo);
+
+      const asMj = await queries.getCharacter(101, 1);
+      assert.equal(asMj.character.sheetValues, '{"comp-nom":"Kaelen"}');
+
+      const asOwner = await queries.getCharacter(101, 2);
+      assert.equal(asOwner.character.sheetValues, '{"comp-nom":"Kaelen"}');
+
+      const asOther = await queries.getCharacter(101, 3);
+      assert.equal(asOther.character.sheetValues, undefined);
+    });
+
+    it("résout le mode dérivé dans getCharacter quand la campagne n'a pas de mode explicite", async () => {
+      const repo = new MockCampaignRepository([
+        { ...baseCampaign, templateFields: '<div/>' },
+      ], [], [], [characterPj]);
+      const queries = new CampaignQueries(repo);
+      const res = await queries.getCharacter(101, 2);
+      assert.equal(res.campaign.sheetMode, 'graphic');
+    });
+  });
+
   describe('getCampaignDiceRolls', () => {
     const campaign1: CampaignSummary = {
       id: 10,

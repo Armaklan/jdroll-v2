@@ -1,8 +1,9 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {useAuth} from '../contexts/AuthContext';
+import {useFeatures} from '../contexts/FeatureContext';
 import {campaignsApi} from '../api/campaigns';
-import {CampaignCharacter, CampaignWidget, CreateCampaignPayload, UpdateCampaignPayload, CampaignParticipant, PredefinedTheme} from '../types/campaign';
+import {CampaignCharacter, CampaignWidget, CreateCampaignPayload, UpdateCampaignPayload, CampaignParticipant, PredefinedTheme, SheetDefinition, SheetMode} from '../types/campaign';
 import {WysiwygEditor} from '../components/WysiwygEditor';
 import {
   Activity,
@@ -12,6 +13,7 @@ import {
   ChevronRight,
   Clock,
   Dices,
+  FileCode2,
   FileText,
   Image as ImageIcon,
   LayoutTemplate,
@@ -28,9 +30,11 @@ import {
   Ban,
 } from 'lucide-react';
 import {CharacterSheetRenderer} from '../components/CharacterSheetRenderer';
+import {ProgrammedSheetBuilder} from '../components/ProgrammedSheetBuilder';
 import {CampaignWidgetsConfig} from '../components/CampaignWidgetsConfig';
 import {parseWidgets, serializeWidgets} from '../utils/widgets';
 import {parseTemplateFields, serializeTemplateFields, TemplateField,} from '../utils/character-sheet';
+import {createEmptyDefinition, parseSheetDefinition, resolveSheetMode} from '../utils/programmed-sheet';
 
 interface CampaignFormPageProps {
   mode?: 'create' | 'edit';
@@ -76,6 +80,9 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const params = useParams<{ campaignId?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isFeatureEnabled } = useFeatures();
+
+  const isProgrammedSheetEnabled = isFeatureEnabled('programmed-sheet');
 
   const isEditMode = propMode === 'edit' || Boolean(params.campaignId);
   const campaignId = params.campaignId ? Number(params.campaignId) : 0;
@@ -147,6 +154,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
   // Character Sheet Configuration
   const [template, setTemplate] = useState<string>('');
+  const [sheetMode, setSheetMode] = useState<SheetMode>('technical');
+  const [sheetDefinition, setSheetDefinition] = useState<SheetDefinition>(createEmptyDefinition());
   const [sheetBgType, setSheetBgType] = useState<'image' | 'html'>('image');
   const [sheetImgMode, setSheetImgMode] = useState<'upload' | 'url'>('url');
   const [sheetImgUrl, setSheetImgUrl] = useState<string>('');
@@ -278,6 +287,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
         // Character Sheet
         setTemplate(campaign.template || '');
+        setSheetMode(resolveSheetMode(campaign));
+        setSheetDefinition(parseSheetDefinition(campaign.sheetDefinition) ?? createEmptyDefinition());
         const hasImgBg = Boolean(campaign.templateImg && campaign.templateImg.trim());
         setSheetBgType(hasImgBg ? 'image' : campaign.templateHtml ? 'html' : 'image');
         setSheetImgUrl(campaign.templateImg || '');
@@ -696,6 +707,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           templateImg: finalSheetImgValue,
           templateHtml: finalTemplateHtml,
           templateFields: serializedSheetFields,
+          sheetMode,
+          sheetDefinition: JSON.stringify(sheetDefinition),
           widgets: serializeWidgets(widgetsList),
         };
 
@@ -742,6 +755,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           templateImg: sheetBgType === 'image' ? initialSheetImg : '',
           templateHtml: initialTemplateHtml,
           templateFields: serializedSheetFields,
+          sheetMode,
+          sheetDefinition: JSON.stringify(sheetDefinition),
           widgets: serializeWidgets(widgetsList),
         };
 
@@ -2314,7 +2329,128 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         {/* TAB 4: Character Sheet */}
         {activeTab === 'sheet' && (
           <div className="space-y-8">
-            {/* Card 1: Description technique par défaut */}
+            {/* Card 0: Mode de feuille de personnage */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="border-b border-slate-100 pb-4">
+                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <Sliders className="w-5 h-5 text-indigo-600" />
+                  <span>Mode de feuille de personnage</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Détermine le type de fiche utilisée par les personnages de la campagne.
+                  {isProgrammedSheetEnabled
+                    ? ''
+                    : ' Le mode « Fiche programmée » nécessite l’activation de la fonctionnalité par un administrateur.'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" data-testid="sheet-mode-selector">
+                <label
+                  onClick={() => setSheetMode('technical')}
+                  className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition cursor-pointer ${
+                    sheetMode === 'technical'
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                  data-testid="sheet-mode-technical"
+                >
+                  <input
+                    type="radio"
+                    name="sheetMode"
+                    checked={sheetMode === 'technical'}
+                    onChange={() => setSheetMode('technical')}
+                    className="mt-0.5 accent-indigo-600"
+                  />
+                  <span className="space-y-0.5">
+                    <span className="block text-sm font-bold text-slate-800">Description technique</span>
+                    <span className="block text-xs text-slate-500">
+                      Fiche textuelle libre (les joueurs remplissent une description technique).
+                    </span>
+                  </span>
+                </label>
+
+                <label
+                  onClick={() => setSheetMode('graphic')}
+                  className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition cursor-pointer ${
+                    sheetMode === 'graphic'
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                  data-testid="sheet-mode-graphic"
+                >
+                  <input
+                    type="radio"
+                    name="sheetMode"
+                    checked={sheetMode === 'graphic'}
+                    onChange={() => setSheetMode('graphic')}
+                    className="mt-0.5 accent-indigo-600"
+                  />
+                  <span className="space-y-0.5">
+                    <span className="block text-sm font-bold text-slate-800">Fiche graphique</span>
+                    <span className="block text-xs text-slate-500">
+                      Image de fond avec des champs positionnés par-dessus.
+                    </span>
+                  </span>
+                </label>
+
+                <label
+                  onClick={() => isProgrammedSheetEnabled && setSheetMode('programmed')}
+                  className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition ${
+                    isProgrammedSheetEnabled
+                      ? 'cursor-pointer'
+                      : 'cursor-not-allowed opacity-50'
+                  } ${
+                    sheetMode === 'programmed'
+                      ? 'border-indigo-500 bg-indigo-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                  data-testid="sheet-mode-programmed"
+                >
+                  <input
+                    type="radio"
+                    name="sheetMode"
+                    checked={sheetMode === 'programmed'}
+                    onChange={() => isProgrammedSheetEnabled && setSheetMode('programmed')}
+                    disabled={!isProgrammedSheetEnabled}
+                    className="mt-0.5 accent-indigo-600"
+                  />
+                  <span className="space-y-0.5">
+                    <span className="block text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                      <FileCode2 className="w-4 h-4 text-indigo-600" />
+                      Fiche programmée
+                    </span>
+                    <span className="block text-xs text-slate-500">
+                      Fiche construite de zéro : pages, sections et composants.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Card programmée: builder de fiche */}
+            {sheetMode === 'programmed' && isProgrammedSheetEnabled && (
+              <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="border-b border-slate-100 pb-4">
+                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <FileCode2 className="w-5 h-5 text-indigo-600" />
+                    <span>Constructeur de fiche programmée</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Composez la fiche : des pages, contenant des sections (elles-mêmes
+                    imbriquables), avec une disposition horizontale ou verticale, et des
+                    composants (champs texte, numériques, listes, radios, scoring, labels...).
+                  </p>
+                </div>
+
+                <ProgrammedSheetBuilder
+                  definition={sheetDefinition}
+                  onChange={setSheetDefinition}
+                />
+              </div>
+            )}
+
+            {/* Card 1: Description technique par défaut (modes technique et graphique) */}
+            {sheetMode !== 'programmed' && (
             <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
               <div className="border-b border-slate-100 pb-4">
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -2335,8 +2471,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                 />
               </div>
             </div>
+            )}
 
-            {/* Card 2: Feuille de Personnage Graphique & Champs */}
+            {/* Card 2: Feuille de Personnage Graphique & Champs (mode graphique uniquement) */}
+            {sheetMode === 'graphic' && (
             <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
               <div className="border-b border-slate-100 pb-4">
                 <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -2531,6 +2669,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                 />
               </div>
             </div>
+            )}
           </div>
         )}
 

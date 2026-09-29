@@ -17,6 +17,7 @@ import { homeRoutes } from './controllers/home.controller.js';
 import { presenceRoutes } from './controllers/presence.controller.js';
 import { absenceRoutes } from './controllers/absence.controller.js';
 import { userRoutes } from './controllers/user.controller.js';
+import { featureRoutes } from './controllers/feature.controller.js';
 import { notificationListener } from './listeners/notification.listener.js';
 
 export async function buildApp() {
@@ -86,6 +87,7 @@ export async function buildApp() {
   await app.register(presenceRoutes);
   await app.register(absenceRoutes);
   await app.register(userRoutes);
+  await app.register(featureRoutes);
 
   return app;
 }

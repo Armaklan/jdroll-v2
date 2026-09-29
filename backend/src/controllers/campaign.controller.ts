@@ -135,6 +135,8 @@ const createCampaignBodySchema = z.object({
   templateImg: z.string().nullable().optional(),
   templateFields: z.string().nullable().optional(),
   widgets: z.string().nullable().optional(),
+  sheetMode: z.enum(['technical', 'graphic', 'programmed']).nullable().optional(),
+  sheetDefinition: z.string().nullable().optional(),
 });
 
 const updateCampaignBodySchema = createCampaignBodySchema.partial();
@@ -340,6 +342,7 @@ const updateCharacterBodySchema = z.object({
   assignedUserId: z.number().nullable().optional(),
   statut: z.number().optional(),
   persoFields: z.string().nullable().optional(),
+  sheetValues: z.string().nullable().optional(),
   widgets: z.string().optional(),
 });
 
@@ -1784,6 +1787,7 @@ export class CampaignController {
         assignedUserId: body.assignedUserId !== undefined ? body.assignedUserId : body.userId,
         statut: body.statut,
         persoFields: body.persoFields,
+        sheetValues: body.sheetValues,
         widgets: body.widgets,
       });
 

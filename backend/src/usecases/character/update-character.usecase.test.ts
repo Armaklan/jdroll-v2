@@ -259,4 +259,47 @@ describe('UpdateCharacterUseCase', () => {
       }
     );
   });
+
+  it('met à jour les valeurs de fiche programmée (sheetValues) du propriétaire', async () => {
+    const repo = new MockCampaignRepository([campaign1], categories, characters);
+    const useCase = new UpdateCharacterUseCase(repo);
+
+    const values = JSON.stringify({ 'comp-nom': 'Kaelen', 'comp-force': 4 });
+    const result = await useCase.execute({
+      characterId: 1,
+      userId: 5,
+      sheetValues: values,
+    });
+
+    assert.equal(result.sheetValues, values);
+    const updated = await repo.findCharacterById(1);
+    assert.equal(updated.sheetValues, values);
+  });
+
+  it('refuse des sheetValues qui ne sont pas un objet JSON valide', async () => {
+    const repo = new MockCampaignRepository([campaign1], categories, characters);
+    const useCase = new UpdateCharacterUseCase(repo);
+
+    await assert.rejects(
+      () => useCase.execute({ characterId: 1, userId: 5, sheetValues: 'pas du json' }),
+      ValidationError
+    );
+
+    await assert.rejects(
+      () => useCase.execute({ characterId: 1, userId: 5, sheetValues: '[1,2]' }),
+      ValidationError
+    );
+  });
+
+  it('permet d’effacer les valeurs de fiche programmée avec null', async () => {
+    const repo = new MockCampaignRepository([campaign1], categories, [
+      ...characters.map((c) => (c.id === 1 ? { ...c, sheetValues: '{"a":1}' } : c)),
+    ]);
+    const useCase = new UpdateCharacterUseCase(repo);
+
+    const result = await useCase.execute({ characterId: 1, userId: 5, sheetValues: null });
+    assert.equal(result.sheetValues, null);
+    const updated = await repo.findCharacterById(1);
+    assert.equal(updated.sheetValues, null);
+  });
 });
