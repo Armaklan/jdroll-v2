@@ -37,6 +37,7 @@ export interface PublicUserProfile {
   profil: number;
   subscribeDate: string | null;
   birthDate?: string | null;
+  lastActionDate: string | null;
   currentAbsences: Absence[];
   masteredCampaigns: ProfileCampaign[];
   playedCampaigns: ProfileCampaign[];
@@ -63,7 +64,7 @@ export interface MemberSummary {
 
 export interface HomeCommunityStats {
   latestRegistrations: HomeUserSummary[];
-  todayBirthdays: HomeUserSummary[];
+  upcomingBirthdays: HomeUserSummary[];
 }
 
 export interface CreateUserData {

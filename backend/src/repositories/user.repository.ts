@@ -12,8 +12,9 @@ export interface IUserRepository {
   updateNotificationSettings(id: number, settings: NotificationSettings): Promise<User>;
   updatePassword(id: number, currentPasswordHash: string, newPasswordHash: string): Promise<void>;
   updateLastAction(id: number): Promise<void>;
+  findLastActionDateByUser(userId: number): Promise<string | null>;
   findLatestRegistrations(limit: number): Promise<HomeUserSummary[]>;
-  findTodayBirthdays(): Promise<HomeUserSummary[]>;
+  findUpcomingBirthdays(days: number): Promise<HomeUserSummary[]>;
   findMembersWithAtLeastOnePost(): Promise<MemberSummary[]>;
 }
 
@@ -236,6 +237,14 @@ export class MysqlUserRepository implements IUserRepository {
     );
   }
 
+  async findLastActionDateByUser(userId: number): Promise<string | null> {
+    const row = await queryOne<{ time: string }>(
+      `SELECT time FROM last_action WHERE user_id = ? LIMIT 1`,
+      [userId]
+    );
+    return row?.time ?? null;
+  }
+
   async setPasswordResetToken(id: number, alea: string): Promise<void> {
     await execute(
       `UPDATE user SET reinitAlea = ?, reinitDate = NOW() WHERE id = ?`,
@@ -280,15 +289,21 @@ export class MysqlUserRepository implements IUserRepository {
     );
   }
 
-  async findTodayBirthdays(): Promise<HomeUserSummary[]> {
+  async findUpcomingBirthdays(days: number): Promise<HomeUserSummary[]> {
+    const safeDays = Math.min(Math.max(1, days), 365);
     return query<HomeUserSummary>(
-      `SELECT id, username, avatar, profil, birthDate
+      `SELECT id, username, avatar, profil, birthDate,
+              DATE_ADD(
+                birthDate,
+                INTERVAL YEAR(CURDATE()) - YEAR(birthDate)
+                  + (DATE_FORMAT(birthDate, '%m-%d') < DATE_FORMAT(CURDATE(), '%m-%d')) YEAR
+              ) AS upcomingDate
        FROM user
        WHERE birthDate IS NOT NULL
-         AND MONTH(birthDate) = MONTH(CURDATE())
-         AND DAY(birthDate) = DAY(CURDATE())
-       ORDER BY username ASC
-       LIMIT 20`
+       HAVING upcomingDate BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+       ORDER BY upcomingDate ASC, username ASC
+       LIMIT 20`,
+      [safeDays]
     );
   }
 

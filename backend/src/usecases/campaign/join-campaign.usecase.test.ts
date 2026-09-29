@@ -47,7 +47,7 @@ const mockUserRepo: IUserRepository = {
   async findLatestRegistrations(): Promise<any[]> {
     return [];
   },
-  async findTodayBirthdays(): Promise<any[]> {
+  async findUpcomingBirthdays(days: number): Promise<any[]> {
     return [];
   },
 };

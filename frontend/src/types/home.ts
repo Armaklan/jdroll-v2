@@ -9,5 +9,5 @@ export interface HomeUserSummary {
 
 export interface HomeCommunityStats {
   latestRegistrations: HomeUserSummary[];
-  todayBirthdays: HomeUserSummary[];
+  upcomingBirthdays: HomeUserSummary[];
 }

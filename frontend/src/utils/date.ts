@@ -76,6 +76,25 @@ export function formatDate(
 }
 
 /**
+ * Format jour et mois uniquement (anniversaire) : "J mois" (sans année)
+ */
+export function formatBirthdayDate(
+  dateInput?: string | Date | number | null,
+  fallback = ''
+): string {
+  const d = parseDbDate(dateInput);
+  if (!d) return typeof dateInput === 'string' && dateInput ? dateInput : fallback;
+  try {
+    return d.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+    });
+  } catch {
+    return typeof dateInput === 'string' && dateInput ? dateInput : fallback;
+  }
+}
+
+/**
  * Format jour seul : JJ/MM/AAAA (sans heure)
  */
 export function formatDayDate(

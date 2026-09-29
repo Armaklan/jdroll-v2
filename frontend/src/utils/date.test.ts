@@ -11,6 +11,7 @@ import {
   formatDateForInput,
   parseDateFromInput,
   formatDayDate,
+  formatBirthdayDate,
 } from './date.ts';
 
 describe('Date utils (French DB Timezone handling)', () => {
@@ -149,6 +150,26 @@ describe('Date utils (French DB Timezone handling)', () => {
 
     it('doit retourner la chaîne telle quelle si la date est invalide', () => {
       assert.strictEqual(formatDayDate('pas-une-date'), 'pas-une-date');
+    });
+  });
+
+  describe('formatBirthdayDate', () => {
+    it('doit formater une date de naissance en jour et mois, sans année', () => {
+      assert.strictEqual(formatBirthdayDate('1990-09-26'), '26 septembre');
+    });
+
+    it('doit formater une date complète sans année', () => {
+      assert.strictEqual(formatBirthdayDate('1985-12-03 00:00:00'), '3 décembre');
+    });
+
+    it('doit retourner le fallback pour null, undefined ou vide', () => {
+      assert.strictEqual(formatBirthdayDate(null), '');
+      assert.strictEqual(formatBirthdayDate(undefined), '');
+      assert.strictEqual(formatBirthdayDate(''), '');
+    });
+
+    it('doit retourner la chaîne telle quelle si la date est invalide', () => {
+      assert.strictEqual(formatBirthdayDate('pas-une-date'), 'pas-une-date');
     });
   });
 });

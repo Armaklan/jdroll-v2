@@ -25,6 +25,7 @@ export interface PublicUserProfile {
   profil: number;
   subscribeDate: string | null;
   birthDate?: string | null;
+  lastActionDate: string | null;
   currentAbsences: Absence[];
   masteredCampaigns: ProfileCampaign[];
   playedCampaigns: ProfileCampaign[];

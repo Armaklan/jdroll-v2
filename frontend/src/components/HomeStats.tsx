@@ -4,6 +4,7 @@ import { homeApi } from '../api/home';
 import { usePresence } from '../contexts/PresenceContext';
 import { HomeCommunityStats } from '../types/home';
 import { UserPseudoLink } from './UserPseudoLink';
+import { formatBirthdayDate } from '../utils/date';
 import { Cake, UserPlus, Users } from 'lucide-react';
 
 function formatSubscribeDate(date: string | null | undefined): string {
@@ -115,7 +116,7 @@ export const HomeStats: React.FC = () => {
         )}
       </div>
 
-      {/* Today's birthdays */}
+      {/* Upcoming birthdays (today + next 4 days) */}
       <div
         data-testid="home-stats-birthdays"
         className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs"
@@ -124,16 +125,20 @@ export const HomeStats: React.FC = () => {
           <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
             <Cake className="w-4 h-4 text-amber-600" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">Anniversaires du jour</h3>
+          <h3 className="text-sm font-bold text-slate-900">Anniversaires prochains</h3>
         </div>
-        {stats && stats.todayBirthdays.length > 0 ? (
+        {stats && stats.upcomingBirthdays.length > 0 ? (
           <ul>
-            {stats.todayBirthdays.map((user) => (
-              <UserListItem key={user.id} user={user} meta="Joyeux anniversaire !" />
+            {stats.upcomingBirthdays.map((user) => (
+              <UserListItem
+                key={user.id}
+                user={user}
+                meta={formatBirthdayDate(user.birthDate)}
+              />
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-slate-400">Aucun anniversaire aujourd'hui.</p>
+          <p className="text-sm text-slate-400">Aucun anniversaire dans les 5 prochains jours.</p>
         )}
       </div>
     </section>

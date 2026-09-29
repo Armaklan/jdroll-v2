@@ -73,12 +73,13 @@ test.describe('Profil public', () => {
     });
     expect(targetLogin.ok(), await targetLogin.text()).toBeTruthy();
 
-    // Le membre cible complète son profil et déclare une absence en cours
+    // Le membre cible complète son profil (date de naissance incluse) et déclare une absence en cours
     const profileResponse = await request.put('/api/auth/profile', {
       headers: { Authorization: `Bearer ${target.token}` },
       data: {
         description: '<p>Vieux rôliste du dimanche</p>',
         titre: 'Conteur émérite',
+        birthDate: '1990-05-05',
       },
     });
     expect(profileResponse.ok()).toBeTruthy();
@@ -100,6 +101,8 @@ test.describe('Profil public', () => {
     await expect(profile).toContainText(target.user.username);
     await expect(profile).toContainText('Conteur émérite');
     await expect(profile).toContainText('Vieux rôliste du dimanche');
+    await expect(profile).toContainText('Né(e) le 05/05/1990');
+    await expect(page.getByTestId('user-profile-last-activity')).toContainText('Dernière activité');
     await expect(page.getByTestId('user-profile-current-absences')).toContainText('Congés bien mérités');
   });
 
@@ -134,6 +137,19 @@ test.describe('Profil public', () => {
     });
     expect(acceptResponse.ok(), await acceptResponse.text()).toBeTruthy();
 
+    // Le joueur possède deux personnages dans la même campagne
+    for (const index of [1, 2]) {
+      const characterResponse = await request.post(`/api/campaigns/${campaign.id}/characters`, {
+        headers: { Authorization: `Bearer ${mj.token}` },
+        data: {
+          name: `Personnage ${index} ${suffix}`,
+          concept: 'Joueur à deux personnages',
+          userId: viewer.user.id,
+        },
+      });
+      expect(characterResponse.ok(), await characterResponse.text()).toBeTruthy();
+    }
+
     // Le profil du MJ affiche la campagne dans ses parties maîtrisées, avec l'indicateur ouverte
     await setBrowserToken(page, viewer.token);
     await page.goto(`/users/${mj.user.id}`);
@@ -155,6 +171,9 @@ test.describe('Profil public', () => {
     await expect(playedLink).toHaveAttribute('href', `/campaigns/${campaign.id}`);
     await expect(playedSection.getByTestId('user-profile-campaign-status')).toHaveText('Ouverte');
 
+    // Deux personnages dans la même campagne : la campagne n'apparaît qu'une seule fois
+    await expect(playedLink).toHaveCount(1);
+
     // Le MJ archive sa campagne : les deux profils affichent l'indicateur archivée
     const archiveResponse = await request.put(`/api/campaigns/${campaign.id}`, {
       headers: { Authorization: `Bearer ${mj.token}` },
@@ -166,6 +185,35 @@ test.describe('Profil public', () => {
     await expect(masteredSection.getByTestId('user-profile-campaign-status')).toHaveText('Archivée');
     await page.goto(`/users/${viewer.user.id}`);
     await expect(playedSection.getByTestId('user-profile-campaign-status')).toHaveText('Archivée');
+
+    // Une campagne ouverte apparaît avant les campagnes archivées
+    const openCreateResponse = await request.post('/api/campaigns', {
+      headers: { Authorization: `Bearer ${mj.token}` },
+      data: {
+        name: `Campagne ouverte profil ${suffix}`,
+        systeme: 'D&D 5e',
+        univers: 'Test',
+        description: 'Campagne de test du tri du profil',
+        nbJoueurs: 4,
+      },
+    });
+    expect(openCreateResponse.ok(), await openCreateResponse.text()).toBeTruthy();
+    const { campaign: openCampaign } = await openCreateResponse.json();
+
+    const openJoinResponse = await request.post(`/api/campaigns/${openCampaign.id}/join`, {
+      headers: { Authorization: `Bearer ${viewer.token}` },
+    });
+    expect(openJoinResponse.ok(), await openJoinResponse.text()).toBeTruthy();
+    const openAcceptResponse = await request.post(`/api/campaigns/${openCampaign.id}/participants/${viewer.user.id}/accept`, {
+      headers: { Authorization: `Bearer ${mj.token}` },
+    });
+    expect(openAcceptResponse.ok(), await openAcceptResponse.text()).toBeTruthy();
+
+    await page.goto(`/users/${viewer.user.id}`);
+    const playedLinks = playedSection.getByRole('link');
+    await expect(playedLinks).toHaveCount(2);
+    await expect(playedLinks.nth(0)).toHaveText(`Campagne ouverte profil ${suffix}`);
+    await expect(playedLinks.nth(1)).toHaveText(`Campagne parties profil ${suffix}`);
   });
 
   test("les derniers inscrits n'affichent que les membres qui se sont déjà connectés", async ({ page, request }) => {

@@ -94,8 +94,56 @@ test.describe('Authenticated homepage', () => {
     const registrations = page.locator('[data-testid="home-stats-registrations"]');
     await expect(registrations).toBeVisible();
 
-    // Today's birthdays block is displayed (even when empty)
+    // Upcoming birthdays block is displayed (even when empty)
     await expect(page.locator('[data-testid="home-stats-birthdays"]')).toBeVisible();
+    await expect(page.locator('[data-testid="home-stats-birthdays"]')).toContainText('Anniversaires prochains');
+  });
+
+  test('Upcoming birthdays block shows the pseudo with the birthday date (day and month only)', async ({ page }) => {
+    const birthdayOffsetDays = [0, 2, 4];
+    const stats = {
+      latestRegistrations: [],
+      upcomingBirthdays: birthdayOffsetDays.map((offset, index) => {
+        const date = new Date();
+        date.setDate(date.getDate() + offset);
+        const birthDate = `${1990 - index}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        return {
+          id: index + 1,
+          username: `joueur_anniversaire_${offset}`,
+          avatar: null,
+          profil: 0,
+          birthDate,
+        };
+      }),
+    };
+
+    await page.route('**/api/home/stats', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ stats }),
+      });
+    });
+
+    await page.goto('/');
+    const birthdays = page.locator('[data-testid="home-stats-birthdays"]');
+    await expect(birthdays).toBeVisible({ timeout: 10000 });
+
+    // Each upcoming birthday shows the pseudo followed by the date without year
+    for (let i = 0; i < birthdayOffsetDays.length; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + birthdayOffsetDays[i]);
+      const expectedDate = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+      const item = birthdays.locator('li').filter({ hasText: `joueur_anniversaire_${birthdayOffsetDays[i]}` });
+      await expect(item).toContainText(expectedDate);
+      expect(await item.textContent()).not.toContain(String(date.getFullYear()));
+    }
+
+    // Birthdays are ordered by upcoming date (today first)
+    const pseudos = await birthdays.locator('li').allTextContents();
+    expect(pseudos[0]).toContain('joueur_anniversaire_0');
+    expect(pseudos[1]).toContain('joueur_anniversaire_2');
+    expect(pseudos[2]).toContain('joueur_anniversaire_4');
   });
 
   test('Dashboard shows a 20 messages chat preview with a link to the chat', async ({ page }) => {

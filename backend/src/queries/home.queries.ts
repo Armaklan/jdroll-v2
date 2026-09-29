@@ -8,17 +8,17 @@ export class HomeQueries {
 
   /**
    * Statistiques de la communauté affichées sur la page d'accueil :
-   * derniers inscrits et anniversaires du jour.
+   * derniers inscrits et anniversaires à venir (jour même + 4 jours).
    */
   async getCommunityStats(): Promise<HomeCommunityStats> {
-    const [latestRegistrations, todayBirthdays] = await Promise.all([
+    const [latestRegistrations, upcomingBirthdays] = await Promise.all([
       this.userRepo.findLatestRegistrations(5),
-      this.userRepo.findTodayBirthdays(),
+      this.userRepo.findUpcomingBirthdays(4),
     ]);
 
     return {
       latestRegistrations,
-      todayBirthdays,
+      upcomingBirthdays,
     };
   }
 }

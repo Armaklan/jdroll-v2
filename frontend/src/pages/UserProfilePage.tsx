@@ -3,13 +3,14 @@ import { Link, useParams } from 'react-router-dom';
 import { usersApi } from '../api/users';
 import { PublicUserProfile } from '../types/user';
 import { getUserColorClass, isUserAdmin } from '../utils/user';
-import { formatDayDate } from '../utils/date';
+import { formatDayDate, formatDate } from '../utils/date';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, CalendarOff, BadgeCheck, Crown, Swords } from 'lucide-react';
 
 /**
  * Profil public d'un membre : avatar, pseudo, titre, description,
- * date d'inscription et absences en cours.
+ * date d'inscription, date de naissance, dernière activité
+ * et absences en cours.
  * Un administrateur peut affecter un titre depuis ce profil.
  */
 export function UserProfilePage() {
@@ -126,6 +127,16 @@ export function UserProfilePage() {
             {profile.subscribeDate && (
               <p className="text-xs text-slate-500 mt-1">
                 Membre depuis le {formatDayDate(profile.subscribeDate)}
+              </p>
+            )}
+            {profile.birthDate && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                Né(e) le {formatDayDate(profile.birthDate)}
+              </p>
+            )}
+            {profile.lastActionDate && (
+              <p className="text-xs text-slate-500 mt-0.5" data-testid="user-profile-last-activity">
+                Dernière activité le {formatDate(profile.lastActionDate)}
               </p>
             )}
           </div>

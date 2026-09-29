@@ -16,6 +16,20 @@ function toProfileCampaign(campaign: CampaignSummary): ProfileCampaign {
   return { id: campaign.id, name: campaign.name, isArchived: campaign.statut === 2 };
 }
 
+/**
+ * Campagnes visibles sur le profil public, dédoublonnées par campagne
+ * (un joueur peut y avoir plusieurs personnages) et triées :
+ * campagnes ouvertes d'abord, archivées ensuite.
+ */
+function toProfileCampaigns(campaigns: CampaignSummary[]): ProfileCampaign[] {
+  const byId = new Map<number, ProfileCampaign>();
+  for (const campaign of campaigns) {
+    if (!isVisibleOnProfile(campaign) || byId.has(campaign.id)) continue;
+    byId.set(campaign.id, toProfileCampaign(campaign));
+  }
+  return [...byId.values()].sort((a, b) => Number(a.isArchived) - Number(b.isArchived));
+}
+
 export class UserQueries {
   constructor(
     private readonly userRepo: IUserRepository = userRepository,
@@ -63,10 +77,11 @@ export class UserQueries {
       throw new UserNotFoundError(`Utilisateur avec l'ID ${userId} introuvable`);
     }
 
-    const [currentAbsences, masteredCampaigns, playedCampaigns] = await Promise.all([
+    const [currentAbsences, masteredCampaigns, playedCampaigns, lastActionDate] = await Promise.all([
       this.absenceRepo.findCurrentByUser(userId),
       this.campaignRepo.findMasteredCampaigns(userId, true),
       this.campaignRepo.findPlayerCampaigns(userId, true),
+      this.userRepo.findLastActionDateByUser(userId),
     ]);
 
     return {
@@ -78,9 +93,10 @@ export class UserQueries {
       profil: user.profil,
       subscribeDate: user.subscribe_date,
       birthDate: user.birthDate ?? null,
+      lastActionDate,
       currentAbsences,
-      masteredCampaigns: masteredCampaigns.filter(isVisibleOnProfile).map(toProfileCampaign),
-      playedCampaigns: playedCampaigns.filter(isVisibleOnProfile).map(toProfileCampaign),
+      masteredCampaigns: toProfileCampaigns(masteredCampaigns),
+      playedCampaigns: toProfileCampaigns(playedCampaigns),
     };
   }
 }

@@ -23,10 +23,19 @@ import { UserNotFoundError } from '../errors/domain.errors.js';
 class MockUserRepository implements IUserRepository {
   private users: User[] = [];
   private members: any[] = [];
+  private lastActions: Map<number, string | null> = new Map();
 
   constructor(users: User[] = [], members: any[] = []) {
     this.users = users;
     this.members = members;
+  }
+
+  async findLastActionDateByUser(userId: number): Promise<string | null> {
+    return this.lastActions.get(userId) ?? null;
+  }
+
+  setLastActionDate(userId: number, date: string | null): void {
+    this.lastActions.set(userId, date);
   }
 
   async findById(id: number): Promise<User | null> {
@@ -356,6 +365,14 @@ describe('UserQueries', () => {
       statut: 3,
     };
 
+    const masteredArchivedCampaign: CampaignSummary = {
+      ...masteredActiveCampaign,
+      id: 103,
+      name: 'Vieille campagne maîtrisée archivée',
+      statut: 2,
+      isArchived: true,
+    };
+
     const playedCampaign: CampaignSummary = {
       id: 201,
       name: 'Les Marais de Corvèche',
@@ -400,6 +417,27 @@ describe('UserQueries', () => {
       assert.deepEqual(profile.currentAbsences, [currentAbsence]);
     });
 
+    it('should return the birth date and the last activity date of the member', async () => {
+      const userRepo = new MockUserRepository([{ ...sampleUser, birthDate: '1990-05-05' }]);
+      userRepo.setLastActionDate(42, '2026-09-27 18:30:00');
+      const queries = new UserQueries(userRepo, new MockAbsenceRepository(), new MockCampaignRepository());
+
+      const profile = await queries.getPublicProfile(42);
+
+      assert.equal(profile.birthDate, '1990-05-05');
+      assert.equal(profile.lastActionDate, '2026-09-27 18:30:00');
+    });
+
+    it('should return a null last activity date when the member never logged in', async () => {
+      const userRepo = new MockUserRepository([sampleUser]);
+      const queries = new UserQueries(userRepo, new MockAbsenceRepository(), new MockCampaignRepository());
+
+      const profile = await queries.getPublicProfile(42);
+
+      assert.equal(profile.birthDate, null);
+      assert.equal(profile.lastActionDate, null);
+    });
+
     it('should list the campaigns the user masters (id, name, archived flag)', async () => {
       const userRepo = new MockUserRepository([sampleUser]);
       const queries = new UserQueries(
@@ -428,6 +466,38 @@ describe('UserQueries', () => {
       assert.deepEqual(profile.playedCampaigns, [
         { id: 201, name: 'Les Marais de Corvèche', isArchived: false },
       ]);
+    });
+
+    it('should list a campaign only once when the user has several characters in it', async () => {
+      const userRepo = new MockUserRepository([sampleUser]);
+      const queries = new UserQueries(
+        userRepo,
+        new MockAbsenceRepository(),
+        new MockCampaignRepository([], [playedCampaign, playedCampaign])
+      );
+
+      const profile = await queries.getPublicProfile(42);
+
+      assert.deepEqual(profile.playedCampaigns, [
+        { id: 201, name: 'Les Marais de Corvèche', isArchived: false },
+      ]);
+    });
+
+    it('should list open campaigns before archived ones', async () => {
+      const userRepo = new MockUserRepository([sampleUser]);
+      const queries = new UserQueries(
+        userRepo,
+        new MockAbsenceRepository(),
+        new MockCampaignRepository(
+          [masteredArchivedCampaign, masteredActiveCampaign],
+          [playedArchivedCampaign, playedCampaign]
+        )
+      );
+
+      const profile = await queries.getPublicProfile(42);
+
+      assert.deepEqual(profile.masteredCampaigns.map((c) => c.id), [101, 103]);
+      assert.deepEqual(profile.playedCampaigns.map((c) => c.id), [201, 202]);
     });
 
     it('should not expose read indicators or other campaign details', async () => {
