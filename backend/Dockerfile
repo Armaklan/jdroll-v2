@@ -22,6 +22,7 @@ COPY package*.json ./
 RUN npm install --omit=dev
 
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/db/migrations ./dist/db/migrations
 
 # Uploads directory
 RUN mkdir -p /app/files

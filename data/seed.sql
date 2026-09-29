@@ -18,8 +18,11 @@ INSERT INTO `user` (
 (2, 'testuser', '5f4dcc3b5aa765d61d8327deb882cf99', 'test@example.com', '', 'Joueur de test pour le développement local', 0, NOW(), 'Aventurier Novice', 1, 1, 1, 1, 0, 0, 0, 0, 1, 0),
 (3, 'joueur2', '5f4dcc3b5aa765d61d8327deb882cf99', 'joueur2@example.com', '', 'Deuxième compte joueur de test', 0, NOW(), 'Compagnon de route', 1, 1, 1, 1, 0, 0, 0, 0, 1, 0);
 
--- Insertion de la version initiale
-INSERT INTO `version` (`id`, `install_date`) VALUES (1, NOW());
+-- Insertion des versions : une base fraîche créée par create.sql contient déjà
+-- le schéma correspondant à toutes les migrations (voir backend/src/db/migrations.ts)
+INSERT INTO `version` (`id`, `install_date`) VALUES
+(1, NOW()), (2, NOW()), (3, NOW()), (4, NOW()), (5, NOW()), (6, NOW()),
+(7, NOW()), (8, NOW()), (9, NOW()), (10, NOW()), (11, NOW());
 
 -- Campagnes de test
 INSERT INTO `campagne` (
