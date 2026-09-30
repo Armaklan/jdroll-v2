@@ -31,6 +31,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
+import { AnnouncementsBanner } from '../components/AnnouncementsBanner';
 
 interface GeneralForumPageProps {
   onNavigate?: (view: AppView) => void;
@@ -623,6 +624,8 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
   return (
     <div className="space-y-6">
       <GlobalFloatingSearch activeTab="general-forum" />
+      {/* Annonces éditoriales visibles (entre create_date et end_date) */}
+      {isAuthenticated && <AnnouncementsBanner />}
       {/* En-tête du Forum Général */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden">
         <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-indigo-50 rounded-full blur-2xl opacity-60 pointer-events-none" />

@@ -637,3 +637,19 @@ export interface CampaignSearchResults {
   cartes: CampaignSearchCarteItem[];
   characters: CampaignSearchCharacterItem[];
 }
+
+export interface Annonce {
+  id: number;
+  title: string;
+  content: string;
+  createDate: string;
+  endDate: string;
+}
+
+export interface RawAnnonceRow {
+  id: number;
+  title: string;
+  content: string;
+  create_date: Date | string;
+  end_date: Date | string;
+}

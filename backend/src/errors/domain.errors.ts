@@ -77,6 +77,12 @@ export class CarteNotFoundError extends DomainError {
   }
 }
 
+export class AnnonceNotFoundError extends DomainError {
+  constructor(message = 'Annonce introuvable') {
+    super(message);
+  }
+}
+
 export class AbsenceNotFoundError extends DomainError {
   constructor(message = 'Absence introuvable') {
     super(message);

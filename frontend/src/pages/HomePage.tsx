@@ -9,6 +9,7 @@ import {HomeCampaignCarousel} from '../components/HomeCampaignCarousel';
 import {HomeStats} from '../components/HomeStats';
 import {HomeChatPreview} from '../components/HomeChatPreview';
 import {HomeRecentTopics} from '../components/HomeRecentTopics';
+import {AnnouncementsBanner} from '../components/AnnouncementsBanner';
 
 interface HomePageProps {
   onNavigateLogin?: () => void;
@@ -46,6 +47,9 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       {isAuthenticated && <GlobalFloatingSearch activeTab="none" />}
+
+      {/* Annonces éditoriales visibles (entre create_date et end_date) */}
+      {isAuthenticated && <AnnouncementsBanner />}
 
       {/* Hero section */}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white shadow-lg">
