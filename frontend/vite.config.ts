@@ -9,7 +9,7 @@ export default defineConfig({
     VitePWA({
       mode: 'development',
       base: '/',
-      includeAssets: ['favicon.svg', 'jdRoll-icon-monogramme.svg', 'jdroll-icon.svg'],
+      includeAssets: ['favicon.svg', 'jdroll-logo.svg'],
       manifest: {
         name: 'JdRoll - Forum & Jeu de Rôle',
         short_name: 'JdRoll',
@@ -19,13 +19,13 @@ export default defineConfig({
         display: 'standalone',
         icons: [
           {
-            src: '/jdRoll-icon-monogramme.svg',
+            src: 'favicon.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any maskable',
           },
           {
-            src: '/jdroll-icon.svg',
+            src: '/jdroll-logo.svg',
             sizes: 'any',
             type: 'image/svg+xml',
             purpose: 'any',
