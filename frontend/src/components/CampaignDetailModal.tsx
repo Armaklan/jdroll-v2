@@ -7,7 +7,6 @@ import { getRythmeLabel, getRpLabel } from '../utils/campaign-helpers';
 import { getUserColorClass } from '../utils/user';
 import {
   X,
-  Compass,
   Crown,
   Users,
   Sparkles,
@@ -162,9 +161,11 @@ export const CampaignDetailModal: React.FC<CampaignDetailModalProps> = ({
               }}
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-tr from-slate-900 via-indigo-950 to-slate-800 flex items-center justify-center">
-              <Compass className="w-16 h-16 text-indigo-400/30" />
-            </div>
+            <img
+              src="/ban-empty.png"
+              alt={campaign.name}
+              className="w-full h-full object-cover"
+            />
           )}
 
           {/* Close button */}

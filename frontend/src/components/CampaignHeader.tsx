@@ -11,7 +11,6 @@ import {
   Dices,
   Archive,
   CheckCircle2,
-  BookOpen,
   SlidersHorizontal,
   Upload,
   Loader2,
@@ -256,9 +255,11 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
             }}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center opacity-20">
-            <BookOpen className="w-24 h-24 text-white" />
-          </div>
+          <img
+            src="/ban-empty.png"
+            alt={campaign.name}
+            className="w-full h-full object-cover"
+          />
         )}
 
         {/* Gradient overlay and metadata */}

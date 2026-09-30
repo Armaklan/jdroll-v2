@@ -1608,9 +1608,11 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center opacity-30">
-                          <BookOpen className="w-16 h-16 text-white" />
-                        </div>
+                        <img
+                          src="/ban-empty.png"
+                          alt="Bannière par défaut"
+                          className="w-full h-full object-cover opacity-85"
+                        />
                       )}
                       <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/90 text-indigo-950 shadow-2xs">

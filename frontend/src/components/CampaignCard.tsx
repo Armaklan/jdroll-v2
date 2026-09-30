@@ -171,9 +171,11 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
               }}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center opacity-30">
-              <BookOpen className="w-16 h-16 " />
-            </div>
+            <img
+              src="/ban-empty.png"
+              alt={campaign.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
+            />
           )}
 
           {/* Top Badges overlay */}

@@ -137,9 +137,11 @@ export const HomeCampaignCarousel: React.FC<HomeCampaignCarouselProps> = ({ onOp
                       }}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 via-slate-100 to-purple-100">
-                      <BookOpen className="w-10 h-10 text-indigo-400" />
-                    </div>
+                    <img
+                      src="/ban-empty.png"
+                      alt={campaign.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   )}
                 </div>
 
