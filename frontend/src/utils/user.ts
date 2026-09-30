@@ -10,7 +10,7 @@ export function getUserColorClass(profil?: number | null, defaultClass: string =
     return 'text-red-600 ' + defaultClass;
   }
   if (p === 1) {
-    return 'text-purple-600' + defaultClass;
+    return 'text-purple-600 ' + defaultClass;
   }
   return defaultClass;
 }
