@@ -219,3 +219,13 @@ export function serializePersoFields(values: Record<string, string>): string {
   }
   return html;
 }
+
+/**
+ * Builds the inline text style for character sheet fields from
+ * `campagne_config.text_color`. Returns undefined when no color is
+ * configured so fields fall back to their default classes.
+ */
+export function fieldTextColorStyle(textColor?: string | null): { color: string } | undefined {
+  const trimmed = textColor?.trim();
+  return trimmed ? { color: trimmed } : undefined;
+}

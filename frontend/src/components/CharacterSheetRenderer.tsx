@@ -4,6 +4,7 @@ import {
   TemplateFieldType,
   parseTemplateFields,
   parsePersoFields,
+  fieldTextColorStyle,
 } from '../utils/character-sheet';
 import {
   Type,
@@ -32,6 +33,8 @@ export interface CharacterSheetRendererProps {
   persoFields?: string | null;
   values?: Record<string, string>;
   onValuesChange?: (values: Record<string, string>) => void;
+  // Campaign text color (campagne_config.text_color) applied to field values
+  textColor?: string | null;
   // Optional width
   canvasWidth?: string | number;
 }
@@ -48,6 +51,7 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
   persoFields: persoFieldsProp,
   values: controlledValues,
   onValuesChange,
+  textColor,
   canvasWidth,
 }) => {
   // Determine actual background type if not explicitly set
@@ -57,6 +61,9 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
   const effectiveCanvasWidth = canvasWidth
     ? (typeof canvasWidth === 'number' ? `${canvasWidth}px` : canvasWidth)
     : '800px';
+
+  // Inline text style from campagne_config.text_color (undefined = default classes)
+  const fieldTextStyle = fieldTextColorStyle(textColor);
 
   // Fields & MaxCount internal state
   const [internalFields, setInternalFields] = useState<TemplateField[]>(() => {
@@ -774,6 +781,7 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
                       value={fieldValue}
                       onChange={(e) => handleValueChange(field.linkId, e.target.value)}
                       placeholder={field.defaultValue || 'Saisir du texte...'}
+                      style={fieldTextStyle}
                       className="w-full h-full p-1.5 bg-white/95 hover:bg-white focus:bg-white border border-slate-300 focus:border-indigo-500 rounded text-xs text-slate-900 leading-tight resize-none shadow-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
                     />
                   ) : field.type === 'JDRollEditableSelect' ? (
@@ -781,6 +789,7 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
                       id={field.linkId}
                       value={fieldValue}
                       onChange={(e) => handleValueChange(field.linkId, e.target.value)}
+                      style={fieldTextStyle}
                       className="w-full h-full px-2 bg-white/95 hover:bg-white focus:bg-white border border-slate-300 focus:border-emerald-500 rounded text-xs text-slate-900 font-medium shadow-xs focus:outline-none focus:ring-1 focus:ring-emerald-400"
                     >
                       <option value="">-- Choisir --</option>
@@ -797,6 +806,7 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
                       value={fieldValue}
                       onChange={(e) => handleValueChange(field.linkId, e.target.value)}
                       placeholder={field.defaultValue || ''}
+                      style={fieldTextStyle}
                       className="w-full h-full px-2 bg-white/95 hover:bg-white focus:bg-white border border-slate-300 focus:border-indigo-500 rounded text-xs text-slate-900 shadow-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
                     />
                   )}
@@ -820,16 +830,25 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
                 className="overflow-hidden p-1 flex items-center rounded"
               >
                 {field.type === 'textarea' ? (
-                  <div className="w-full h-full text-xs text-slate-800 whitespace-pre-wrap leading-tight overflow-y-auto">
-                    {fieldValue || <span className="text-slate-300 italic">-</span>}
+                  <div
+                    style={fieldTextStyle}
+                    className="w-full h-full text-xs text-slate-400 whitespace-pre-wrap leading-tight overflow-y-auto "
+                  >
+                    {fieldValue || <span className="text-slate-400 italic">-</span>}
                   </div>
                 ) : field.type === 'JDRollEditableSelect' ? (
-                  <span className="text-xs font-semibold text-emerald-950 truncate px-1">
-                    {fieldValue || <span className="text-slate-300 italic">-</span>}
+                  <span
+                    style={fieldTextStyle}
+                    className="text-xs font-semibold text-slate-400 truncate px-1.5"
+                  >
+                    {fieldValue || <span className="text-slate-400 italic">-</span>}
                   </span>
                 ) : (
-                  <span className="text-xs font-medium text-slate-900 truncate px-1">
-                    {fieldValue || <span className="text-slate-300 italic">-</span>}
+                  <span
+                    style={fieldTextStyle}
+                    className="text-xs font-medium text-slate-900 truncate px-1.5"
+                  >
+                    {fieldValue || <span className="text-slate-400 italic">-</span>}
                   </span>
                 )}
               </div>

@@ -1317,6 +1317,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                       templateHtml={selectedCharacter.templateHtml || data?.campaign?.templateHtml}
                       templateFields={selectedCharacter.templateFields || data?.campaign?.templateFields}
                       persoFields={selectedCharacter.persoFields}
+                      textColor={data?.campaign?.textColor}
                     />
                   </div>
                 );
@@ -1791,6 +1792,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                         onValuesChange={(newValues) =>
                           setFormData((prev) => ({ ...prev, persoFields: newValues }))
                         }
+                        textColor={data?.campaign?.textColor}
                       />
                     </div>
                   );

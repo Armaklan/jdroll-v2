@@ -389,6 +389,7 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
                       templateHtml={character.templateHtml || campaign?.templateHtml}
                       templateFields={character.templateFields || campaign?.templateFields}
                       persoFields={character.persoFields}
+                      textColor={campaign?.textColor}
                     />
                   </div>
                 );
