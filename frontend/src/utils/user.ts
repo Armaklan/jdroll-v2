@@ -7,10 +7,10 @@
 export function getUserColorClass(profil?: number | null, defaultClass: string = ''): string {
   const p = Number(profil);
   if (p === 2) {
-    return 'text-red-600 font-semibold';
+    return 'text-red-600 ' + defaultClass;
   }
   if (p === 1) {
-    return 'text-purple-600 font-semibold';
+    return 'text-purple-600' + defaultClass;
   }
   return defaultClass;
 }
