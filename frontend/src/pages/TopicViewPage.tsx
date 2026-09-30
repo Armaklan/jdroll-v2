@@ -1068,7 +1068,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                     {/* Avatar */}
                     <div className="relative">
                       {isSystem ? (
-                        <div className="w-18 h-18 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border-2 border-indigo-400 flex items-center justify-center font-bold text-2xl shadow-xs">
+                        <div className="w-14 h-14 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white border-2 border-indigo-400 flex items-center justify-center font-bold text-2xl shadow-xs">
                           <Dices className="w-7 h-7" />
                         </div>
                       ) : avatarUrl ? (
@@ -1076,7 +1076,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                           src={avatarUrl}
                           alt={authorName}
                           onClick={() => post.perso && setViewingCharacterId(post.perso.id)}
-                          className={`w-18 h-18 md:w-28 md:h-28 rounded-2xl object-cover border-2 border-slate-200 shadow-xs ${
+                          className={`w-14 h-14 md:w-28 md:h-28 rounded-2xl object-cover border-2 border-slate-200 shadow-xs ${
                             post.perso ? 'cursor-pointer hover:opacity-90 hover:ring-2 hover:ring-indigo-400 transition' : ''
                           }`}
                           title={post.perso ? `Voir la fiche de ${authorName}` : undefined}
@@ -1084,7 +1084,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                       ) : (
                         <div
                           onClick={() => post.perso && setViewingCharacterId(post.perso.id)}
-                          className={`w-18 h-18 md:w-28 md:h-28 rounded-2xl bg-indigo-100 text-indigo-700 border-2 border-indigo-200 flex items-center justify-center font-bold text-base md:text-xl shadow-xs ${
+                          className={`w-14 h-14 md:w-28 md:h-28 rounded-2xl bg-indigo-100 text-indigo-700 border-2 border-indigo-200 flex items-center justify-center font-bold text-base md:text-xl shadow-xs ${
                             post.perso ? 'cursor-pointer hover:bg-indigo-200 transition' : ''
                           }`}
                           title={post.perso ? `Voir la fiche de ${authorName}` : undefined}
