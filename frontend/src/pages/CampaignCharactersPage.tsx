@@ -94,12 +94,13 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
   onBack,
 }) => {
   const params = useParams<{ campaignId: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const effectiveCampaignId = campaignId ?? (params.campaignId ? Number(params.campaignId) : 0);
 
   const charParam = searchParams.get('char') || searchParams.get('characterId');
+  const editParam = searchParams.get('edit');
 
   const [data, setData] = useState<CampaignCharactersData | null>(null);
   const [participants, setParticipants] = useState<CampaignParticipant[]>([]);
@@ -229,6 +230,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
   }, [effectiveCampaignId]);
 
   // Handle opening character modal from URL query param (?char=... or ?characterId=...)
+  // ?edit=1 ouvre en plus directement le personnage en édition (lien "Éditer" en nouvel onglet)
   useEffect(() => {
     if (data && charParam) {
       const charId = Number(charParam);
@@ -237,12 +239,26 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           const found = cat.characters.find((c) => c.id === charId);
           if (found) {
             setSelectedCharacter(found);
+            if (editParam === '1' && canEditCharacter(found)) {
+              openEditForm(found);
+            }
             break;
           }
         }
       }
+      if (editParam === '1') {
+        // Nettoie le paramètre pour ne pas rouvrir l'édition au rechargement des données
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('edit');
+            return next;
+          },
+          { replace: true }
+        );
+      }
     }
-  }, [data, charParam]);
+  }, [data, charParam, editParam]);
 
   // Handle escape key to close modals
   useEffect(() => {
@@ -301,10 +317,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = (char: CampaignCharacter, e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
-    }
+  const openEditForm = (char: CampaignCharacter) => {
     setEditingCharacter(char);
     setFormData({
       name: char.name,
@@ -323,6 +336,13 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
     setUploadError(null);
     setFormError(null);
     setIsFormOpen(true);
+  };
+
+  const handleOpenEdit = (char: CampaignCharacter, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    openEditForm(char);
   };
 
   const handleUpdateSelectedCharacterWidget = async (widgetId: string, delta: number) => {
@@ -1088,14 +1108,22 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                 )}
 
                 {canEditCharacter(selectedCharacter) && (
-                  <button
-                    onClick={() => handleOpenEdit(selectedCharacter)}
+                  <a
+                    href={`/campaigns/${effectiveCampaignId}/characters?char=${selectedCharacter.id}&edit=1`}
+                    onClick={(e) => {
+                      // Allow default behavior for Ctrl+Click, Shift+Click, middle click (button 1), or right-click (button 2)
+                      if (e.ctrlKey || e.shiftKey || e.metaKey || e.button === 1 || e.button === 2) {
+                        return;
+                      }
+                      e.preventDefault();
+                      handleOpenEdit(selectedCharacter);
+                    }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition border border-indigo-200 cursor-pointer"
                     title="Modifier la fiche du personnage"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                     <span>Éditer</span>
-                  </button>
+                  </a>
                 )}
 
                 <button

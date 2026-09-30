@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignCharacter, CampaignSummary } from '../types/campaign';
@@ -19,6 +20,7 @@ import {
   LayoutTemplate,
   Loader2,
   AlertCircle,
+  Edit2,
 } from 'lucide-react';
 
 interface CharacterDetailModalProps {
@@ -41,6 +43,7 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
   onUpdateCharacterWidget,
 }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [character, setCharacter] = useState<CampaignCharacter | null>(initialCharacter || null);
   const [campaign, setCampaign] = useState<CampaignSummary | null>(initialCampaign || null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -102,6 +105,8 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
   );
   const isOwner = Boolean(user && character?.userId === user.id);
   const canSeePrivate = isMj || isOwner;
+  const canEditCharacter = isMj || isOwner;
+  const editCampaignId = campaignId || campaign?.id || character?.campagneId || null;
 
   const handleUpdateWidget = async (widgetId: string, delta: number) => {
     if (!character) return;
@@ -153,13 +158,35 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
             )}
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-            title="Fermer la fiche"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {character && canEditCharacter && editCampaignId && (
+              <a
+                href={`/campaigns/${editCampaignId}/characters?char=${character.id}&edit=1`}
+                onClick={(e) => {
+                  // Allow default behavior for Ctrl+Click, Shift+Click, middle click (button 1), or right-click (button 2)
+                  if (e.ctrlKey || e.shiftKey || e.metaKey || e.button === 1 || e.button === 2) {
+                    return;
+                  }
+                  e.preventDefault();
+                  onClose();
+                  navigate(`/campaigns/${editCampaignId}/characters?char=${character.id}&edit=1`);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition border border-indigo-200 cursor-pointer"
+                title="Modifier la fiche du personnage"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Éditer</span>
+              </a>
+            )}
+
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              title="Fermer la fiche"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Body */}
