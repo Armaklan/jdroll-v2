@@ -369,7 +369,7 @@ export const CharacterSheetRenderer: React.FC<CharacterSheetRendererProps> = ({
       : selectedField?.height || 0;
 
   return (
-    <div className="space-y-4">
+    <div className="no-swipe space-y-4">
       {/* 1. Control Palette & Active Field Toolbar (Only in edit-sheet mode) */}
       {mode === 'edit-sheet' && (
         <div className="character-sheet-toolbar bg-slate-900 text-white rounded-2xl p-4 shadow-md space-y-4">

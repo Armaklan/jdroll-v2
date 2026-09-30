@@ -277,7 +277,7 @@ export const ProgrammedSheetRenderer: React.FC<ProgrammedSheetRendererProps> = (
   };
 
   return (
-    <div className="space-y-4" data-testid="programmed-sheet-renderer">
+    <div className="no-swipe space-y-4" data-testid="programmed-sheet-renderer">
       {definition.pages.length > 1 && (
         <div className="flex flex-wrap gap-1.5 border-b border-slate-100 pb-2">
           {definition.pages.map((page, index) => (

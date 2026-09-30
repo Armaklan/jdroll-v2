@@ -841,7 +841,7 @@ export const CampaignCarteViewerPage: React.FC = () => {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               onTouchCancel={handleTouchEnd}
-              className={`flex-1 relative overflow-hidden bg-slate-950 flex items-center justify-center ${
+              className={`flex-1 relative overflow-hidden bg-slate-950 flex items-center justify-center no-swipe ${
                   isPanning ? 'cursor-grabbing' : 'cursor-grab'
               }`}
               style={{ touchAction: 'none' }}

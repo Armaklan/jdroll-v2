@@ -116,7 +116,7 @@ export const HomeCampaignCarousel: React.FC<HomeCampaignCarouselProps> = ({ onOp
         <div
           ref={trackRef}
           data-testid="home-campaign-carousel-track"
-          className="flex gap-4 [justify-content:safe_center] overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mb-2"
+          className="no-swipe flex gap-4 [justify-content:safe_center] overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mb-2"
         >
           {campaigns.map((campaign) => {
             return (
