@@ -28,11 +28,12 @@
 .pensee {
   color: var(--pensee-color, #8844CC) !important;
   font-style: italic;
+  font-weight: bold;
 }
 
 .dialogue {
   color: var(--dialogue-color, #4488CC) !important;
-  font-weight: 500;
+  font-weight: bold;
 }
 
 .rp1 {
