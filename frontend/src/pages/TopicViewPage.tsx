@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
+import { getToken } from '../api/auth';
 import { TopicDetail, CharacterSummary } from '../types/campaign';
 import { AppView, viewToPath } from '../components/Navbar';
 import { useAuth } from '../contexts/AuthContext';
@@ -39,6 +40,7 @@ import {
   User as UserIcon,
   CheckCircle2,
   Dices,
+  BellRing,
   Sparkles,
   HelpCircle,
   ChevronDown,
@@ -86,6 +88,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
   // Formulaire d'envoi de message
   const [postContent, setPostContent] = useState<string>('');
+  const [replyFocusSignal, setReplyFocusSignal] = useState<number>(0);
   const [selectedPersoId, setSelectedPersoId] = useState<number | null>(null);
   const [draftStatus, setDraftStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
@@ -119,6 +122,11 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
 
   // État de visualisation de la fiche d'un personnage
   const [viewingCharacterId, setViewingCharacterId] = useState<number | null>(null);
+
+  // Détection de nouveaux messages pendant la lecture du sujet
+  const [newPostsCount, setNewPostsCount] = useState<number>(0);
+  const lastKnownPostIdRef = useRef<number | null>(null);
+  const unseenPostIdsRef = useRef<Set<number>>(new Set());
 
   const previewRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -231,10 +239,112 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     try {
       const data = await campaignsApi.getTopicPosts(effectiveTopicId, pageToFetch);
       setTopicDetail(data);
+      setNewPostsCount(0);
+      unseenPostIdsRef.current.clear();
     } catch (err: any) {
       setError(err.message || 'Impossible de charger les messages du sujet.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Suit le dernier message connu pour détecter les nouveaux messages postés
+  useEffect(() => {
+    if (topicDetail?.posts?.length) {
+      lastKnownPostIdRef.current = Math.max(...topicDetail.posts.map((p) => p.id));
+    }
+  }, [topicDetail]);
+
+  // Connexion WebSocket au sujet consulté : avertit en direct des nouveaux messages
+  useEffect(() => {
+    if (!effectiveTopicId || !isAuthenticated) return;
+    const token = getToken();
+    if (!token) return;
+
+    let cancelled = false;
+    let reconnectAttempts = 0;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let ws: WebSocket | null = null;
+
+    const connect = () => {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${protocol}//${window.location.host}/api/topics/ws?token=${encodeURIComponent(token)}`);
+
+      ws.onopen = () => {
+        reconnectAttempts = 0;
+        if (!cancelled && ws) {
+          ws.send(JSON.stringify({ type: 'subscribe_topic', topicId: effectiveTopicId }));
+        }
+      };
+
+      ws.onmessage = (event) => {
+        if (cancelled) return;
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type !== 'topic_new_posts' || data.topicId !== effectiveTopicId) {
+            return;
+          }
+          // Son propre message : le sujet est déjà rafraîchi après publication
+          if (data.userId !== null && data.userId !== undefined && user && data.userId === user.id) {
+            return;
+          }
+          const postId = Number(data.postId);
+          const lastKnown = lastKnownPostIdRef.current;
+          // Message déjà affiché (ex: événement reçu après un rafraîchissement)
+          if (!postId || (lastKnown !== null && postId <= lastKnown)) {
+            return;
+          }
+          if (!unseenPostIdsRef.current.has(postId)) {
+            unseenPostIdsRef.current.add(postId);
+            setNewPostsCount(unseenPostIdsRef.current.size);
+          }
+        } catch {
+          // Message invalide ignoré
+        }
+      };
+
+      ws.onclose = () => {
+        if (cancelled) return;
+        // Reconnexion progressive (5s max) tant que le sujet est affiché
+        const delay = Math.min(1000 + reconnectAttempts * 1000, 5000);
+        reconnectAttempts += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+
+      ws.onerror = () => {
+        ws?.close();
+      };
+    };
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+        ws = null;
+      }
+    };
+  }, [effectiveTopicId, isAuthenticated, user?.id]);
+
+  const handleRefreshNewPosts = async () => {
+    setNewPostsCount(0);
+    unseenPostIdsRef.current.clear();
+    if (!topicDetail) return;
+    if (topicDetail.page === 0) {
+      // Page "Tous" : on recharge l'affichage complet
+      await fetchTopic(0);
+    } else if (topicDetail.page !== 1) {
+      // Les nouveaux messages sont sur la page 1 (messages les plus récents)
+      const campId = topicDetail.campagneId ?? (params.campaignId ? Number(params.campaignId) : 0);
+      navigate(`/forum/${campId}/${effectiveTopicId}/page/1`);
+    } else {
+      await fetchTopic(1);
     }
   };
 
@@ -433,6 +543,8 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     const authorName = post.perso?.name || post.user?.username || 'Anonyme';
     const quotedContent = `<blockquote><strong>${authorName} a écrit :</strong><br>${post.content}</blockquote><p><br></p>`;
     setPostContent((prev) => prev + quotedContent);
+    formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setReplyFocusSignal((n) => n + 1);
   };
 
   const handleCancelEdit = () => {
@@ -1692,6 +1804,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
               placeholder="Écrivez votre message RP ou vos remarques de jeu..."
               disabled={isSubmitting}
               minHeight="160px"
+              focusSignal={replyFocusSignal}
               campaignId={topicDetail?.campagneId ?? undefined}
               availableCharacters={topicDetail?.availableCharacters}
               availableUsers={availableUsers}
@@ -1766,6 +1879,28 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
         />
         {(!topicDetail.campagneId || topicDetail.campagneId === 0) && (
           <GlobalFloatingSearch activeTab="general-forum" />
+        )}
+
+        {/* Snackbar : de nouveaux messages ont été postés pendant la lecture */}
+        {newPostsCount > 0 && (
+          <div
+            data-testid="topic-new-posts-snackbar"
+            role="status"
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-3 bg-slate-900 border border-slate-700 text-white rounded-2xl shadow-lg"
+          >
+            <BellRing className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="text-sm font-semibold whitespace-nowrap">
+              {newPostsCount} {newPostsCount > 1 ? 'nouveaux messages' : 'nouveau message'}
+            </span>
+            <button
+              type="button"
+              onClick={handleRefreshNewPosts}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Rafraîchir</span>
+            </button>
+          </div>
         )}
       </div>
     </div>

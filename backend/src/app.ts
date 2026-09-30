@@ -15,6 +15,7 @@ import { carteRoutes } from './controllers/carte.controller.js';
 import { chatRoutes } from './controllers/chat.controller.js';
 import { homeRoutes } from './controllers/home.controller.js';
 import { presenceRoutes } from './controllers/presence.controller.js';
+import { topicWebSocketRoutes } from './controllers/topic-websocket.controller.js';
 import { absenceRoutes } from './controllers/absence.controller.js';
 import { userRoutes } from './controllers/user.controller.js';
 import { featureRoutes } from './controllers/feature.controller.js';
@@ -86,6 +87,7 @@ export async function buildApp() {
   await app.register(chatRoutes);
   await app.register(homeRoutes);
   await app.register(presenceRoutes);
+  await app.register(topicWebSocketRoutes);
   await app.register(absenceRoutes);
   await app.register(userRoutes);
   await app.register(featureRoutes);

@@ -54,6 +54,7 @@ interface WysiwygEditorProps {
   availableCharacters?: Array<{ id: number; name: string; concept?: string; avatar?: string }>;
   availableUsers?: Array<{ id?: number; username: string; avatar?: string }>;
   availableCartes?: Array<{ id: number; name: string }>;
+  focusSignal?: number;
 }
 
 export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
@@ -67,8 +68,10 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   availableCharacters,
   availableUsers,
   availableCartes,
+  focusSignal,
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
+  const sourceRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSourceMode, setIsSourceMode] = useState<boolean>(false);
   const isUpdatingFromProp = useRef<boolean>(false);
@@ -150,6 +153,30 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       savedRangeRef.current = selection.getRangeAt(0).cloneRange();
     }
   };
+
+  // Focus sur demande externe (ex: citation d'un message), curseur placé en fin de texte
+  useEffect(() => {
+    if (!focusSignal) return;
+    if (isSourceMode) {
+      const textarea = sourceRef.current;
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      }
+      return;
+    }
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+    const selection = window.getSelection();
+    if (selection) {
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+  }, [focusSignal, isSourceMode]);
 
   // Synchronise le contenu externe avec le contentEditable quand ce n'est pas l'utilisateur qui tape
   useEffect(() => {
@@ -1513,6 +1540,7 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       {/* Zone d'édition */}
       {isSourceMode ? (
         <textarea
+          ref={sourceRef}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
