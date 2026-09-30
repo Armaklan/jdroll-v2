@@ -80,12 +80,17 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
   // Image Modal state
   const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false);
-  const [imageModalMode, setImageModalMode] = useState<'upload' | 'url'>('upload');
+  const [imageModalMode, setImageModalMode] = useState<'upload' | 'url' | 'edit'>('upload');
   const [imageUrlInput, setImageUrlInput] = useState<string>('');
   const [isModalDragging, setIsModalDragging] = useState<boolean>(false);
   const modalFileInputRef = useRef<HTMLInputElement>(null);
   const [modalSelectedFile, setModalSelectedFile] = useState<File | null>(null);
   const [modalPreviewUrl, setModalPreviewUrl] = useState<string | null>(null);
+
+  // Image size state (insertion & edition)
+  const [imageWidthInput, setImageWidthInput] = useState<string>('');
+  const [imageHeightInput, setImageHeightInput] = useState<string>('');
+  const editingImageRef = useRef<HTMLImageElement | null>(null);
 
   // More options & Table states
   const [showMoreOptions, setShowMoreOptions] = useState<boolean>(false);
@@ -218,7 +223,11 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
   };
 
-  const insertImageAtCursor = (url: string, alt: string = 'Image') => {
+  const insertImageAtCursor = (
+    url: string,
+    alt: string = 'Image',
+    size?: { width?: string | null; height?: string | null }
+  ) => {
     if (disabled || isSourceMode) return;
     if (editorRef.current) {
       editorRef.current.focus();
@@ -237,7 +246,14 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     img.alt = alt;
     img.className = 'rounded-xl max-w-full my-2 inline-block shadow-xs border border-slate-200';
     img.style.maxWidth = '100%';
-    img.style.height = 'auto';
+    if (size?.width) {
+      img.style.width = size.width;
+    }
+    if (size?.height) {
+      img.style.height = size.height;
+    } else {
+      img.style.height = 'auto';
+    }
 
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0 && editorRef.current?.contains(selection.anchorNode)) {
@@ -289,6 +305,20 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // Paste handler: une image dans le presse-papiers est uploadée comme via le bouton image
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (disabled || isSourceMode) return;
+    const files = e.clipboardData?.files;
+    if (!files || files.length === 0) return;
+
+    const imageFile = Array.from(files).find((f) => f.type.startsWith('image/'));
+    if (!imageFile) return;
+
+    e.preventDefault();
+    saveSelection();
+    handleProcessImageFile(imageFile);
   };
 
   // Drag & drop handlers on editor
@@ -485,14 +515,45 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   };
 
   // Image Modal Submission
+  const normalizeImageSize = (raw: string): string | null => {
+    const trimmed = raw.trim().toLowerCase();
+    if (!trimmed) return null;
+    if (/^\d+$/.test(trimmed)) return `${trimmed}px`;
+    if (/^\d+(px|%)$/.test(trimmed)) return trimmed;
+    return null;
+  };
+
+  const getImageSizeInput = (): { width?: string | null; height?: string | null } => {
+    const width = normalizeImageSize(imageWidthInput);
+    const height = normalizeImageSize(imageHeightInput);
+    return { width, height };
+  };
+
   const handleOpenImageModal = () => {
     saveSelection();
+    editingImageRef.current = null;
     setIsImageModalOpen(true);
     setImageUrlInput('');
+    setImageWidthInput('');
+    setImageHeightInput('');
     setModalSelectedFile(null);
     setModalPreviewUrl(null);
     setUploadError(null);
     setImageModalMode(onUploadImage ? 'upload' : 'url');
+  };
+
+  const handleOpenEditImageModal = (img: HTMLImageElement) => {
+    if (disabled || isSourceMode) return;
+    saveSelection();
+    editingImageRef.current = img;
+    setImageUrlInput(img.getAttribute('src') || '');
+    setImageWidthInput(img.style.width || '');
+    setImageHeightInput(img.style.height || '');
+    setModalSelectedFile(null);
+    setModalPreviewUrl(null);
+    setUploadError(null);
+    setImageModalMode('edit');
+    setIsImageModalOpen(true);
   };
 
   const handleOpenTableModal = () => {
@@ -513,9 +574,30 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
 
   const handleConfirmImageModal = async (e?: React.SyntheticEvent) => {
     if (e) e.preventDefault();
+    if (imageModalMode === 'edit') {
+      const img = editingImageRef.current;
+      if (img) {
+        const width = normalizeImageSize(imageWidthInput);
+        const height = normalizeImageSize(imageHeightInput);
+        if (width) {
+          img.style.width = width;
+        } else {
+          img.style.removeProperty('width');
+        }
+        if (height) {
+          img.style.height = height;
+        } else {
+          img.style.removeProperty('height');
+        }
+        handleInput();
+      }
+      editingImageRef.current = null;
+      setIsImageModalOpen(false);
+      return;
+    }
     if (imageModalMode === 'url') {
       if (!imageUrlInput.trim()) return;
-      insertImageAtCursor(imageUrlInput.trim());
+      insertImageAtCursor(imageUrlInput.trim(), 'Image', getImageSizeInput());
       setIsImageModalOpen(false);
     } else {
       if (!modalSelectedFile) {
@@ -524,15 +606,16 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
       setIsUploading(true);
       setUploadError(null);
+      const size = getImageSizeInput();
       try {
         if (onUploadImage) {
           const url = await onUploadImage(modalSelectedFile);
-          insertImageAtCursor(url, modalSelectedFile.name);
+          insertImageAtCursor(url, modalSelectedFile.name, size);
         } else {
           const reader = new FileReader();
           reader.onload = (ev) => {
             const res = ev.target?.result as string;
-            if (res) insertImageAtCursor(res, modalSelectedFile.name);
+            if (res) insertImageAtCursor(res, modalSelectedFile.name, size);
           };
           reader.readAsDataURL(modalSelectedFile);
         }
@@ -1448,7 +1531,14 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           onBlur={handleInput}
           onKeyUp={checkCursorPosition}
           onMouseUp={checkCursorPosition}
-          onClick={checkCursorPosition}
+          onPaste={handlePaste}
+          onClick={(e) => {
+            checkCursorPosition();
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'IMG') {
+              handleOpenEditImageModal(target as HTMLImageElement);
+            }
+          }}
           onFocus={checkCursorPosition}
           style={{ minHeight, maxHeight: '400px' }}
           data-placeholder={placeholder}
@@ -1478,7 +1568,7 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <ImageIcon className="w-5 h-5 text-indigo-600" />
-                <span>Insérer une image</span>
+                <span>{imageModalMode === 'edit' ? "Modifier l'image" : 'Insérer une image'}</span>
               </h3>
               <button
                 type="button"
@@ -1497,32 +1587,34 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
             )}
 
             {/* Tabs Mode */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl mb-4 text-xs font-semibold">
-              <button
-                type="button"
-                onClick={() => setImageModalMode('upload')}
-                className={`flex-1 py-1.5 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                  imageModalMode === 'upload'
-                    ? 'bg-white text-indigo-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Uploader (Drag & Drop)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setImageModalMode('url')}
-                className={`flex-1 py-1.5 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                  imageModalMode === 'url'
-                    ? 'bg-white text-indigo-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <LinkIcon className="w-3.5 h-3.5" />
-                <span>URL Web</span>
-              </button>
-            </div>
+            {imageModalMode !== 'edit' && (
+              <div className="flex items-center bg-slate-100 p-1 rounded-xl mb-4 text-xs font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setImageModalMode('upload')}
+                  className={`flex-1 py-1.5 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    imageModalMode === 'upload'
+                      ? 'bg-white text-indigo-600 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Uploader (Drag & Drop)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setImageModalMode('url')}
+                  className={`flex-1 py-1.5 rounded-lg transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    imageModalMode === 'url'
+                      ? 'bg-white text-indigo-600 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  <span>URL Web</span>
+                </button>
+              </div>
+            )}
 
             <div className="space-y-4">
               {imageModalMode === 'upload' ? (
@@ -1596,7 +1688,7 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                     )}
                   </div>
                 </div>
-              ) : (
+              ) : imageModalMode === 'url' ? (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                     Adresse URL de l'image <span className="text-red-500">*</span>
@@ -1629,7 +1721,51 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                     </div>
                   )}
                 </div>
+              ) : (
+                <div className="p-2 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-center">
+                  <img
+                    src={imageUrlInput}
+                    alt="Aperçu"
+                    className="max-h-40 object-contain rounded-lg"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </div>
               )}
+
+              {/* Taille de l'image */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Largeur
+                  </label>
+                  <input
+                    type="text"
+                    value={imageWidthInput}
+                    onChange={(e) => setImageWidthInput(e.target.value)}
+                    aria-label="Largeur de l'image"
+                    placeholder="ex : 600 ou 50%"
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Hauteur
+                  </label>
+                  <input
+                    type="text"
+                    value={imageHeightInput}
+                    onChange={(e) => setImageHeightInput(e.target.value)}
+                    aria-label="Hauteur de l'image"
+                    placeholder="ex : 400 ou 50%"
+                    className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Laisser vide pour la taille d'origine (unités acceptées : px ou %).
+              </p>
 
               <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
@@ -1650,7 +1786,7 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   {isUploading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  <span>Insérer l'image</span>
+                  <span>{imageModalMode === 'edit' ? 'Appliquer' : "Insérer l'image"}</span>
                 </button>
               </div>
             </div>
