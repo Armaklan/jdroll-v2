@@ -200,7 +200,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentView, setCurrentView }) =
             className="flex items-center gap-2.5 text-slate-900 font-bold text-xl hover:opacity-90 transition group"
           >
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-600/20 group-hover:scale-105 transition-transform">
-              <img src="/jdRoll-icon-monogramme.svg" alt="JdRoll Logo" className="w-5 h-5" />
+              <img src="/jdroll-logo.svg" alt="JdRoll Logo" className="w-8 h-8" />
             </div>
             <span className="tracking-tight font-extrabold text-slate-900">JdRoll</span>
           </a>
