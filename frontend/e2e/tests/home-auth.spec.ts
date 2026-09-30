@@ -96,7 +96,7 @@ test.describe('Authenticated homepage', () => {
 
     // Upcoming birthdays block is displayed (even when empty)
     await expect(page.locator('[data-testid="home-stats-birthdays"]')).toBeVisible();
-    await expect(page.locator('[data-testid="home-stats-birthdays"]')).toContainText('Anniversaires prochains');
+    await expect(page.locator('[data-testid="home-stats-birthdays"]')).toContainText('Prochains anniversaires');
   });
 
   test('Upcoming birthdays block shows the pseudo with the birthday date (day and month only)', async ({ page }) => {

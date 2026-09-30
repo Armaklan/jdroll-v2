@@ -125,7 +125,7 @@ export const HomeStats: React.FC = () => {
           <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center">
             <Cake className="w-4 h-4 text-amber-600" />
           </div>
-          <h3 className="text-sm font-bold text-slate-900">Anniversaires prochains</h3>
+          <h3 className="text-sm font-bold text-slate-900">Prochains anniversaires</h3>
         </div>
         {stats && stats.upcomingBirthdays.length > 0 ? (
           <ul>
