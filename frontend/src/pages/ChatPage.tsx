@@ -11,6 +11,7 @@ import { getUserColorClass } from '../utils/user';
 import { SmileyPicker } from '../components/SmileyPicker';
 import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
 import { replaceEmoticons, convertEmoticonsOnType } from '../utils/emoticons';
+import { isNearBottom } from '../utils/chat-scroll';
 import { formatTime, formatDateLabel } from '../utils/date';
 import { retryWithServiceWorkerRefresh } from '../utils/service-worker';
 import {
@@ -56,6 +57,8 @@ export function ChatPage() {
   const [mobileTab, setMobileTab] = useState<'chat' | 'channels' | 'users'>('chat');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isAutoScrollEnabledRef = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<any>(null);
@@ -272,12 +275,24 @@ export function ChatPage() {
 
   // Scroll to bottom when channel changes or new message in active channel arrives
   useEffect(() => {
+    // Changement de salon : on revient en bas et le scroll auto reprend
+    isAutoScrollEnabledRef.current = true;
     scrollToBottom('auto');
   }, [activeChannel]);
 
   useEffect(() => {
-    scrollToBottom('smooth');
+    // Nouveau message : on ne scrolle que si l'utilisateur est proche du bas
+    if (isAutoScrollEnabledRef.current) {
+      scrollToBottom('smooth');
+    }
   }, [messages.length]);
+
+  // Le scroll auto ne reprend que lorsque l'utilisateur revient proche du bas
+  const handleMessagesScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    isAutoScrollEnabledRef.current = isNearBottom(el.scrollTop, el.scrollHeight, el.clientHeight);
+  };
 
   // Auto-grow the input textarea with its content (capped at 8rem = max-h-32)
   useEffect(() => {
@@ -849,7 +864,11 @@ export function ChatPage() {
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleMessagesScroll}
+            className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4"
+          >
             {isLoading ? (
               <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3">
                 <div className="w-8 h-8 border-3 border-indigo-600 border-t-transparent rounded-full animate-spin" />
