@@ -36,6 +36,16 @@ const MAIL_TYPE_TO_SETTING: Record<string, keyof User> = {
   'campaign': 'mail_inscription',
 };
 
+/**
+ * Horodatage local au format DB ("YYYY-MM-DD HH:mm:ss"), sans suffixe UTC,
+ * pour rester cohérent avec les dates MySQL lues via dateStrings: true.
+ */
+function localNowForDb(): string {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
 export class CreateOrUpdateNotificationUseCase {
   constructor(
     private readonly notifRepo: INotificationRepository = notificationRepository,
@@ -74,7 +84,7 @@ export class CreateOrUpdateNotificationUseCase {
         notification = {
           ...existing,
           nb: existing.nb + 1,
-          lastUpdate: new Date().toISOString(),
+          lastUpdate: localNowForDb(),
         };
       } else {
         const createdId = await this.notifRepo.createNotification({
@@ -94,7 +104,7 @@ export class CreateOrUpdateNotificationUseCase {
           type: trimmedType,
           targetId: input.targetId,
           nb: 1,
-          lastUpdate: new Date().toISOString(),
+          lastUpdate: localNowForDb(),
         };
       }
 

@@ -163,6 +163,37 @@ describe('CreateOrUpdateNotificationUseCase', () => {
     assert.equal(res.id, notifications[0].id);
   });
 
+  it('should push a notification with a lastUpdate in local wall-time format (no UTC suffix)', async () => {
+    mockUsers.push({
+      id: 7,
+      username: 'testuser7',
+      mail: 'test7@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 1,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 1,
+    });
+
+    await useCase.execute({
+      userId: 7,
+      title: 'Mon Sujet',
+      content: 'Nouveau message dans le sujet',
+      url: '/topics/13',
+      type: 'topic',
+      targetId: 13,
+    });
+
+    assert.equal(pushedWsNotifications.length, 1);
+    const lastUpdate = pushedWsNotifications[0].notification.lastUpdate;
+    assert.match(lastUpdate, /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    assert.ok(!lastUpdate.includes('Z'), `lastUpdate ne doit pas porter de suffixe UTC : ${lastUpdate}`);
+  });
+
   it('should update and increment nb when notification already exists for user and target and push via websocket', async () => {
     mockUsers.push({
       id: 5,

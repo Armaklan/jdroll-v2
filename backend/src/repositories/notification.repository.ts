@@ -38,7 +38,9 @@ export class MysqlNotificationRepository implements INotificationRepository {
       type: row.type || '',
       targetId: Number(row.target_id || 0),
       nb: Number(row.nb || 1),
-      lastUpdate: row.last_update ? new Date(row.last_update).toISOString() : new Date().toISOString(),
+      // La date MySQL est déjà au fuseau français (dateStrings: true) ;
+      // on la passe telle quelle pour éviter une réinterprétation UTC côté frontend.
+      lastUpdate: row.last_update ? String(row.last_update) : new Date().toISOString(),
     };
   }
 
