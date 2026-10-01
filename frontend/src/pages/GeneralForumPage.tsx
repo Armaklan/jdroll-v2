@@ -8,6 +8,7 @@ import { isUserAdmin } from '../utils/user';
 import { UserPseudoLink } from '../components/UserPseudoLink';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { formatDate } from '../utils/date';
+import { retryWithServiceWorkerRefresh } from '../utils/service-worker';
 import {
   MessageSquare,
   Pin,
@@ -599,7 +600,7 @@ export const GeneralForumPage: React.FC<GeneralForumPageProps> = ({
         <p className="text-sm text-red-700 mb-6">{error || 'Forum introuvable.'}</p>
         <div className="flex justify-center gap-3">
           <button
-            onClick={fetchForum}
+            onClick={() => retryWithServiceWorkerRefresh(fetchForum)}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-xl transition cursor-pointer"
           >
             Réessayer

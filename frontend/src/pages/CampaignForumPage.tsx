@@ -14,6 +14,7 @@ import {DiceTowerModal} from '../components/DiceTowerModal';
 import {CampaignHeader} from '../components/CampaignHeader';
 import {UserPseudoLink} from '../components/UserPseudoLink';
 import {formatDate, formatDayDate} from '../utils/date';
+import { retryWithServiceWorkerRefresh } from '../utils/service-worker';
 import {
   AlertCircle,
   CalendarOff,
@@ -907,7 +908,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
             Retour aux campagnes
           </button>
           <button
-            onClick={fetchForum}
+            onClick={() => retryWithServiceWorkerRefresh(fetchForum)}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition"
           >
             Réessayer

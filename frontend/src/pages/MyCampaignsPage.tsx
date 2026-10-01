@@ -10,6 +10,7 @@ import {CampaignGridSkeleton} from '../components/CampaignCardSkeleton';
 import {EmptyState} from '../components/EmptyState';
 import {GlobalFloatingSearch} from '../components/GlobalFloatingSearch';
 import {AppView, viewToPath} from '../components/Navbar';
+import { retryWithServiceWorkerRefresh } from '../utils/service-worker';
 import {AlertCircle, Archive, Crown, Eye, Gamepad2, Layers, Lock, LogIn, Plus, Search, Sparkles, Users, X,} from 'lucide-react';
 
 interface MyCampaignsPageProps {
@@ -287,7 +288,7 @@ export const MyCampaignsPage: React.FC<MyCampaignsPageProps> = ({ onNavigate, on
             <p className="text-xs text-red-700 mt-0.5">{error}</p>
           </div>
           <button
-            onClick={fetchCampaigns}
+            onClick={() => retryWithServiceWorkerRefresh(fetchCampaigns)}
             className="text-xs bg-red-100 hover:bg-red-200 text-red-900 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer"
           >
             Réessayer

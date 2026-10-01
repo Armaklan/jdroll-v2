@@ -8,6 +8,7 @@ import { WysiwygEditor } from '../components/WysiwygEditor';
 import { DiceTowerModal } from '../components/DiceTowerModal';
 import { CampaignNotesData, Note } from '../types/campaign';
 import { formatDate } from '../utils/date';
+import { retryWithServiceWorkerRefresh } from '../utils/service-worker';
 import {
   StickyNote,
   Save,
@@ -287,7 +288,7 @@ export const CampaignNotesPage: React.FC<CampaignNotesPageProps> = ({
                 <span>Retour au forum de la campagne</span>
               </button>
               <button
-                onClick={loadData}
+                onClick={() => retryWithServiceWorkerRefresh(loadData)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-red-200 hover:bg-slate-50 text-red-700 font-medium text-xs transition cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />

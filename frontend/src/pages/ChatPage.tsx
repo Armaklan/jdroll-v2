@@ -12,6 +12,7 @@ import { SmileyPicker } from '../components/SmileyPicker';
 import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
 import { replaceEmoticons, convertEmoticonsOnType } from '../utils/emoticons';
 import { formatTime, formatDateLabel } from '../utils/date';
+import { retryWithServiceWorkerRefresh } from '../utils/service-worker';
 import {
   MessagesSquare,
   MessageSquare,
@@ -859,7 +860,7 @@ export function ChatPage() {
                 <span>{error}</span>
                 <button
                   type="button"
-                  onClick={loadInitialData}
+                  onClick={() => retryWithServiceWorkerRefresh(loadInitialData)}
                   className="px-2.5 py-1 bg-red-100 hover:bg-red-200 rounded-lg font-medium text-red-800 transition"
                 >
                   Réessayer

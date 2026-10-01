@@ -11,6 +11,7 @@ import {GlobalFloatingSearch} from '../components/GlobalFloatingSearch';
 import {useAuth} from '../contexts/AuthContext';
 import {isUserAdmin} from '../utils/user';
 import {AppView} from '../components/Navbar';
+import { retryWithServiceWorkerRefresh } from '../utils/service-worker';
 import {AlertCircle, Archive, Clock, Gamepad2, Layers, Search, Sparkles, X,} from 'lucide-react';
 
 interface JoinCampaignPageProps {
@@ -345,7 +346,7 @@ export const JoinCampaignPage: React.FC<JoinCampaignPageProps> = ({ onNavigate }
             <p className="text-xs text-red-700 mt-0.5">{error}</p>
           </div>
           <button
-            onClick={fetchCampaigns}
+            onClick={() => retryWithServiceWorkerRefresh(fetchCampaigns)}
             className="text-xs bg-red-100 hover:bg-red-200 text-red-900 px-3 py-1.5 rounded-lg font-medium transition cursor-pointer"
           >
             Réessayer

@@ -26,6 +26,7 @@ import {
   serializeSheetValues,
 } from '../utils/programmed-sheet';
 import {getUserColorClass} from '../utils/user';
+import { retryWithServiceWorkerRefresh } from '../utils/service-worker';
 import {
   Activity,
   AlertCircle,
@@ -614,7 +615,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
         <p className="text-slate-600 text-sm">{error || 'Campagne introuvable'}</p>
         <div className="pt-2 flex justify-center gap-3">
           <button
-            onClick={fetchCharacters}
+            onClick={() => retryWithServiceWorkerRefresh(fetchCharacters)}
             className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition"
           >
             Réessayer
