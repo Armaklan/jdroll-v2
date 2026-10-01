@@ -60,15 +60,21 @@ export const HomeChatPreview: React.FC = () => {
           </div>
           <h3 className="text-base font-bold text-slate-900">Le tchat de la communauté</h3>
         </div>
-        <button
-          type="button"
+        <a
+          href="/chat"
           data-testid="home-chat-open-button"
-          onClick={() => navigate('/chat')}
+          onClick={(e) => {
+            // ctrl/cmd/shift/alt+clic : laisser le navigateur gérer
+            // nativement l'ouverture dans un nouvel onglet via le href
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            e.preventDefault();
+            navigate('/chat');
+          }}
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition shadow-sm cursor-pointer"
         >
           <Users className="w-4 h-4" />
           <span>Ouvrir le tchat</span>
-        </button>
+        </a>
       </div>
 
       {isLoading ? (

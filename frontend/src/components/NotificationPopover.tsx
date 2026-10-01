@@ -91,13 +91,19 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
           </div>
         ) : (
           notifications.map((notif) => (
-            <div
+            <a
               key={notif.id}
-              onClick={() => {
-                if (notif.url) {
-                  onNavigateUrl(notif.url);
-                  onClose();
+              href={notif.url || undefined}
+              onClick={(e) => {
+                if (!notif.url) return;
+                // ctrl/cmd/shift/alt+clic et clic milieu : laisser le navigateur
+                // gérer nativement l'ouverture dans un nouvel onglet via le href
+                if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+                  return;
                 }
+                e.preventDefault();
+                onNavigateUrl(notif.url);
+                onClose();
               }}
               className="p-3.5 hover:bg-slate-50 transition flex items-start justify-between gap-3 cursor-pointer group"
             >
@@ -121,6 +127,9 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
                   <div
                     className="text-xs text-slate-600 mt-0.5 line-clamp-2 leading-relaxed [&_a]:text-indigo-600 [&_a]:hover:underline"
                     onClick={(e) => {
+                      // ctrl/cmd/shift/alt+clic : laisser le navigateur ouvrir
+                      // le lien du contenu dans un nouvel onglet
+                      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
                       const target = e.target as HTMLElement;
                       const anchor = target.closest('a');
                       if (anchor) {
@@ -158,7 +167,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
-            </div>
+            </a>
           ))
         )}
       </div>

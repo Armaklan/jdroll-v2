@@ -56,9 +56,10 @@ test.describe('Mobile Navigation', () => {
     await navbar.openMobileMenu();
     
     // Assert: All links should be visible in mobile menu
-    await expect(navbar.getPage().getByRole('link', { name: /Accueil/i })).toBeVisible({ timeout: 3000 });
-    await expect(navbar.getPage().getByRole('link', { name: /Campagnes|Jouer/i })).toBeVisible({ timeout: 3000 });
-    await expect(navbar.getPage().getByRole('link', { name: /Forum/i })).toBeVisible({ timeout: 3000 });
+    const mobileMenu = navbar.getPage().locator('[data-testid="mobile-menu-drawer"]');
+    await expect(mobileMenu.getByRole('link', { name: /Accueil/i })).toBeVisible({ timeout: 3000 });
+    await expect(mobileMenu.getByRole('link', { name: /Campagnes|Jouer/i })).toBeVisible({ timeout: 3000 });
+    await expect(mobileMenu.getByRole('link', { name: /Forum/i })).toBeVisible({ timeout: 3000 });
   });
 
   /**

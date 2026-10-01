@@ -56,14 +56,20 @@ export const HomeRecentTopics: React.FC = () => {
           </div>
           <h3 className="text-base font-bold text-slate-900">Dernière activité du forum</h3>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate('/forum/0')}
+        <a
+          href="/forum/0"
+          onClick={(e) => {
+            // ctrl/cmd/shift/alt+clic : laisser le navigateur gérer
+            // nativement l'ouverture dans un nouvel onglet via le href
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            e.preventDefault();
+            navigate('/forum/0');
+          }}
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition shadow-sm cursor-pointer"
         >
           <Activity className="w-4 h-4" />
           <span>Voir le forum</span>
-        </button>
+        </a>
       </div>
 
       {isLoading ? (
@@ -75,16 +81,23 @@ export const HomeRecentTopics: React.FC = () => {
       ) : (
         <ul className="space-y-2">
           {recentTopics.map((topic) => (
-            <li
-              key={topic.id}
-              data-testid="home-recent-topic"
-              onClick={() => navigate(`/topics/${topic.id}`)}
-              className={`p-3 rounded-xl border transition-all cursor-pointer group ${
-                topic.isRead
-                  ? 'bg-slate-50 border-slate-200 hover:border-indigo-300'
-                  : 'bg-indigo-50/60 border-indigo-200 hover:border-indigo-400'
-              }`}
-            >
+            <li key={topic.id}>
+              <a
+                href={`/topics/${topic.id}`}
+                data-testid="home-recent-topic"
+                onClick={(e) => {
+                  // ctrl/cmd/shift/alt+clic : laisser le navigateur gérer
+                  // nativement l'ouverture dans un nouvel onglet via le href
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                  e.preventDefault();
+                  navigate(`/topics/${topic.id}`);
+                }}
+                className={`block p-3 rounded-xl border transition-all cursor-pointer group ${
+                  topic.isRead
+                    ? 'bg-slate-50 border-slate-200 hover:border-indigo-300'
+                    : 'bg-indigo-50/60 border-indigo-200 hover:border-indigo-400'
+                }`}
+              >
               <div className="flex items-center gap-2">
                 <MessageSquare
                   className={`w-4 h-4 shrink-0 ${
@@ -123,6 +136,7 @@ export const HomeRecentTopics: React.FC = () => {
                 <span className="text-slate-300">•</span>
                 <span className="shrink-0">{topic.postsCount} message{topic.postsCount > 1 ? 's' : ''}</span>
               </div>
+              </a>
             </li>
           ))}
         </ul>

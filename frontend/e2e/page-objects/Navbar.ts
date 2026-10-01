@@ -30,11 +30,12 @@ export class Navbar extends BasePage {
     // homeLink should point to the logo link, not the "Accueil" nav link
     this.homeLink = page.getByRole('link', { name: /JdRoll Logo/i }).or(page.locator('a[href="/"]:has(img)'));
     
-    // Main navigation links - use getByRole for accessibility
-    this.campaignsLink = page.getByRole('link', { name: /Campagnes|Jouer/i });
-    this.forumLink = page.getByRole('link', { name: /Forum/i });
-    this.chatLink = page.getByRole('link', { name: /Tchat/i });
-    this.messagesLink = page.getByRole('link', { name: /Messagerie/i });
+    // Main navigation links - use getByRole for accessibility,
+    // scoped to the <nav> bar to avoid matching same-named links in page content
+    this.campaignsLink = page.locator('nav').getByRole('link', { name: /Campagnes|Jouer/i });
+    this.forumLink = page.locator('nav').getByRole('link', { name: /Forum/i });
+    this.chatLink = page.locator('nav').getByRole('link', { name: /Tchat/i });
+    this.messagesLink = page.locator('nav').getByRole('link', { name: /Messagerie/i });
     
     // Auth buttons - can be link or button, in nav or main (mobile)
     // Use :visible to only target visible elements

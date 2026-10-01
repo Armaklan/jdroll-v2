@@ -72,7 +72,13 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   const isFull = Boolean(campaign.nbJoueurs > 0 && campaign.nbJoueursActuel >= campaign.nbJoueurs);
   const isRecruitmentOpen = Boolean(campaign.isRecrutementOpen && !isArchived && campaign.statut !== 3);
 
-  const handleCardClick = () => {
+  const handleCardClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // ctrl/cmd/shift/alt+clic et clic milieu : laisser le navigateur
+    // gérer nativement l'ouverture dans un nouvel onglet via le href
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      return;
+    }
+    e.preventDefault();
     if (cardClickAction === 'forum') {
       if (onSelectCampaign) {
         onSelectCampaign(campaign.id);
@@ -146,7 +152,9 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   };
 
   return (
-    <div
+    <>
+    <a
+      href={`/forum/${campaign.id}`}
       onClick={handleCardClick}
       className={`bg-white border rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer ${
         campaign.hasAlert
@@ -383,8 +391,9 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
           </button>
         </div>
       </div>
-      
-      {/* Modal de confirmation pour quitter la campagne */}
+    </a>
+
+    {/* Modal de confirmation pour quitter la campagne */}
       {showLeaveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowLeaveModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
@@ -421,6 +430,6 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
