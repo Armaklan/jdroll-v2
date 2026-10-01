@@ -146,6 +146,42 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
   const flattenedResults = useMemo<FlattenedSearchResult[]>(() => {
     const list: FlattenedSearchResult[] = [];
 
+    results.topics.forEach((t) => {
+      list.push({
+        type: 'topic',
+        id: t.id,
+        title: t.title,
+        subtitle: t.sectionTitle ? `Section : ${t.sectionTitle}` : undefined,
+        url: t.url,
+        isPrivate: t.isPrivate,
+        badge: t.isPrivate ? 'Topic Privé' : 'Topic',
+      });
+    });
+
+    results.cartes.forEach((c) => {
+      list.push({
+        type: 'carte',
+        id: c.id,
+        title: c.name,
+        subtitle: c.description || undefined,
+        url: c.url,
+        image: c.image,
+        badge: c.published ? 'Carte' : 'Brouillon MJ',
+      });
+    });
+
+    results.characters.forEach((p) => {
+      list.push({
+        type: 'character',
+        id: p.id,
+        title: p.name,
+        subtitle: p.concept ? `${p.concept} • ${p.categoryName}` : p.categoryName,
+        url: p.url,
+        avatar: p.avatar,
+        badge: p.isPlayer ? 'PJ' : 'PNJ',
+      });
+    });
+
     filteredCampaigns.forEach((c) => {
       let role: 'mj' | 'player' | 'observer' = 'player';
       let roleLabel = 'Joueur';
@@ -181,42 +217,6 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
         hasAlert: c.hasAlert,
         hasUnread: c.hasUnread,
         isArchived: Boolean(c.isArchived || c.statut === 2),
-      });
-    });
-
-    results.topics.forEach((t) => {
-      list.push({
-        type: 'topic',
-        id: t.id,
-        title: t.title,
-        subtitle: t.sectionTitle ? `Section : ${t.sectionTitle}` : undefined,
-        url: t.url,
-        isPrivate: t.isPrivate,
-        badge: t.isPrivate ? 'Topic Privé' : 'Topic',
-      });
-    });
-
-    results.cartes.forEach((c) => {
-      list.push({
-        type: 'carte',
-        id: c.id,
-        title: c.name,
-        subtitle: c.description || undefined,
-        url: c.url,
-        image: c.image,
-        badge: c.published ? 'Carte' : 'Brouillon MJ',
-      });
-    });
-
-    results.characters.forEach((p) => {
-      list.push({
-        type: 'character',
-        id: p.id,
-        title: p.name,
-        subtitle: p.concept ? `${p.concept} • ${p.categoryName}` : p.categoryName,
-        url: p.url,
-        avatar: p.avatar,
-        badge: p.isPlayer ? 'PJ' : 'PNJ',
       });
     });
 
@@ -680,10 +680,239 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                 </div>
               ) : (
                 <>
+                  {/* Catégorie: Topics */}
+                  {results.topics.length > 0 && (
+                    <div>
+                      <div
+                        data-testid="floating-search-category-topics"
+                        className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-indigo-700 uppercase tracking-wider"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" />
+                        <span>Sujets du forum ({results.topics.length})</span>
+                      </div>
+                      <div className="mt-1 space-y-1">
+                        {results.topics.map((topic) => {
+                          const itemIndex = flattenedResults.findIndex(
+                            (it) => it.type === 'topic' && it.id === topic.id
+                          );
+                          const isSelected = itemIndex === selectedIndex;
+                          const url = topic.url;
+                          return (
+                            <a
+                              key={`topic-${topic.id}`}
+                              data-index={itemIndex}
+                              href={url}
+                              onClick={(e) => handleLinkClick(e, url, true)}
+                              onMouseEnter={() => setSelectedIndex(itemIndex)}
+                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
+                                isSelected
+                                  ? 'bg-indigo-50 border border-indigo-200'
+                                  : 'hover:bg-slate-50 border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                    topic.isPrivate
+                                      ? 'bg-amber-100 text-amber-700'
+                                      : 'bg-indigo-100 text-indigo-600'
+                                  }`}
+                                >
+                                  {topic.isPrivate ? (
+                                    <Lock className="w-4 h-4" />
+                                  ) : (
+                                    <MessageCircle className="w-4 h-4" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-slate-800 truncate">
+                                      {topic.title}
+                                    </span>
+                                    {topic.isPrivate && (
+                                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded">
+                                        Privé
+                                      </span>
+                                    )}
+                                  </div>
+                                  {topic.sectionTitle && (
+                                    <p className="text-xs text-slate-500 truncate">
+                                      {topic.sectionTitle}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight
+                                className={`w-4 h-4 shrink-0 ml-2 transition ${
+                                  isSelected ? 'text-indigo-600 translate-x-0.5' : 'text-slate-300'
+                                }`}
+                              />
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Catégorie: Cartes */}
+                  {results.cartes.length > 0 && (
+                    <div>
+                      <div
+                        data-testid="floating-search-category-cartes"
+                        className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-emerald-700 uppercase tracking-wider"
+                      >
+                        <Map className="w-3.5 h-3.5" />
+                        <span>Cartes ({results.cartes.length})</span>
+                      </div>
+                      <div className="mt-1 space-y-1">
+                        {results.cartes.map((carte) => {
+                          const itemIndex = flattenedResults.findIndex(
+                            (it) => it.type === 'carte' && it.id === carte.id
+                          );
+                          const isSelected = itemIndex === selectedIndex;
+                          const url = carte.url;
+                          return (
+                            <a
+                              key={`carte-${carte.id}`}
+                              data-index={itemIndex}
+                              href={url}
+                              onClick={(e) => handleLinkClick(e, url, true)}
+                              onMouseEnter={() => setSelectedIndex(itemIndex)}
+                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
+                                isSelected
+                                  ? 'bg-emerald-50 border border-emerald-200'
+                                  : 'hover:bg-slate-50 border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 overflow-hidden">
+                                  {carte.image ? (
+                                    <img
+                                      src={carte.image}
+                                      alt={carte.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <Map className="w-4 h-4" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-slate-800 truncate">
+                                      {carte.name}
+                                    </span>
+                                    {!carte.published && (
+                                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-slate-200 text-slate-700 rounded">
+                                        Brouillon MJ
+                                      </span>
+                                    )}
+                                  </div>
+                                  {carte.description && (
+                                    <p className="text-xs text-slate-500 truncate">
+                                      {carte.description}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight
+                                className={`w-4 h-4 shrink-0 ml-2 transition ${
+                                  isSelected ? 'text-emerald-600 translate-x-0.5' : 'text-slate-300'
+                                }`}
+                              />
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Catégorie: Personnages */}
+                  {results.characters.length > 0 && (
+                    <div>
+                      <div
+                        data-testid="floating-search-category-characters"
+                        className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-purple-700 uppercase tracking-wider"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                        <span>Galerie des personnages ({results.characters.length})</span>
+                      </div>
+                      <div className="mt-1 space-y-1">
+                        {results.characters.map((char) => {
+                          const itemIndex = flattenedResults.findIndex(
+                            (it) => it.type === 'character' && it.id === char.id
+                          );
+                          const isSelected = itemIndex === selectedIndex;
+                          return (
+                            <button
+                              key={`char-${char.id}`}
+                              data-index={itemIndex}
+                              type="button"
+                              onClick={() => {
+                                onOpenCharacter?.(char.id);
+                                setIsOpen(false);
+                              }}
+                              onMouseEnter={() => setSelectedIndex(itemIndex)}
+                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
+                                isSelected
+                                  ? 'bg-purple-50 border border-purple-200'
+                                  : 'hover:bg-slate-50 border border-transparent'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 overflow-hidden border border-purple-200">
+                                  {char.avatar ? (
+                                    <img
+                                      src={char.avatar}
+                                      alt={char.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <span className="font-bold text-xs">
+                                      {char.name.substring(0, 2).toUpperCase()}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-slate-800 truncate">
+                                      {char.name}
+                                    </span>
+                                    <span
+                                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
+                                        char.isPlayer
+                                          ? 'bg-purple-100 text-purple-800'
+                                          : 'bg-slate-100 text-slate-600'
+                                      }`}
+                                    >
+                                      {char.isPlayer ? 'PJ' : 'PNJ'}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-slate-500 truncate">
+                                    {char.concept
+                                      ? `${char.concept} • ${char.categoryName}`
+                                      : char.categoryName}
+                                  </p>
+                                </div>
+                              </div>
+                              <ChevronRight
+                                className={`w-4 h-4 shrink-0 ml-2 transition ${
+                                  isSelected ? 'text-purple-600 translate-x-0.5' : 'text-slate-300'
+                                }`}
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Catégorie: Mes Campagnes */}
                   {filteredCampaigns.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-blue-700 uppercase tracking-wider">
+                      <div
+                        data-testid="floating-search-category-campaigns"
+                        className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-blue-700 uppercase tracking-wider"
+                      >
                         <Compass className="w-3.5 h-3.5" />
                         <span>Mes campagnes ({filteredCampaigns.length})</span>
                       </div>
@@ -779,223 +1008,6 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                                 }`}
                               />
                             </a>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Catégorie: Topics */}
-                  {results.topics.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                        <MessageCircle className="w-3.5 h-3.5" />
-                        <span>Sujets du forum ({results.topics.length})</span>
-                      </div>
-                      <div className="mt-1 space-y-1">
-                        {results.topics.map((topic) => {
-                          const itemIndex = flattenedResults.findIndex(
-                            (it) => it.type === 'topic' && it.id === topic.id
-                          );
-                          const isSelected = itemIndex === selectedIndex;
-                          const url = topic.url;
-                          return (
-                            <a
-                              key={`topic-${topic.id}`}
-                              data-index={itemIndex}
-                              href={url}
-                              onClick={(e) => handleLinkClick(e, url, true)}
-                              onMouseEnter={() => setSelectedIndex(itemIndex)}
-                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
-                                isSelected
-                                  ? 'bg-indigo-50 border border-indigo-200'
-                                  : 'hover:bg-slate-50 border border-transparent'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                                    topic.isPrivate
-                                      ? 'bg-amber-100 text-amber-700'
-                                      : 'bg-indigo-100 text-indigo-600'
-                                  }`}
-                                >
-                                  {topic.isPrivate ? (
-                                    <Lock className="w-4 h-4" />
-                                  ) : (
-                                    <MessageCircle className="w-4 h-4" />
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold text-slate-800 truncate">
-                                      {topic.title}
-                                    </span>
-                                    {topic.isPrivate && (
-                                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded">
-                                        Privé
-                                      </span>
-                                    )}
-                                  </div>
-                                  {topic.sectionTitle && (
-                                    <p className="text-xs text-slate-500 truncate">
-                                      {topic.sectionTitle}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              <ChevronRight
-                                className={`w-4 h-4 shrink-0 ml-2 transition ${
-                                  isSelected ? 'text-indigo-600 translate-x-0.5' : 'text-slate-300'
-                                }`}
-                              />
-                            </a>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Catégorie: Cartes */}
-                  {results.cartes.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-emerald-700 uppercase tracking-wider">
-                        <Map className="w-3.5 h-3.5" />
-                        <span>Cartes ({results.cartes.length})</span>
-                      </div>
-                      <div className="mt-1 space-y-1">
-                        {results.cartes.map((carte) => {
-                          const itemIndex = flattenedResults.findIndex(
-                            (it) => it.type === 'carte' && it.id === carte.id
-                          );
-                          const isSelected = itemIndex === selectedIndex;
-                          const url = carte.url;
-                          return (
-                            <a
-                              key={`carte-${carte.id}`}
-                              data-index={itemIndex}
-                              href={url}
-                              onClick={(e) => handleLinkClick(e, url, true)}
-                              onMouseEnter={() => setSelectedIndex(itemIndex)}
-                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
-                                isSelected
-                                  ? 'bg-emerald-50 border border-emerald-200'
-                                  : 'hover:bg-slate-50 border border-transparent'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 overflow-hidden">
-                                  {carte.image ? (
-                                    <img
-                                      src={carte.image}
-                                      alt={carte.name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <Map className="w-4 h-4" />
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold text-slate-800 truncate">
-                                      {carte.name}
-                                    </span>
-                                    {!carte.published && (
-                                      <span className="px-1.5 py-0.5 text-[10px] font-bold bg-slate-200 text-slate-700 rounded">
-                                        Brouillon MJ
-                                      </span>
-                                    )}
-                                  </div>
-                                  {carte.description && (
-                                    <p className="text-xs text-slate-500 truncate">
-                                      {carte.description}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                              <ChevronRight
-                                className={`w-4 h-4 shrink-0 ml-2 transition ${
-                                  isSelected ? 'text-emerald-600 translate-x-0.5' : 'text-slate-300'
-                                }`}
-                              />
-                            </a>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Catégorie: Personnages */}
-                  {results.characters.length > 0 && (
-                    <div>
-                      <div className="flex items-center gap-1.5 px-3 py-1 text-xs font-bold text-purple-700 uppercase tracking-wider">
-                        <Users className="w-3.5 h-3.5" />
-                        <span>Galerie des personnages ({results.characters.length})</span>
-                      </div>
-                      <div className="mt-1 space-y-1">
-                        {results.characters.map((char) => {
-                          const itemIndex = flattenedResults.findIndex(
-                            (it) => it.type === 'character' && it.id === char.id
-                          );
-                          const isSelected = itemIndex === selectedIndex;
-                          return (
-                            <button
-                              key={`char-${char.id}`}
-                              data-index={itemIndex}
-                              type="button"
-                              onClick={() => {
-                                onOpenCharacter?.(char.id);
-                                setIsOpen(false);
-                              }}
-                              onMouseEnter={() => setSelectedIndex(itemIndex)}
-                              className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition cursor-pointer ${
-                                isSelected
-                                  ? 'bg-purple-50 border border-purple-200'
-                                  : 'hover:bg-slate-50 border border-transparent'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 overflow-hidden border border-purple-200">
-                                  {char.avatar ? (
-                                    <img
-                                      src={char.avatar}
-                                      alt={char.name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <span className="font-bold text-xs">
-                                      {char.name.substring(0, 2).toUpperCase()}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold text-slate-800 truncate">
-                                      {char.name}
-                                    </span>
-                                    <span
-                                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded ${
-                                        char.isPlayer
-                                          ? 'bg-purple-100 text-purple-800'
-                                          : 'bg-slate-100 text-slate-600'
-                                      }`}
-                                    >
-                                      {char.isPlayer ? 'PJ' : 'PNJ'}
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-slate-500 truncate">
-                                    {char.concept
-                                      ? `${char.concept} • ${char.categoryName}`
-                                      : char.categoryName}
-                                  </p>
-                                </div>
-                              </div>
-                              <ChevronRight
-                                className={`w-4 h-4 shrink-0 ml-2 transition ${
-                                  isSelected ? 'text-purple-600 translate-x-0.5' : 'text-slate-300'
-                                }`}
-                              />
-                            </button>
                           );
                         })}
                       </div>
