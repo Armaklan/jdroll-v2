@@ -29,27 +29,6 @@ async function registerTestUser(page: Page): Promise<TestUser> {
   return { username, token: body.token };
 }
 
-function makeTopic(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-  return {
-    id: 1,
-    sectionId: 1,
-    title: 'Topic de test',
-    stickable: false,
-    isPrivate: 0,
-    isClosed: false,
-    ordre: 0,
-    postsCount: 3,
-    lastPost: {
-      id: 10,
-      createDate: '2026-09-25 10:00:00',
-      userId: 1,
-      username: 'TestMJ',
-    },
-    isRead: true,
-    ...overrides,
-  };
-}
-
 test.describe('Authenticated homepage', () => {
   let homePage: HomePage;
   let testUser: TestUser;
@@ -181,39 +160,35 @@ test.describe('Authenticated homepage', () => {
   });
 
   test('Dashboard shows the 5 forum topics with the most recent activity', async ({ page }) => {
-    const sections = [
-      {
-        id: 1,
-        campagneId: null,
-        title: 'Section A',
-        ordre: 0,
-        defaultCollapse: false,
-        topics: [
-          makeTopic({ id: 11, title: 'Topic le plus ancien', lastPost: { id: 1, createDate: '2026-09-01 08:00:00', userId: 1, username: 'TestMJ' } }),
-          makeTopic({ id: 12, title: 'Topic le plus récent', lastPost: { id: 2, createDate: '2026-09-25 20:00:00', userId: 1, username: 'TestMJ' } }),
-        ],
+    const makeRecentTopic = (overrides: Record<string, unknown> = {}) => ({
+      id: 1,
+      sectionId: 1,
+      sectionTitle: 'Section A',
+      title: 'Topic de test',
+      stickable: false,
+      isPrivate: 0,
+      isClosed: false,
+      ordre: 0,
+      postsCount: 3,
+      lastPost: {
+        id: 10,
+        createDate: '2026-09-25 10:00:00',
+        userId: 1,
+        username: 'TestMJ',
       },
-      {
-        id: 2,
-        campagneId: null,
-        title: 'Section B',
-        ordre: 1,
-        defaultCollapse: false,
-        topics: [
-          makeTopic({
-            id: 13,
-            title: 'Topic non lu',
-            isRead: false,
-            lastPost: { id: 3, createDate: '2026-09-24 18:00:00', userId: 1, username: 'TestMJ' },
-          }),
-          makeTopic({ id: 14, title: 'Topic lu récent', lastPost: { id: 4, createDate: '2026-09-23 12:00:00', userId: 1, username: 'TestMJ' } }),
-          makeTopic({ id: 15, title: 'Autre topic actif', lastPost: { id: 5, createDate: '2026-09-22 09:30:00', userId: 1, username: 'TestMJ' } }),
-          makeTopic({ id: 16, title: 'Topic sans activité', lastPost: null }),
-        ],
-      },
+      isRead: true,
+      ...overrides,
+    });
+
+    const topics = [
+      makeRecentTopic({ id: 12, title: 'Topic le plus récent', sectionTitle: 'Section A', lastPost: { id: 2, createDate: '2026-09-25 20:00:00', userId: 1, username: 'TestMJ' } }),
+      makeRecentTopic({ id: 13, title: 'Topic non lu', sectionTitle: 'Section B', isRead: false, lastPost: { id: 3, createDate: '2026-09-24 18:00:00', userId: 1, username: 'TestMJ' } }),
+      makeRecentTopic({ id: 14, title: 'Topic lu récent', sectionTitle: 'Section B', lastPost: { id: 4, createDate: '2026-09-23 12:00:00', userId: 1, username: 'TestMJ' } }),
+      makeRecentTopic({ id: 15, title: 'Autre topic actif', sectionTitle: 'Section B', lastPost: { id: 5, createDate: '2026-09-22 09:30:00', userId: 1, username: 'TestMJ' } }),
+      makeRecentTopic({ id: 11, title: 'Topic le plus ancien', sectionTitle: 'Section A', lastPost: { id: 1, createDate: '2026-09-01 08:00:00', userId: 1, username: 'TestMJ' } }),
     ];
 
-    await page.route('**/api/forum', async (route) => {
+    await page.route('**/api/forum/recent-topics*', async (route) => {
       if (route.request().method() !== 'GET') {
         await route.continue();
         return;
@@ -221,7 +196,7 @@ test.describe('Authenticated homepage', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ sections }),
+        body: JSON.stringify({ topics }),
       });
     });
 

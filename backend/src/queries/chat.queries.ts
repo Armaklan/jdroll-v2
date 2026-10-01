@@ -5,9 +5,12 @@ import { ChatMessage } from '../types/index.js';
 // Un message est public si `to` est vide/marqueur legacy '0' ET `to_username` vide.
 // Les MP legacy stockent un `to` vide avec `to_username` renseigné : ils ne sont
 // visibles que par leur destinataire ou leur émetteur.
+function isMessagePrivate(message: ChatMessage): boolean {
+  return (message.to !== '' && message.to !== '0') || message.to_username !== '';
+}
+
 function isMessageVisibleToUser(message: ChatMessage, userId: number, username: string): boolean {
-  const isPrivate = (message.to !== '' && message.to !== '0') || message.to_username !== '';
-  if (!isPrivate) {
+  if (!isMessagePrivate(message)) {
     return true;
   }
   return (
@@ -33,6 +36,18 @@ export class ChatQueries {
         to_username: m.to === '0' && !m.to_username ? '' : m.to_username,
       }))
       .filter((m) => isMessageVisibleToUser(m, userId, username));
+  }
+
+  // Lecture publique pour les visiteurs non authentifiés : messages publics uniquement.
+  async getPublicRecentMessages(limit: number = 200): Promise<ChatMessage[]> {
+    const messages = await this.chatRepo.getRecentPublicMessages(limit);
+    return messages
+      .map((m) => ({
+        ...m,
+        to: m.to === '0' ? '' : m.to,
+        to_username: m.to === '0' && !m.to_username ? '' : m.to_username,
+      }))
+      .filter((m) => !isMessagePrivate(m));
   }
 
   async searchUsers(query: string, currentUserId: number): Promise<{ id: number; username: string; avatar: string }[]> {

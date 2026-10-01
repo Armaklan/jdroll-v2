@@ -11,9 +11,31 @@ test.describe('Scroll navigation', () => {
   let homePage: HomePage;
   let navbar: Navbar;
 
-  test.beforeEach(async ({ page }) => {
+  async function registerTestUser(request: import('@playwright/test').APIRequestContext): Promise<string> {
+    const username = `e2e_scroll_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    const response = await request.post('/api/auth/register', {
+      data: {
+        username,
+        mail: `${username}@test.local`,
+        password: 'Passw0rd!123',
+        website: '',
+        elapsedMs: 10000,
+      },
+    });
+    expect(response.ok()).toBeTruthy();
+    const body = await response.json();
+    return body.token as string;
+  }
+
+  test.beforeEach(async ({ page, request }) => {
     homePage = new HomePage(page);
     navbar = new Navbar(page);
+
+    // Le forum général exige d'être connecté : authentifier un utilisateur de test
+    const token = await registerTestUser(request);
+    await page.addInitScript((token: string) => {
+      localStorage.setItem('jdroll_token', token);
+    }, token);
 
     // Page d'accueil: attendre qu'elle soit assez haute pour scroller de 300px
     await homePage.navigate();

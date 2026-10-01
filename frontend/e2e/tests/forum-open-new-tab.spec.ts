@@ -8,9 +8,31 @@ import { test, expect, APIRequestContext } from '@playwright/test';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 /**
+ * Enregistre un utilisateur de test et renvoie son token
+ */
+async function registerTestUser(request: APIRequestContext): Promise<string> {
+  const username = `e2e_fnt_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+  const response = await request.post(`${BASE_URL}/api/auth/register`, {
+    data: {
+      username,
+      mail: `${username}@test.local`,
+      password: 'Passw0rd!123',
+      website: '',
+      elapsedMs: 10000,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  return body.token as string;
+}
+
+/**
  * Trouve une campagne dont le forum contient au moins un sujet
  */
-async function findCampaignWithTopic(request: APIRequestContext): Promise<{
+async function findCampaignWithTopic(
+  request: APIRequestContext,
+  token: string
+): Promise<{
   campaignId: number;
   topicId: number;
 }> {
@@ -23,6 +45,7 @@ async function findCampaignWithTopic(request: APIRequestContext): Promise<{
   for (const campaign of campaigns.slice(0, 20)) {
     const forumRes = await request.get(
       `${BASE_URL}/api/campaigns/${campaign.id}/forum`,
+      { headers: { Authorization: `Bearer ${token}` } },
     );
     if (!forumRes.ok()) continue;
     const forum = (await forumRes.json()) as {
@@ -42,7 +65,17 @@ test.describe('Ouvrir un sujet dans un nouvel onglet', () => {
   test('Forum général : ctrl+clic sur un sujet ouvre un nouvel onglet', async ({
     page,
     context,
+    playwright,
   }) => {
+    // Le forum général exige d'être connecté
+    const request = await playwright.request.newContext();
+    const token = await registerTestUser(request);
+    await request.dispose();
+
+    await page.addInitScript((token: string) => {
+      localStorage.setItem('jdroll_token', token);
+    }, token);
+
     await page.goto('/forum/0');
 
     // Le titre du sujet doit être un vrai lien avec un href
@@ -64,8 +97,14 @@ test.describe('Ouvrir un sujet dans un nouvel onglet', () => {
     playwright,
   }) => {
     const request = await playwright.request.newContext();
-    const { campaignId } = await findCampaignWithTopic(request);
+    const token = await registerTestUser(request);
+    const { campaignId } = await findCampaignWithTopic(request, token);
     await request.dispose();
+
+    // Les pages campagne et sujet exigent d'être connecté (y compris nouvel onglet)
+    await context.addInitScript((t: string) => {
+      localStorage.setItem('jdroll_token', t);
+    }, token);
 
     await page.goto(`/forum/${campaignId}`);
 

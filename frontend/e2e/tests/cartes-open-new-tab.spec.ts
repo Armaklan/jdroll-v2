@@ -6,12 +6,35 @@ import { test, expect, APIRequestContext } from '@playwright/test';
  */
 
 /**
+ * Enregistre un utilisateur de test et renvoie son token
+ */
+async function registerTestUser(request: APIRequestContext): Promise<string> {
+  const username = `e2e_cont_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+  const response = await request.post('/api/auth/register', {
+    data: {
+      username,
+      mail: `${username}@test.local`,
+      password: 'Passw0rd!123',
+      website: '',
+      elapsedMs: 10000,
+    },
+  });
+  expect(response.ok()).toBeTruthy();
+  const body = await response.json();
+  return body.token as string;
+}
+
+/**
  * Trouve une campagne dont l'écran de listing des cartes contient au moins une carte
  */
-async function findCampaignWithCarte(request: APIRequestContext): Promise<{
+async function findCampaignWithCarte(
+  request: APIRequestContext,
+  token: string
+): Promise<{
   campaignId: number;
   carteId: number;
 }> {
+  const authHeaders = { Authorization: `Bearer ${token}` };
   const res = await request.get(`/api/campaigns`);
   expect(res.ok()).toBeTruthy();
   const { campaigns } = (await res.json()) as {
@@ -19,9 +42,9 @@ async function findCampaignWithCarte(request: APIRequestContext): Promise<{
   };
 
   for (const campaign of campaigns) {
-    const cartesRes = await request.get(
-      `/api/campaigns/${campaign.id}/cartes`,
-    );
+    const cartesRes = await request.get(`/api/campaigns/${campaign.id}/cartes`, {
+      headers: authHeaders,
+    });
     if (!cartesRes.ok()) continue;
     const cartes = (await cartesRes.json()) as Array<{ id: number }>;
     const carte = cartes.find((c) => Boolean(c.id));
@@ -39,8 +62,14 @@ test.describe('Ouvrir une carte dans un nouvel onglet', () => {
     playwright,
   }) => {
     const request = await playwright.request.newContext();
-    const { campaignId } = await findCampaignWithCarte(request);
+    const token = await registerTestUser(request);
+    const { campaignId } = await findCampaignWithCarte(request, token);
     await request.dispose();
+
+    // Les pages carte exigent d'être connecté (y compris dans le nouvel onglet)
+    await context.addInitScript((t: string) => {
+      localStorage.setItem('jdroll_token', t);
+    }, token);
 
     await page.goto(`/campaigns/${campaignId}/cartes`);
 

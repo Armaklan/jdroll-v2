@@ -5,6 +5,7 @@ import {
   CampaignRole,
   CampaignForumData,
   GeneralForumData,
+  RecentGeneralTopicsData,
   TopicDetail,
   CampaignCharactersData,
   CampaignParticipant,
@@ -54,6 +55,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 export const campaignsApi = {
   async getGeneralForum(): Promise<GeneralForumData> {
     return request<GeneralForumData>('/api/forum');
+  },
+
+  async getRecentForumTopics(limit = 5): Promise<RecentGeneralTopicsData> {
+    return request<RecentGeneralTopicsData>(`/api/forum/recent-topics?limit=${limit}`);
   },
 
   async getMyCampaigns(role: CampaignRole = 'all', includeArchived: boolean = false): Promise<CampaignSummary[]> {

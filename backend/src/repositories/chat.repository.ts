@@ -11,6 +11,7 @@ export interface CreateChatMessageData {
 export interface IChatRepository {
   createMessage(data: CreateChatMessageData): Promise<ChatMessage>;
   getRecentMessages(userId: number, username: string, limit?: number): Promise<ChatMessage[]>;
+  getRecentPublicMessages(limit?: number): Promise<ChatMessage[]>;
   getMessageById(id: number): Promise<ChatMessage | null>;
   deleteMessage(id: number): Promise<void>;
   deleteAllMessages(): Promise<number>;
@@ -35,7 +36,7 @@ export class MysqlChatRepository implements IChatRepository {
     return message;
   }
 
-  async getRecentMessages(userId: number, username: string, limit: number = 200): Promise<ChatMessage[]> {
+  private async selectRecentMessages(whereClause: string, params: unknown[], limit: number): Promise<ChatMessage[]> {
     const safeLimit = Math.min(Math.max(1, limit), 500);
 
     const rows = await query<{
@@ -59,14 +60,10 @@ export class MysqlChatRepository implements IChatRepository {
          u.profil as userProfil
        FROM chat c
        LEFT JOIN user u ON u.username = c.username
-       WHERE (c.\`to\` = '0')
-          OR ((c.\`to\` = '' OR c.\`to\` IS NULL) AND (c.to_username = '' OR c.to_username IS NULL))
-          OR (c.username = ?)
-          OR (c.\`to\` = ?)
-          OR (c.to_username = ?)
+       WHERE ${whereClause}
        ORDER BY c.id DESC
        LIMIT ?`,
-      [username, String(userId), username, safeLimit]
+      [...params, safeLimit]
     );
 
     const mapped = rows.map((r) => ({
@@ -82,6 +79,27 @@ export class MysqlChatRepository implements IChatRepository {
 
     // Return in chronological order (oldest first)
     return mapped.reverse();
+  }
+
+  async getRecentMessages(userId: number, username: string, limit: number = 200): Promise<ChatMessage[]> {
+    return this.selectRecentMessages(
+      `(c.\`to\` = '0')
+          OR ((c.\`to\` = '' OR c.\`to\` IS NULL) AND (c.to_username = '' OR c.to_username IS NULL))
+          OR (c.username = ?)
+          OR (c.\`to\` = ?)
+          OR (c.to_username = ?)`,
+      [username, String(userId), username],
+      limit
+    );
+  }
+
+  async getRecentPublicMessages(limit: number = 200): Promise<ChatMessage[]> {
+    return this.selectRecentMessages(
+      `(c.\`to\` = '0')
+          OR ((c.\`to\` = '' OR c.\`to\` IS NULL) AND (c.to_username = '' OR c.to_username IS NULL))`,
+      [],
+      limit
+    );
   }
 
   async getMessageById(id: number): Promise<ChatMessage | null> {

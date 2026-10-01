@@ -34,6 +34,9 @@ describe('ChatQueries', () => {
     getRecentMessages: async (userId: number, username: string, limit?: number) => {
       return mockMessages;
     },
+    getRecentPublicMessages: async (limit?: number) => {
+      return mockMessages.filter((m) => m.to === '' && m.to_username === '');
+    },
     getMessageById: async (id: number) => mockMessages.find((m) => m.id === id) || null,
     deleteMessage: async () => {},
     deleteAllMessages: async () => 0,
@@ -191,6 +194,68 @@ describe('ChatQueries', () => {
 
     assert.equal(messages.length, 1);
     assert.equal(messages[0].id, 30);
+  });
+
+  it('renvoie uniquement les messages publics pour un visiteur non authentifié', async () => {
+    const guestRepo: IChatRepository = {
+      createMessage: async () => mockMessages[0],
+      getRecentMessages: async () => [],
+      getRecentPublicMessages: async () => [
+        {
+          id: 40,
+          username: 'Bob',
+          userAvatar: null,
+          userProfil: 0,
+          time: '2026-09-16 12:40:00',
+          message: 'Message legacy public avec to=0',
+          to: '0',
+          to_username: '',
+        },
+        {
+          id: 41,
+          username: 'Alice',
+          userAvatar: null,
+          userProfil: 1,
+          time: '2026-09-16 12:41:00',
+          message: 'Message public',
+          to: '',
+          to_username: '',
+        },
+        {
+          id: 42,
+          username: 'Bob',
+          userAvatar: null,
+          userProfil: 0,
+          time: '2026-09-16 12:42:00',
+          message: 'MP pour Alice',
+          to: '1',
+          to_username: 'Alice',
+        },
+        {
+          id: 43,
+          username: 'Bob',
+          userAvatar: null,
+          userProfil: 0,
+          time: '2026-09-16 12:43:00',
+          message: 'MP legacy pour Alice',
+          to: '',
+          to_username: 'Alice',
+        },
+      ],
+      getMessageById: async () => null,
+      deleteMessage: async () => {},
+      deleteAllMessages: async () => 0,
+    };
+    const guestQueries = new ChatQueries(guestRepo, mockUserRepo);
+
+    const messages = await guestQueries.getPublicRecentMessages(200);
+
+    assert.deepEqual(
+      messages.map((m) => m.id),
+      [40, 41]
+    );
+    assert.equal(messages[0].to, '');
+    assert.equal(messages[0].to_username, '');
   });
 
   it('recherche des utilisateurs pour démarrer une conversation privée', async () => {

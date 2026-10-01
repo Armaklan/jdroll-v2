@@ -801,6 +801,119 @@ describe('ForumQueries', () => {
     assert.equal(result.sections[0].topics[0].title, 'Bienvenue sur JdRoll 2.0');
   });
 
+  it('renvoie les N sujets généraux les plus récemment actifs avec le titre de leur section', async () => {
+    const generalSections: ForumSectionSummary[] = [
+      {
+        id: 100,
+        campagneId: null,
+        title: 'Taverne & Annonces',
+        ordre: 1,
+        defaultCollapse: false,
+        banniere: '',
+        topics: [
+          {
+            id: 201,
+            sectionId: 100,
+            title: 'Sujet ancien',
+            stickable: false,
+            isPrivate: 0,
+            isClosed: false,
+            ordre: 1,
+            postsCount: 2,
+            lastPost: {
+              id: 91,
+              createDate: '2026-09-01T10:00:00.000Z',
+              userId: 1,
+              username: 'admin',
+            },
+            isRead: true,
+          },
+          {
+            id: 202,
+            sectionId: 100,
+            title: 'Sujet sans activité',
+            stickable: false,
+            isPrivate: 0,
+            isClosed: false,
+            ordre: 2,
+            postsCount: 0,
+            lastPost: null,
+            isRead: true,
+          },
+        ],
+      },
+      {
+        id: 101,
+        campagneId: null,
+        title: 'Section BlaBla',
+        ordre: 2,
+        defaultCollapse: false,
+        banniere: '',
+        topics: [
+          {
+            id: 203,
+            sectionId: 101,
+            title: 'Sujet le plus récent',
+            stickable: false,
+            isPrivate: 0,
+            isClosed: false,
+            ordre: 1,
+            postsCount: 5,
+            lastPost: {
+              id: 93,
+              createDate: '2026-09-25T20:00:00.000Z',
+              userId: 1,
+              username: 'admin',
+            },
+            isRead: false,
+          },
+          {
+            id: 204,
+            sectionId: 101,
+            title: 'Sujet récent',
+            stickable: false,
+            isPrivate: 0,
+            isClosed: false,
+            ordre: 2,
+            postsCount: 1,
+            lastPost: {
+              id: 92,
+              createDate: '2026-09-24T18:00:00.000Z',
+              userId: 1,
+              username: 'admin',
+            },
+            isRead: true,
+          },
+        ],
+      },
+    ];
+
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository(generalSections, mockTopic, 5, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+
+    const result = await queries.getRecentGeneralTopics(1, 3);
+
+    // Seuls les sujets avec activité sont retenus, triés par activité la plus récente
+    assert.deepEqual(
+      result.topics.map((t) => t.id),
+      [203, 204, 201]
+    );
+    assert.equal(result.topics[0].sectionTitle, 'Section BlaBla');
+    assert.equal(result.topics[2].sectionTitle, 'Taverne & Annonces');
+    assert.equal(result.topics[0].isRead, false);
+  });
+
+  it('renvoie une liste vide pour un invité si aucune section générale n\'existe', async () => {
+    const campaignRepo = new MockCampaignRepository(mockCampaign);
+    const forumRepo = new MockForumRepository([], mockTopic, 5, null);
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+
+    const result = await queries.getRecentGeneralTopics(undefined, 5);
+
+    assert.deepEqual(result.topics, []);
+  });
+
   it('should allow any authenticated user to post in general forum without characters', async () => {
     const generalTopic: RawTopicDetail = {
       id: 201,

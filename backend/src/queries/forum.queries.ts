@@ -1,7 +1,7 @@
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { IForumRepository, forumRepository } from '../repositories/forum.repository.js';
 import { IAbsenceRepository, absenceRepository } from '../repositories/absence.repository.js';
-import { CampaignForumData, GeneralForumData, TopicDetail, CharacterSummary, CampaignSummary, TopicUserSummary, CampaignParticipant } from '../types/index.js';
+import { CampaignForumData, GeneralForumData, RecentGeneralTopicsData, TopicDetail, CharacterSummary, CampaignSummary, TopicUserSummary, CampaignParticipant } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 
 export class ForumQueries {
@@ -20,6 +20,28 @@ export class ForumQueries {
     return {
       sections,
     };
+  }
+
+  /**
+   * Récupère les sujets du forum général avec l'activité la plus récente
+   * (aperçu de la page d'accueil, accessible aux visiteurs non connectés)
+   */
+  async getRecentGeneralTopics(userId: number | undefined, limit: number = 5): Promise<RecentGeneralTopicsData> {
+    const sections = await this.forumRepo.findSectionsByCampaignId(null, userId);
+
+    const topics = sections
+      .flatMap((section) =>
+        section.topics.map((topic) => ({ ...topic, sectionTitle: section.title }))
+      )
+      .filter((topic) => Boolean(topic.lastPost))
+      .sort((a, b) => {
+        const dateA = new Date(a.lastPost?.createDate ?? 0).getTime() || 0;
+        const dateB = new Date(b.lastPost?.createDate ?? 0).getTime() || 0;
+        return dateB - dateA;
+      })
+      .slice(0, Math.max(1, limit));
+
+    return { topics };
   }
 
   /**

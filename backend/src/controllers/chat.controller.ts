@@ -69,12 +69,21 @@ export class ChatController {
   }
 
   async getRecentMessages(request: FastifyRequest, reply: FastifyReply) {
-    const user = request.user as JWTPayload;
     const parseResult = getMessagesQuerySchema.safeParse(request.query);
     const limit = parseResult.success ? parseResult.data.limit : 200;
 
+    let user: JWTPayload | undefined;
     try {
-      const messages = await this.queries.getRecentMessages(user.id, user.username, limit);
+      await request.jwtVerify();
+      user = request.user as JWTPayload;
+    } catch {
+      // Utilisateur non connecté / invité : seuls les messages publics sont visibles
+    }
+
+    try {
+      const messages = user
+        ? await this.queries.getRecentMessages(user.id, user.username, limit)
+        : await this.queries.getPublicRecentMessages(limit);
       return reply.status(200).send({ messages });
     } catch (error) {
       return this.handleError(error, reply);
@@ -171,7 +180,7 @@ export class ChatController {
   }
 
   registerRoutes(app: FastifyInstance) {
-    app.get('/api/chat/messages', { preHandler: [app.authenticate] }, (req, rep) =>
+    app.get('/api/chat/messages', (req, rep) =>
       this.getRecentMessages(req, rep)
     );
 

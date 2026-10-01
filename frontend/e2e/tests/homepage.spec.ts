@@ -349,4 +349,85 @@ test.describe('Homepage campaign carousel', () => {
       }
     }
   });
+
+  test('Visitor homepage shows the chat and forum previews below the recruiting campaigns', async ({ page }) => {
+    const messages = Array.from({ length: 3 }, (_, i) => ({
+      id: i + 1,
+      username: `Joueur${i + 1}`,
+      userAvatar: null,
+      userProfil: 0,
+      time: '2026-09-25 12:00:00',
+      message: `Message public numéro ${i + 1}`,
+      to: '',
+      to_username: '',
+    }));
+
+    const topics = [
+      {
+        id: 11,
+        sectionId: 1,
+        title: 'Topic récent du visiteur',
+        stickable: false,
+        isPrivate: 0,
+        isClosed: false,
+        ordre: 0,
+        postsCount: 2,
+        sectionTitle: 'Section générale',
+        lastPost: {
+          id: 10,
+          createDate: '2026-09-25 10:00:00',
+          userId: 1,
+          username: 'TestMJ',
+        },
+        isRead: true,
+      },
+    ];
+
+    await page.route('**/api/chat/messages?*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ messages }),
+      });
+    });
+
+    await page.route('**/api/forum/recent-topics*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ topics }),
+      });
+    });
+
+    await homePage.navigate();
+
+    // Chat preview is visible for unauthenticated visitors
+    const chatPreview = page.locator('[data-testid="home-chat-preview"]');
+    await expect(chatPreview).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="home-chat-preview-message"]')).toHaveCount(3);
+    await expect(chatPreview).toContainText('Message public numéro 3');
+
+    // Forum topics preview is visible for unauthenticated visitors
+    const recentTopics = page.locator('[data-testid="home-recent-topics"]');
+    await expect(recentTopics).toBeVisible({ timeout: 10000 });
+    await expect(recentTopics).toContainText('Topic récent du visiteur');
+
+    // Both previews are displayed below the recruiting campaigns carousel
+    await expect(homePage.carouselSection).toBeVisible({ timeout: 10000 });
+    const carouselBox = await homePage.carouselSection.boundingBox();
+    const previewsBox = await page.locator('[data-testid="home-visitor-previews"]').boundingBox();
+    expect(carouselBox).not.toBeNull();
+    expect(previewsBox).not.toBeNull();
+    if (carouselBox && previewsBox) {
+      expect(previewsBox.y).toBeGreaterThan(carouselBox.y + carouselBox.height - 1);
+    }
+  });
 });

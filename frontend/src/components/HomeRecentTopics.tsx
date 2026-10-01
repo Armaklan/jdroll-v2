@@ -1,14 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { campaignsApi } from '../api/campaigns';
-import { ForumTopicSummary } from '../types/campaign';
+import { RecentForumTopicSummary } from '../types/campaign';
 import { getUserColorClass } from '../utils/user';
 import { Activity, MessageSquare } from 'lucide-react';
-
-interface TopicWithSection {
-  topic: ForumTopicSummary;
-  sectionTitle: string;
-}
 
 function formatActivityDate(date: string): string {
   const parsed = new Date(date);
@@ -18,7 +13,7 @@ function formatActivityDate(date: string): string {
 
 export const HomeRecentTopics: React.FC = () => {
   const navigate = useNavigate();
-  const [topics, setTopics] = useState<TopicWithSection[]>([]);
+  const [topics, setTopics] = useState<RecentForumTopicSummary[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,16 +21,10 @@ export const HomeRecentTopics: React.FC = () => {
     let cancelled = false;
 
     campaignsApi
-      .getGeneralForum()
+      .getRecentForumTopics(5)
       .then((data) => {
         if (cancelled) return;
-        const flattened: TopicWithSection[] = [];
-        for (const section of data.sections) {
-          for (const topic of section.topics) {
-            flattened.push({ topic, sectionTitle: section.title });
-          }
-        }
-        setTopics(flattened);
+        setTopics(data.topics);
       })
       .catch(() => {
         if (!cancelled) setError('Impossible de charger le forum.');
@@ -49,16 +38,7 @@ export const HomeRecentTopics: React.FC = () => {
     };
   }, []);
 
-  const recentTopics = useMemo(() => {
-    return topics
-      .filter((entry) => Boolean(entry.topic.lastPost))
-      .sort((a, b) => {
-        const dateA = new Date(a.topic.lastPost?.createDate ?? 0).getTime() || 0;
-        const dateB = new Date(b.topic.lastPost?.createDate ?? 0).getTime() || 0;
-        return dateB - dateA;
-      })
-      .slice(0, 5);
-  }, [topics]);
+  const recentTopics = topics;
 
   if (error) {
     return null;
@@ -94,7 +74,7 @@ export const HomeRecentTopics: React.FC = () => {
         </div>
       ) : (
         <ul className="space-y-2">
-          {recentTopics.map(({ topic, sectionTitle }) => (
+          {recentTopics.map((topic) => (
             <li
               key={topic.id}
               data-testid="home-recent-topic"
@@ -128,7 +108,7 @@ export const HomeRecentTopics: React.FC = () => {
                 )}
               </div>
               <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-500 pl-6">
-                <span className="truncate">{sectionTitle}</span>
+                <span className="truncate">{topic.sectionTitle}</span>
                 <span className="text-slate-300">•</span>
                 <span className="shrink-0">
                   par{' '}

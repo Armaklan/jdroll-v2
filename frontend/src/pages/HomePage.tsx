@@ -210,6 +210,18 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* Campaign carousel for visitors : authenticated users see it above the chat */}
       {isLoading || (isAuthenticated && user) ? null : <HomeCampaignCarousel />}
 
+      {/* Chat preview and most recently active forum topics, also visible to visitors */}
+      {isLoading || (isAuthenticated && user) ? null : (
+          <div data-testid="home-visitor-previews" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="relative">
+              <div className="lg:absolute lg:inset-0">
+                <HomeChatPreview />
+              </div>
+            </div>
+            <HomeRecentTopics />
+          </div>
+      )}
+
       {/* Community stats : online users, latest registrations, birthdays */}
       {isLoading ? null : isAuthenticated && user ? <HomeStats /> : null}
     </div>

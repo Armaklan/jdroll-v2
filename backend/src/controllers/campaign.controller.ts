@@ -162,6 +162,10 @@ const getTopicPostsQuerySchema = z.object({
   page: z.coerce.number().int().nonnegative().optional(),
 });
 
+const getRecentForumTopicsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(20).optional().default(5),
+});
+
 const createPostParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
@@ -629,9 +633,34 @@ export class CampaignController {
 
   /**
    * GET /api/forum
-   * Récupère le forum général avec ses sections et topics (et l'état de lecture selon l'utilisateur)
+   * Récupère le forum général avec ses sections et topics (connexion requise)
    */
   async getGeneralForum(request: FastifyRequest, reply: FastifyReply) {
+    const user = request.user as JWTPayload;
+
+    try {
+      const data = await this.forumQueryService.getGeneralForum(user.id);
+      return reply.status(200).send(data);
+    } catch (error) {
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération du forum général' });
+    }
+  }
+
+  /**
+   * GET /api/forum/recent-topics
+   * Récupère les sujets du forum général avec l'activité la plus récente
+   * (aperçu de la page d'accueil, accessible aux visiteurs non connectés)
+   */
+  async getRecentForumTopics(request: FastifyRequest, reply: FastifyReply) {
+    const parseResult = getRecentForumTopicsQuerySchema.safeParse(request.query);
+    if (!parseResult.success) {
+      return reply.status(400).send({
+        error: 'Paramètre de limite invalide',
+        details: parseResult.error.format(),
+      });
+    }
+
     let userId: number | undefined;
     try {
       await request.jwtVerify();
@@ -641,11 +670,11 @@ export class CampaignController {
     }
 
     try {
-      const data = await this.forumQueryService.getGeneralForum(userId);
+      const data = await this.forumQueryService.getRecentGeneralTopics(userId, parseResult.data.limit);
       return reply.status(200).send(data);
     } catch (error) {
       request.log.error(error);
-      return reply.status(500).send({ error: 'Erreur lors de la récupération du forum général' });
+      return reply.status(500).send({ error: 'Erreur lors de la récupération des sujets récents' });
     }
   }
 
@@ -2718,8 +2747,12 @@ export class CampaignController {
       (req, rep) => this.removeCampaignAlert(req, rep)
     );
 
-    // Route pour voir les détails d'une campagne
-    app.get('/api/campaigns/:id', (req, rep) => this.getCampaignById(req, rep));
+    // Route authentifiée pour voir les détails d'une campagne
+    app.get(
+      '/api/campaigns/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCampaignById(req, rep)
+    );
 
     // Route authentifiée pour créer une campagne
     app.post(
@@ -2757,11 +2790,20 @@ export class CampaignController {
       (req, rep) => this.getMyCampaigns(req, rep)
     );
 
-    // Route pour voir le forum général (accessible public avec statut de lecture si connecté)
-    app.get('/api/forum', (req, rep) => this.getGeneralForum(req, rep));
+    // Route pour voir le forum général (connexion requise)
+    app.get('/api/forum', { preHandler: [app.authenticate] }, (req, rep) =>
+      this.getGeneralForum(req, rep)
+    );
 
-    // Route pour voir le forum d'une campagne (accessible public avec statut de lecture si connecté)
-    app.get('/api/campaigns/:id/forum', (req, rep) => this.getCampaignForum(req, rep));
+    // Aperçu des derniers sujets actifs du forum général (public, pour la page d'accueil)
+    app.get('/api/forum/recent-topics', (req, rep) => this.getRecentForumTopics(req, rep));
+
+    // Route authentifiée pour voir le forum d'une campagne
+    app.get(
+      '/api/campaigns/:id/forum',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCampaignForum(req, rep)
+    );
 
     // Route pour marquer tous les topics du forum général comme lus
     app.post(
@@ -2777,19 +2819,43 @@ export class CampaignController {
       (req, rep) => this.markAllCampaignForumTopicsAsRead(req, rep)
     );
 
-    // Route pour voir la galerie des personnages d'une campagne
-    app.get('/api/campaigns/:id/characters', (req, rep) => this.getCampaignCharacters(req, rep));
-    app.get('/api/campaigns/:id/gallery', (req, rep) => this.getCampaignCharacters(req, rep));
+    // Routes authentifiées pour voir la galerie des personnages d'une campagne
+    app.get(
+      '/api/campaigns/:id/characters',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCampaignCharacters(req, rep)
+    );
+    app.get(
+      '/api/campaigns/:id/gallery',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCampaignCharacters(req, rep)
+    );
 
-    // Route pour rechercher dans une campagne (topics, cartes, personnages)
-    app.get('/api/campaigns/:id/search', (req, rep) => this.searchCampaign(req, rep));
+    // Route authentifiée pour rechercher dans une campagne (topics, cartes, personnages)
+    app.get(
+      '/api/campaigns/:id/search',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.searchCampaign(req, rep)
+    );
 
-    // Route pour voir la fiche d'un personnage spécifique
-    app.get('/api/characters/:id', (req, rep) => this.getCharacter(req, rep));
-    app.get('/api/campaigns/:id/characters/:characterId', (req, rep) => this.getCharacter(req, rep));
+    // Routes authentifiées pour voir la fiche d'un personnage spécifique
+    app.get(
+      '/api/characters/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCharacter(req, rep)
+    );
+    app.get(
+      '/api/campaigns/:id/characters/:characterId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCharacter(req, rep)
+    );
 
-    // Route pour voir les participants d'une campagne
-    app.get('/api/campaigns/:id/participants', (req, rep) => this.getCampaignParticipants(req, rep));
+    // Route authentifiée pour voir les participants d'une campagne
+    app.get(
+      '/api/campaigns/:id/participants',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCampaignParticipants(req, rep)
+    );
 
     // Route authentifiée pour créer un personnage (MJ)
     app.post(
@@ -2893,9 +2959,17 @@ export class CampaignController {
       (req, rep) => this.deletePnjCategory(req, rep)
     );
 
-    // Route pour voir les messages d'un sujet (accessible public avec statut de lecture si connecté)
-    app.get('/api/topics/:id', (req, rep) => this.getTopicPosts(req, rep));
-    app.get('/api/campaigns/:campaignId/topics/:id', (req, rep) => this.getTopicPosts(req, rep));
+    // Routes authentifiées pour voir les messages d'un sujet
+    app.get(
+      '/api/topics/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getTopicPosts(req, rep)
+    );
+    app.get(
+      '/api/campaigns/:campaignId/topics/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getTopicPosts(req, rep)
+    );
 
     // Route authentifiée pour poster un message dans un sujet
     app.post(

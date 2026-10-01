@@ -261,7 +261,9 @@ test.describe('Profil public', () => {
     const target = await registerUser(request, `e2e_prof_ft_${suffix}`, password);
 
     // Le membre cible crée un sujet avec un message dans une section du forum général
-    const forumResponse = await request.get('/api/forum');
+    const forumResponse = await request.get('/api/forum', {
+      headers: { Authorization: `Bearer ${target.token}` },
+    });
     expect(forumResponse.ok()).toBeTruthy();
     const { sections } = await forumResponse.json();
     expect(sections.length).toBeGreaterThan(0);
@@ -370,7 +372,9 @@ test.describe('Profil public', () => {
     const target = await registerUser(request, `e2e_prof_tt_${suffix}`, password);
 
     // Le membre cible crée un sujet avec un message dans une section du forum général
-    const forumResponse = await request.get('/api/forum');
+    const forumResponse = await request.get('/api/forum', {
+      headers: { Authorization: `Bearer ${target.token}` },
+    });
     expect(forumResponse.ok()).toBeTruthy();
     const { sections } = await forumResponse.json();
     const sectionId = sections[0].id;

@@ -192,13 +192,14 @@ test.describe('Exclusions du swipe -> recherche flottante (mobile)', () => {
     page,
     request,
   }) => {
-    const { campaignId, carteId } = await seedCarte(
+    const { campaignId, carteId, token } = await seedCarte(
       request,
       buildSolidPng(2000, 1400, [30, 90, 60]),
       'Carte swipe exclusion',
       { tabReduce: true }
     );
 
+    await setBrowserToken(page, token);
     await page.goto(`/campaigns/${campaignId}/cartes/${carteId}`);
     await expect(page.locator('div.origin-top-left > img')).toBeVisible();
     await page.waitForTimeout(500);

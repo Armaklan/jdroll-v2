@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { buildSolidPng, seedCarte } from './helpers/carte-seed';
+import { buildSolidPng, seedCarte, setBrowserToken } from './helpers/carte-seed';
 
 /**
  * Tests du centrage initial du viewer de carte :
@@ -43,12 +43,13 @@ test.describe('Centrage de la carte dans la zone d\'affichage', () => {
     // Largeur exactement égale à la valeur par défaut : le cadrage ne doit
     // pas se contenter des dimensions par défaut (1200x800) mais utiliser la
     // hauteur réelle (900).
-    const { campaignId, carteId } = await seedCarte(
+    const { campaignId, carteId, token } = await seedCarte(
       request,
       buildSolidPng(1200, 900, [40, 80, 160]),
       'Carte piège 1200x900'
     );
 
+    await setBrowserToken(page, token);
     await page.goto(`/campaigns/${campaignId}/cartes/${carteId}`);
     await expect(page.locator('div.origin-top-left > img')).toBeVisible();
 
@@ -70,12 +71,13 @@ test.describe('Centrage de la carte dans la zone d\'affichage', () => {
     page,
     request,
   }) => {
-    const { campaignId, carteId } = await seedCarte(
+    const { campaignId, carteId, token } = await seedCarte(
       request,
       buildSolidPng(2000, 1400, [90, 40, 120]),
       'Carte grande 2000x1400'
     );
 
+    await setBrowserToken(page, token);
     await page.goto(`/campaigns/${campaignId}/cartes/${carteId}`);
     await expect(page.locator('div.origin-top-left > img')).toBeVisible();
 

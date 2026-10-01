@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { devices } from '@playwright/test';
-import { buildSolidPng, seedCarte } from './helpers/carte-seed';
+import { buildSolidPng, seedCarte, setBrowserToken } from './helpers/carte-seed';
 
 /**
  * Tests des gestes tactiles standards du viewer de carte sur mobile :
@@ -140,13 +140,14 @@ test.describe('Gestes tactiles du viewer de carte (mobile)', () => {
     page,
     request,
   }) => {
-    const { campaignId, carteId } = await seedCarte(
+    const { campaignId, carteId, token } = await seedCarte(
       request,
       buildSolidPng(2000, 1400, [30, 90, 60]),
       'Carte gestures mobile',
       { tabReduce: true }
     );
 
+    await setBrowserToken(page, token);
     await page.goto(`/campaigns/${campaignId}/cartes/${carteId}`);
     await expect(page.locator('div.origin-top-left > img')).toBeVisible();
     await page.waitForTimeout(500);
@@ -180,13 +181,14 @@ test.describe('Gestes tactiles du viewer de carte (mobile)', () => {
   });
 
   test('un glissé à un doigt déplace la carte', async ({ page, request }) => {
-    const { campaignId, carteId } = await seedCarte(
+    const { campaignId, carteId, token } = await seedCarte(
       request,
       buildSolidPng(2000, 1400, [60, 30, 90]),
       'Carte gestures mobile 2',
       { tabReduce: true }
     );
 
+    await setBrowserToken(page, token);
     await page.goto(`/campaigns/${campaignId}/cartes/${carteId}`);
     await expect(page.locator('div.origin-top-left > img')).toBeVisible();
     await page.waitForTimeout(500);

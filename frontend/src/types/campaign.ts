@@ -212,6 +212,14 @@ export interface GeneralForumData {
   sections: ForumSectionSummary[];
 }
 
+export interface RecentForumTopicSummary extends ForumTopicSummary {
+  sectionTitle: string;
+}
+
+export interface RecentGeneralTopicsData {
+  topics: RecentForumTopicSummary[];
+}
+
 export interface ForumPostUser {
   id: number;
   username: string;

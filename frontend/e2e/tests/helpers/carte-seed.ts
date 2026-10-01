@@ -81,6 +81,7 @@ async function registerUser(
 export interface SeededCarte {
   campaignId: number;
   carteId: number;
+  token: string;
 }
 
 /**
@@ -127,5 +128,17 @@ export async function seedCarte(
   expect(carteResponse.ok()).toBeTruthy();
   const { id: carteId } = await carteResponse.json();
 
-  return { campaignId: campaign.id, carteId };
+  return { campaignId: campaign.id, carteId, token };
+}
+
+/**
+ * Authentifie le navigateur avec le token fourni (les pages campagne exigent d'être connecté).
+ */
+export async function setBrowserToken(
+  page: import('@playwright/test').Page,
+  token: string
+): Promise<void> {
+  await page.addInitScript((token: string) => {
+    localStorage.setItem('jdroll_token', token);
+  }, token);
 }

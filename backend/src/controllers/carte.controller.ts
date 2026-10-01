@@ -282,12 +282,24 @@ export class CarteController {
   }
 
   registerRoutes(app: FastifyInstance) {
-    // Lecture des cartes de la campagne
-    app.get('/api/campaigns/:id/cartes', (req, rep) => this.getCampaignCartes(req, rep));
+    // Lecture des cartes de la campagne (connexion requise)
+    app.get(
+      '/api/campaigns/:id/cartes',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCampaignCartes(req, rep)
+    );
 
-    // Lecture d'une carte spécifique
-    app.get('/api/campaigns/:id/cartes/:carteId', (req, rep) => this.getCarte(req, rep));
-    app.get('/api/cartes/:id', (req, rep) => this.getCarte(req, rep));
+    // Lecture d'une carte spécifique (connexion requise)
+    app.get(
+      '/api/campaigns/:id/cartes/:carteId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCarte(req, rep)
+    );
+    app.get(
+      '/api/cartes/:id',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCarte(req, rep)
+    );
 
     // Création de carte (MJ)
     app.post(

@@ -91,14 +91,18 @@ export function AppContent() {
 
   const isChatPage = location.pathname === '/chat';
 
+  const protectedElement = (element: React.ReactNode) => (
+    <ProtectedRoute>{element}</ProtectedRoute>
+  );
+
   if (isCarteViewer) {
     return (
       <>
         <ScrollToTop />
         <Routes>
-          <Route path="/campaigns/:campaignId/cartes/:carteId" element={<CampaignCarteViewerPage />} />
-          <Route path="/campaigns/:campaignId/carte/:carteId" element={<CampaignCarteViewerPage />} />
-          <Route path="/cartes/:carteId" element={<CampaignCarteViewerPage />} />
+          <Route path="/campaigns/:campaignId/cartes/:carteId" element={protectedElement(<CampaignCarteViewerPage />)} />
+          <Route path="/campaigns/:campaignId/carte/:carteId" element={protectedElement(<CampaignCarteViewerPage />)} />
+          <Route path="/cartes/:carteId" element={protectedElement(<CampaignCarteViewerPage />)} />
         </Routes>
       </>
     );
@@ -216,10 +220,11 @@ export function AppContent() {
           />
           <Route path="/all-campaigns" element={<Navigate to="/join-campaign?filter=all" replace />} />
           <Route path="/campaigns" element={<Navigate to="/join-campaign?filter=all" replace />} />
-          <Route path="/campaigns/:campaignId" element={<CampaignForumPage />} />
-          <Route path="/campaign-forum/:campaignId" element={<CampaignForumPage />} />
-          <Route path="/campaigns/:campaignId/characters" element={<CampaignCharactersPage />} />
-          <Route path="/campaigns/:campaignId/gallery" element={<CampaignCharactersPage />} />
+          {/* Pages campagne : connexion requise */}
+          <Route path="/campaigns/:campaignId" element={protectedElement(<CampaignForumPage />)} />
+          <Route path="/campaign-forum/:campaignId" element={protectedElement(<CampaignForumPage />)} />
+          <Route path="/campaigns/:campaignId/characters" element={protectedElement(<CampaignCharactersPage />)} />
+          <Route path="/campaigns/:campaignId/gallery" element={protectedElement(<CampaignCharactersPage />)} />
           <Route
             path="/campaigns/:campaignId/notes"
             element={
@@ -236,25 +241,32 @@ export function AppContent() {
               </ProtectedRoute>
             }
           />
-          <Route path="/campaigns/:campaignId/cartes" element={<CampaignCartesPage />} />
+          <Route path="/campaigns/:campaignId/cartes" element={protectedElement(<CampaignCartesPage />)} />
           <Route path="/campaigns/:campaignId/carte" element={<Navigate to={`/campaigns/${location.pathname.split('/')[2] || ''}/cartes`} replace />} />
 
-          {/* Forum & Topics */}
-          <Route path="/forum/0" element={<GeneralForumPage />} />
-          <Route path="/forum/:campaignId" element={<CampaignForumPage />} />
-          <Route path="/forum/:campaignId/:topicId/page/:page" element={<TopicViewPage />} />
-          <Route path="/forum/:campaignId/:topicId" element={<TopicViewPage />} />
+          {/* Forum & Topics : le forum général exige d'être connecté */}
+          <Route
+            path="/forum/0"
+            element={
+              <ProtectedRoute>
+                <GeneralForumPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/forum/:campaignId" element={protectedElement(<CampaignForumPage />)} />
+          <Route path="/forum/:campaignId/:topicId/page/:page" element={protectedElement(<TopicViewPage />)} />
+          <Route path="/forum/:campaignId/:topicId" element={protectedElement(<TopicViewPage />)} />
           <Route path="/forum" element={<Navigate to="/forum/0" replace />} />
 
           {/* Short URL: /:campaignId/:topicId/page/:page */}
-          <Route path="/:campaignId/:topicId/page/:page" element={<TopicViewPage />} />
-          <Route path="/:campaignId/:topicId" element={<TopicViewPage />} />
+          <Route path="/:campaignId/:topicId/page/:page" element={protectedElement(<TopicViewPage />)} />
+          <Route path="/:campaignId/:topicId" element={protectedElement(<TopicViewPage />)} />
 
           {/* Legacy forum & topic routes */}
-          <Route path="/topics/:topicId" element={<TopicViewPage />} />
-          <Route path="/campaigns/:campaignId/topics/:topicId" element={<TopicViewPage />} />
-          <Route path="/campaigns/:campaignId" element={<CampaignForumPage />} />
-          <Route path="/campaign-forum/:campaignId" element={<CampaignForumPage />} />
+          <Route path="/topics/:topicId" element={protectedElement(<TopicViewPage />)} />
+          <Route path="/campaigns/:campaignId/topics/:topicId" element={protectedElement(<TopicViewPage />)} />
+          <Route path="/campaigns/:campaignId" element={protectedElement(<CampaignForumPage />)} />
+          <Route path="/campaign-forum/:campaignId" element={protectedElement(<CampaignForumPage />)} />
 
           {/* Aide */}
           <Route
