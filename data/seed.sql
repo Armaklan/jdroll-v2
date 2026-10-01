@@ -11,18 +11,18 @@ SET FOREIGN_KEY_CHECKS = 0;
 INSERT INTO `user` (
     `id`, `username`, `password`, `mail`, `avatar`, `description`, `profil`,
     `subscribe_date`, `titre`, `notif_mp`, `notif_inscription`, `notif_perso`,
-    `notif_message`, `mail_mp`, `mail_inscription`, `mail_perso`, `mail_message`,
+    `notif_message`, `notif_chat`, `mail_mp`, `mail_inscription`, `mail_perso`, `mail_message`, `mail_chat`,
     `notif_dice`, `mail_dice`
 ) VALUES
-(1, 'admin', '5f4dcc3b5aa765d61d8327deb882cf99', 'admin@example.com', '', 'Administrateur et Maître du Jeu de test', 2, NOW(), 'Maître du Donjon', 1, 1, 1, 1, 0, 0, 0, 0, 1, 0),
-(2, 'testuser', '5f4dcc3b5aa765d61d8327deb882cf99', 'test@example.com', '', 'Joueur de test pour le développement local', 0, NOW(), 'Aventurier Novice', 1, 1, 1, 1, 0, 0, 0, 0, 1, 0),
-(3, 'joueur2', '5f4dcc3b5aa765d61d8327deb882cf99', 'joueur2@example.com', '', 'Deuxième compte joueur de test', 0, NOW(), 'Compagnon de route', 1, 1, 1, 1, 0, 0, 0, 0, 1, 0);
+(1, 'admin', '5f4dcc3b5aa765d61d8327deb882cf99', 'admin@example.com', '', 'Administrateur et Maître du Jeu de test', 2, NOW(), 'Maître du Donjon', 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0),
+(2, 'testuser', '5f4dcc3b5aa765d61d8327deb882cf99', 'test@example.com', '', 'Joueur de test pour le développement local', 0, NOW(), 'Aventurier Novice', 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0),
+(3, 'joueur2', '5f4dcc3b5aa765d61d8327deb882cf99', 'joueur2@example.com', '', 'Deuxième compte joueur de test', 0, NOW(), 'Compagnon de route', 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0);
 
 -- Insertion des versions : une base fraîche créée par create.sql contient déjà
 -- le schéma correspondant à toutes les migrations (voir backend/src/db/migrations.ts)
 INSERT INTO `version` (`id`, `install_date`) VALUES
 (1, NOW()), (2, NOW()), (3, NOW()), (4, NOW()), (5, NOW()), (6, NOW()),
-(7, NOW()), (8, NOW()), (9, NOW()), (10, NOW()), (11, NOW());
+(7, NOW()), (8, NOW()), (9, NOW()), (10, NOW()), (11, NOW()), (12, NOW());
 
 -- Campagnes de test
 INSERT INTO `campagne` (

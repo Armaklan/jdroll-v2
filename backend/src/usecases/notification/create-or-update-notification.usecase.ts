@@ -20,7 +20,7 @@ export interface CreateOrUpdateNotificationInput {
 
 const NOTIFICATION_TYPE_TO_SETTING: Record<string, keyof User> = {
   'mp': 'notif_mp',
-  'chat': 'notif_mp',
+  'chat': 'notif_chat',
   'topic': 'notif_message',
   'dice': 'notif_message',
   'perso': 'notif_perso',
@@ -29,7 +29,7 @@ const NOTIFICATION_TYPE_TO_SETTING: Record<string, keyof User> = {
 
 const MAIL_TYPE_TO_SETTING: Record<string, keyof User> = {
   'mp': 'mail_mp',
-  'chat': 'mail_mp',
+  'chat': 'mail_chat',
   'topic': 'mail_message',
   'dice': 'mail_message',
   'perso': 'mail_perso',

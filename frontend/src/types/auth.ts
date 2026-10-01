@@ -12,10 +12,12 @@ export interface User {
   notif_inscription?: number;
   notif_perso?: number;
   notif_message?: number;
+  notif_chat?: number;
   mail_mp?: number;
   mail_inscription?: number;
   mail_perso?: number;
   mail_message?: number;
+  mail_chat?: number;
 }
 
 export interface UpdateProfileData {
@@ -31,10 +33,12 @@ export interface NotificationSettings {
   notif_inscription?: number;
   notif_perso?: number;
   notif_message?: number;
+  notif_chat?: number;
   mail_mp?: number;
   mail_inscription?: number;
   mail_perso?: number;
   mail_message?: number;
+  mail_chat?: number;
 }
 
 export interface AuthResponse {

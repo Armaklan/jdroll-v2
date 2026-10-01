@@ -132,3 +132,70 @@ test.describe('Settings - Profil', () => {
     await expect(settingsPage.wysiwygEditor).toContainText('Ma description de test');
   });
 });
+
+/**
+ * Tests de l'onglet Notifications (utilisateur authentifié)
+ * Réglages dédiés aux messages privés du tchat (notif_chat / mail_chat),
+ * indépendants de ceux des messages privés (MP)
+ */
+test.describe('Settings - Notifications', () => {
+  let settingsPage: SettingsPage;
+  let registerPage: RegisterPage;
+
+  test.beforeEach(async ({ page }) => {
+    settingsPage = new SettingsPage(page);
+    registerPage = new RegisterPage(page);
+
+    // Créer un utilisateur unique et se connecter (l'inscription connecte automatiquement)
+    const username = `e2e_user_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    await registerPage.navigate();
+    await registerPage.register(username, `${username}@example.com`, 'password123');
+
+    await settingsPage.navigate();
+    await settingsPage.switchToNotificationsTab();
+  });
+
+  test('les réglages du tchat privé sont proposés, distincts des MP, avec les valeurs par défaut', async () => {
+    // Réglages MP présents (sections site et email)
+    await expect(settingsPage.notificationSettingRow('Messages privés')).toHaveCount(2);
+
+    // Réglages tchat privé présents dans les deux sections
+    const chatRow = settingsPage.notificationSettingRow('Messages tchat privés');
+    await expect(chatRow).toHaveCount(2);
+
+    // Par défaut : notification sur le site activée, email désactivé
+    const chatSwitches = settingsPage.notificationSettingSwitch('Messages tchat privés');
+    await expect(chatSwitches.first()).toHaveAttribute('aria-checked', 'true');
+    await expect(chatSwitches.nth(1)).toHaveAttribute('aria-checked', 'false');
+  });
+
+  test('la configuration du tchat privé est modifiable et persistée indépendamment des MP', async ({ page }) => {
+    // Désactiver la notification site du tchat privé
+    const chatSwitches = settingsPage.notificationSettingSwitch('Messages tchat privés');
+    await chatSwitches.first().click();
+    await expect(chatSwitches.first()).toHaveAttribute('aria-checked', 'false');
+
+    // Sauvegarder
+    await settingsPage
+      .getPage()
+      .getByRole('button', { name: 'Enregistrer les paramètres' })
+      .click();
+    await expect(
+      settingsPage.getPage().getByText('Paramètres de notification mis à jour avec succès')
+    ).toBeVisible({ timeout: 5000 });
+
+    // Recharger la page : la modification est persistée côté backend
+    await page.reload();
+    await settingsPage.switchToNotificationsTab();
+    await expect(settingsPage.notificationSettingSwitch('Messages tchat privés').first()).toHaveAttribute(
+      'aria-checked',
+      'false'
+    );
+
+    // Les réglages MP restent inchangés (activés par défaut)
+    await expect(settingsPage.notificationSettingSwitch('Messages privés').first()).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+  });
+});

@@ -508,6 +508,8 @@ CREATE TABLE `user` (
                         `mail_inscription` int(1) NOT NULL DEFAULT '0',
                         `mail_perso` int(1) NOT NULL DEFAULT '0',
                         `mail_message` int(1) NOT NULL DEFAULT '0',
+                        `notif_chat` int(1) NOT NULL DEFAULT '1',
+                        `mail_chat` int(1) NOT NULL DEFAULT '0',
                         `notif_dice` int(1) NOT NULL DEFAULT '1',
                         `mail_dice` int(1) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;

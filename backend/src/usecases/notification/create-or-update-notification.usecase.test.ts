@@ -511,7 +511,7 @@ describe('CreateOrUpdateNotificationUseCase', () => {
   it('should send an email for each notification type only when its matching mail setting is enabled', async () => {
     const cases: { type: string; setting: keyof User }[] = [
       { type: 'mp', setting: 'mail_mp' },
-      { type: 'chat', setting: 'mail_mp' },
+      { type: 'chat', setting: 'mail_chat' },
       { type: 'topic', setting: 'mail_message' },
       { type: 'dice', setting: 'mail_message' },
       { type: 'perso', setting: 'mail_perso' },
@@ -556,6 +556,123 @@ describe('CreateOrUpdateNotificationUseCase', () => {
       assert.equal(sentEmails[0].subject, `Notification ${type}`);
       userId += 1;
     }
+  });
+
+  it('should not create or send notification when user has disabled notif_chat for chat type even if notif_mp is enabled', async () => {
+    mockUsers.push({
+      id: 40,
+      username: 'chatdisabled',
+      mail: 'chatdisabled@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 1,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 1,
+      notif_chat: 0,
+    });
+
+    const res = await useCase.execute({
+      userId: 40,
+      title: 'Message privé tchat',
+      content: 'Nouveau message privé dans le tchat',
+      url: '/chat',
+      type: 'chat',
+      targetId: 1,
+    });
+
+    assert.equal(res, null);
+    assert.equal(notifications.length, 0);
+    assert.equal(pushedWsNotifications.length, 0);
+  });
+
+  it('should create and send chat notification when notif_chat is enabled even if notif_mp is disabled', async () => {
+    mockUsers.push({
+      id: 41,
+      username: 'chatonly',
+      mail: 'chatonly@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 0,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 1,
+      notif_chat: 1,
+    });
+
+    const res = await useCase.execute({
+      userId: 41,
+      title: 'Message privé tchat',
+      content: 'Nouveau message privé dans le tchat',
+      url: '/chat',
+      type: 'chat',
+      targetId: 1,
+    });
+
+    assert.notEqual(res, null);
+    assert.equal(notifications.length, 1);
+    assert.equal(pushedWsNotifications.length, 1);
+    assert.equal(pushedWsNotifications[0].userId, 41);
+  });
+
+  it('should send an email on chat type only when mail_chat is enabled', async () => {
+    const chatUser: User = {
+      id: 42,
+      username: 'chatmail',
+      mail: 'chatmail@test.com',
+      avatar: '',
+      description: '',
+      profil: 0,
+      titre: '',
+      subscribe_date: new Date().toISOString(),
+      notif_mp: 1,
+      notif_inscription: 1,
+      notif_perso: 1,
+      notif_message: 1,
+      notif_chat: 1,
+      mail_mp: 1,
+      mail_inscription: 0,
+      mail_perso: 0,
+      mail_message: 0,
+      mail_chat: 0,
+    };
+    mockUsers.push(chatUser);
+
+    await useCase.execute({
+      userId: 42,
+      title: 'Message privé tchat',
+      content: 'Nouveau message privé dans le tchat',
+      url: '/chat',
+      type: 'chat',
+      targetId: 1,
+    });
+
+    assert.equal(notifications.length, 1);
+    assert.equal(sentEmails.length, 0);
+
+    mockUsers.length = 0;
+    sentEmails.length = 0;
+    notifications.length = 0;
+    mockUsers.push({ ...chatUser, mail_chat: 1 });
+
+    await useCase.execute({
+      userId: 42,
+      title: 'Message privé tchat',
+      content: 'Nouveau message privé dans le tchat',
+      url: '/chat',
+      type: 'chat',
+      targetId: 1,
+    });
+
+    assert.equal(notifications.length, 1);
+    assert.equal(sentEmails.length, 1);
+    assert.equal(sentEmails[0].to, 'chatmail@test.com');
   });
 
   it('should send an email on each emission, including notification increments', async () => {

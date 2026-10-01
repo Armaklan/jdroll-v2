@@ -44,10 +44,12 @@ class InMemoryUserRepository implements IUserRepository {
       notif_inscription: 1,
       notif_perso: 1,
       notif_message: 1,
+      notif_chat: 1,
       mail_mp: 1,
       mail_inscription: 0,
       mail_perso: 0,
       mail_message: 0,
+      mail_chat: 0,
     };
     this.users.push(newUser);
     return newUser;
@@ -136,6 +138,28 @@ describe('UpdateNotificationSettingsUseCase', () => {
     // Other settings should remain unchanged
     assert.equal(result.notif_mp, 1);
     assert.equal(result.notif_inscription, 1);
+    assert.equal(result.mail_mp, 1);
+  });
+
+  it('should update chat notification settings independently from mp settings', async () => {
+    const repo = new InMemoryUserRepository();
+    const useCase = new UpdateNotificationSettingsUseCase(repo);
+
+    const createdUser = await repo.create({
+      username: 'testuser',
+      mail: 'test@example.com',
+      passwordHash: 'hashed',
+    });
+
+    const result = await useCase.execute(createdUser.id, {
+      notif_chat: 0,
+      mail_chat: 1,
+    });
+
+    assert.equal(result.notif_chat, 0);
+    assert.equal(result.mail_chat, 1);
+    // MP settings should remain unchanged
+    assert.equal(result.notif_mp, 1);
     assert.equal(result.mail_mp, 1);
   });
 });

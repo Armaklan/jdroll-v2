@@ -27,7 +27,9 @@ export class SettingsPage extends BasePage {
     
     this.title = page.locator('h1:text-is("Paramètres")');
     this.profileTab = page.getByRole('button', { name: 'Profil', exact: true });
-    this.notificationsTab = page.getByRole('button', { name: 'Notifications', exact: true });
+    this.notificationsTab = page
+      .getByRole('main')
+      .getByRole('button', { name: 'Notifications', exact: true });
     this.passwordTab = page.getByRole('button', { name: 'Mot de passe', exact: true });
     this.saveButton = page.getByRole('button', { type: 'submit' });
     this.form = page.locator('form');
@@ -58,6 +60,22 @@ export class SettingsPage extends BasePage {
    */
   async isOnPage(): Promise<boolean> {
     return await this.title.count() > 0;
+  }
+
+  /**
+   * Row of a notification setting (site or email) identified by its label
+   */
+  notificationSettingRow(label: string): Locator {
+    return this.page.locator('div.flex.items-center.justify-between', {
+      has: this.page.locator('h3', { hasText: label }),
+    });
+  }
+
+  /**
+   * Switch (toggle) of a notification setting identified by its label
+   */
+  notificationSettingSwitch(label: string): Locator {
+    return this.notificationSettingRow(label).getByRole('switch');
   }
 
   /**

@@ -44,10 +44,12 @@ const updateNotificationSettingsSchema = z.object({
   notif_inscription: z.number().int().min(0).max(1).optional(),
   notif_perso: z.number().int().min(0).max(1).optional(),
   notif_message: z.number().int().min(0).max(1).optional(),
+  notif_chat: z.number().int().min(0).max(1).optional(),
   mail_mp: z.number().int().min(0).max(1).optional(),
   mail_inscription: z.number().int().min(0).max(1).optional(),
   mail_perso: z.number().int().min(0).max(1).optional(),
   mail_message: z.number().int().min(0).max(1).optional(),
+  mail_chat: z.number().int().min(0).max(1).optional(),
 });
 
 const updatePasswordSchema = z.object({

@@ -82,6 +82,16 @@ describe('dossier des migrations du projet', () => {
     assert.match(featureFlipCreate!, /PRIMARY KEY \(`id`\)/);
     assert.match(featureFlipCreate!, /AUTO_INCREMENT/);
   });
+
+  it('définit la migration 12 (chat_notification_settings) avec les réglages de notification dédiés au tchat privé', () => {
+    const migration = loadMigrations().find((m: Migration) => m.id === 12);
+
+    assert.ok(migration, 'la migration 12 doit exister');
+    assert.equal(migration!.name, 'chat_notification_settings');
+    const statements = migration!.statements.join('\n');
+    assert.match(statements, /ALTER TABLE `user`\s+ADD COLUMN `notif_chat` int\(1\) NOT NULL DEFAULT '1'/);
+    assert.match(statements, /ADD COLUMN `mail_chat` int\(1\) NOT NULL DEFAULT '0'/);
+  });
 });
 
 describe('runMigrations', () => {

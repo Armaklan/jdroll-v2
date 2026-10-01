@@ -34,7 +34,7 @@ export interface IUserPasswordResetRepository {
 export class MysqlUserRepository implements IUserRepository {
   async findById(id: number): Promise<User | null> {
     const user = await queryOne<User>(
-      `SELECT id, username, mail, avatar, description, profil, titre, subscribe_date, birthDate, notif_mp, notif_inscription, notif_perso, notif_message, mail_mp, mail_inscription, mail_perso, mail_message
+      `SELECT id, username, mail, avatar, description, profil, titre, subscribe_date, birthDate, notif_mp, notif_inscription, notif_perso, notif_message, notif_chat, mail_mp, mail_inscription, mail_perso, mail_message, mail_chat
        FROM user
        WHERE id = ?
        LIMIT 1`,
@@ -45,7 +45,7 @@ export class MysqlUserRepository implements IUserRepository {
 
   async findByUsernameOrEmail(identifier: string): Promise<UserWithPassword | null> {
     const user = await queryOne<UserWithPassword>(
-      `SELECT id, username, mail, password, avatar, description, profil, titre, subscribe_date, birthDate, notif_mp, notif_inscription, notif_perso, notif_message, mail_mp, mail_inscription, mail_perso, mail_message
+      `SELECT id, username, mail, password, avatar, description, profil, titre, subscribe_date, birthDate, notif_mp, notif_inscription, notif_perso, notif_message, notif_chat, mail_mp, mail_inscription, mail_perso, mail_message, mail_chat
        FROM user
        WHERE username = ? OR mail = ?
        LIMIT 1`,
@@ -58,7 +58,7 @@ export class MysqlUserRepository implements IUserRepository {
     if (usernames.length === 0) return [];
     const placeholders = usernames.map(() => '?').join(',');
     return query<User>(
-      `SELECT id, username, mail, avatar, description, profil, titre, subscribe_date, birthDate, notif_mp, notif_inscription, notif_perso, notif_message, mail_mp, mail_inscription, mail_perso, mail_message
+      `SELECT id, username, mail, avatar, description, profil, titre, subscribe_date, birthDate, notif_mp, notif_inscription, notif_perso, notif_message, notif_chat, mail_mp, mail_inscription, mail_perso, mail_message, mail_chat
        FROM user
        WHERE username IN (${placeholders})`,
       usernames
@@ -183,6 +183,10 @@ export class MysqlUserRepository implements IUserRepository {
       updates.push('notif_message = ?');
       params.push(settings.notif_message);
     }
+    if (settings.notif_chat !== undefined) {
+      updates.push('notif_chat = ?');
+      params.push(settings.notif_chat);
+    }
     if (settings.mail_mp !== undefined) {
       updates.push('mail_mp = ?');
       params.push(settings.mail_mp);
@@ -198,6 +202,10 @@ export class MysqlUserRepository implements IUserRepository {
     if (settings.mail_message !== undefined) {
       updates.push('mail_message = ?');
       params.push(settings.mail_message);
+    }
+    if (settings.mail_chat !== undefined) {
+      updates.push('mail_chat = ?');
+      params.push(settings.mail_chat);
     }
 
     if (updates.length === 0) {

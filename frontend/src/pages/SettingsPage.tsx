@@ -24,6 +24,7 @@ import {
   Link as LinkIcon,
   CalendarOff,
   Trash2,
+  MessageCircle,
 } from 'lucide-react';
 
 // Types pour les onglets
@@ -80,6 +81,13 @@ const notificationCategories: NotificationSetting[] = [
     icon: <Mail className="w-4 h-4" />,
     category: 'notification',
   },
+  {
+    key: 'notif_chat',
+    label: 'Messages tchat privés',
+    description: 'Notifications pour les messages privés reçus sur le tchat',
+    icon: <MessageCircle className="w-4 h-4" />,
+    category: 'notification',
+  },
 ];
 
 const emailCategories: NotificationSetting[] = [
@@ -109,6 +117,13 @@ const emailCategories: NotificationSetting[] = [
     label: 'Messages de campagne',
     description: 'Emails pour les nouveaux messages dans vos campagnes',
     icon: <Mail className="w-4 h-4" />,
+    category: 'email',
+  },
+  {
+    key: 'mail_chat',
+    label: 'Messages tchat privés',
+    description: 'Emails pour les messages privés reçus sur le tchat',
+    icon: <MessageCircle className="w-4 h-4" />,
     category: 'email',
   },
 ];
@@ -145,10 +160,12 @@ export const SettingsPage: React.FC = () => {
     notif_inscription: 1,
     notif_perso: 1,
     notif_message: 1,
+    notif_chat: 1,
     mail_mp: 1,
     mail_inscription: 0,
     mail_perso: 0,
     mail_message: 0,
+    mail_chat: 0,
   });
 
   // Password form state
@@ -263,10 +280,12 @@ export const SettingsPage: React.FC = () => {
       notif_inscription: currentUser.notif_inscription ?? 1,
       notif_perso: currentUser.notif_perso ?? 1,
       notif_message: currentUser.notif_message ?? 1,
+      notif_chat: currentUser.notif_chat ?? 1,
       mail_mp: currentUser.mail_mp ?? 1,
       mail_inscription: currentUser.mail_inscription ?? 0,
       mail_perso: currentUser.mail_perso ?? 0,
       mail_message: currentUser.mail_message ?? 0,
+      mail_chat: currentUser.mail_chat ?? 0,
     });
     setIsLoading(false);
   }, [currentUser, navigate]);
