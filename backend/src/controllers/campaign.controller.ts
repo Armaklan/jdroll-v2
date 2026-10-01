@@ -135,6 +135,7 @@ const createCampaignBodySchema = z.object({
   templateImg: z.string().nullable().optional(),
   templateFields: z.string().nullable().optional(),
   widgets: z.string().nullable().optional(),
+  sidebarText: z.string().nullable().optional(),
   sheetMode: z.enum(['technical', 'graphic', 'programmed']).nullable().optional(),
   sheetDefinition: z.string().nullable().optional(),
 });

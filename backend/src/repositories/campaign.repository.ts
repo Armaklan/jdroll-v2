@@ -72,6 +72,7 @@ export interface UpdateCampaignData {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sidebarText?: string | null;
   sheetMode?: string | null;
   sheetDefinition?: string | null;
 }
@@ -726,6 +727,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.template_img AS templateImg,
         cc.template_fields AS templateFields,
         cc.widgets AS widgets,
+        cc.sidebar_text AS sidebarText,
         cc.banniere AS banniereForum,
         cc.sheet_mode AS sheetMode,
         cc.sheet_definition AS sheetDefinition
@@ -775,6 +777,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       templateImg: string | null;
       templateFields: string | null;
       widgets: string | null;
+      sidebarText: string | null;
       sheetMode: string | null;
       sheetDefinition: string | null;
     }
@@ -825,6 +828,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       templateImg: row.templateImg || null,
       templateFields: row.templateFields || null,
       widgets: row.widgets || null,
+      sidebarText: row.sidebarText || null,
       sheetMode: row.sheetMode || null,
       sheetDefinition: row.sheetDefinition || null,
     };
@@ -1037,6 +1041,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     if (data.widgets !== undefined) {
       configFields.push('widgets = ?');
       configParams.push(data.widgets ?? '');
+    }
+    if (data.sidebarText !== undefined) {
+      configFields.push('sidebar_text = ?');
+      configParams.push(data.sidebarText ?? '');
     }
     if (data.sheetMode !== undefined) {
       configFields.push('sheet_mode = ?');

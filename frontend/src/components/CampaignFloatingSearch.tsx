@@ -74,6 +74,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [selectedIndex, setSelectedIndex] = useState<number>(0);
   const [playerCharacterId, setPlayerCharacterId] = useState<number | null>(null);
+  const [activePanel, setActivePanel] = useState<'search' | 'info'>('search');
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -326,6 +327,7 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
     if (isOpen) {
       setQuery('');
       setSelectedIndex(0);
+      setActivePanel('search');
       fetchResults('');
       if (isAuthenticated) {
         fetchMyCampaigns();
@@ -382,6 +384,9 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
 
   // Keyboard navigation inside modal
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (activePanel !== 'search') {
+      return;
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (flattenedResults.length > 0) {
@@ -599,6 +604,37 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
               </div>
             </div>
 
+            {/* Onglets : Recherche / Information rapide */}
+            <div className="flex items-center gap-1 px-3.5 pt-2.5 bg-slate-50/90 border-b border-slate-200">
+              <button
+                type="button"
+                onClick={() => setActivePanel('search')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-xl border-b-2 transition cursor-pointer ${
+                  activePanel === 'search'
+                    ? 'border-indigo-600 text-indigo-700 bg-indigo-50/60'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
+                }`}
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Recherche</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivePanel('info')}
+                data-testid="floating-search-info-tab"
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-xl border-b-2 transition cursor-pointer ${
+                  activePanel === 'info'
+                    ? 'border-indigo-600 text-indigo-700 bg-indigo-50/60'
+                    : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
+                }`}
+              >
+                <BookOpen className="w-3.5 h-3.5" />
+                <span>Information rapide</span>
+              </button>
+            </div>
+
+            {activePanel === 'search' && (
+              <>
             {/* Champ de recherche */}
             <div className="relative border-b border-slate-200 bg-white">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -968,6 +1004,29 @@ export const CampaignFloatingSearch: React.FC<CampaignFloatingSearchProps> = ({
                 </>
               )}
             </div>
+              </>
+            )}
+
+            {/* Panneau : Information rapide */}
+            {activePanel === 'info' && (
+              <div className="overflow-y-auto max-h-96 p-3.5">
+                {campaign.sidebarText && campaign.sidebarText.trim() ? (
+                  <div
+                    data-testid="floating-search-info-content"
+                    className="bg-slate-50/80 border border-slate-200 rounded-2xl p-5 text-sm text-slate-700 leading-relaxed wysiwyg-content space-y-3"
+                    dangerouslySetInnerHTML={{ __html: campaign.sidebarText }}
+                  />
+                ) : (
+                  <div className="text-center py-10 px-4">
+                    <BookOpen className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                    <p className="text-sm font-semibold text-slate-700">Aucune information rapide</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Le Maître du Jeu n'a pas encore configuré d'information rapide pour cette campagne.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Footer / Raccourcis clavier & Gestes mobiles */}
             <div className="p-3 bg-slate-50 border-t border-slate-200 text-slate-500 text-xs flex items-center justify-between">

@@ -45,6 +45,7 @@ export interface CampaignSummary {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sidebarText?: string | null;
   sheetMode?: SheetMode | null;
   sheetDefinition?: string | null;
   hasUnread?: boolean;
@@ -136,6 +137,7 @@ export interface CreateCampaignPayload {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sidebarText?: string | null;
   sheetMode?: SheetMode | null;
   sheetDefinition?: string | null;
 }

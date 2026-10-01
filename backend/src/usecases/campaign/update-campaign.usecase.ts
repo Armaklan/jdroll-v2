@@ -44,6 +44,7 @@ export interface UpdateCampaignDTO {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sidebarText?: string | null;
   sheetMode?: string | null;
   sheetDefinition?: string | null;
 }
@@ -173,6 +174,7 @@ export class UpdateCampaignUseCase {
       templateImg,
       templateFields: dto.templateFields,
       widgets: dto.widgets,
+      sidebarText: dto.sidebarText,
       sheetMode,
       sheetDefinition,
     });

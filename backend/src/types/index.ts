@@ -148,6 +148,7 @@ export interface CampaignSummary {
   templateImg?: string | null;
   templateFields?: string | null;
   widgets?: string | null;
+  sidebarText?: string | null;
   sheetMode?: string | null;
   sheetDefinition?: string | null;
   hasUnread?: boolean;

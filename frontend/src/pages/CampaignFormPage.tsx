@@ -138,6 +138,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const [textColor, setTextColor] = useState<string>('');
   const [linkColor, setLinkColor] = useState<string>('');
   const [linkSidebarColor, setLinkSidebarColor] = useState<string>('');
+  const [sidebarText, setSidebarText] = useState<string>('');
   const [width, setWidth] = useState<string>('800px');
 
   // Predefined themes (table theme)
@@ -278,6 +279,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         setTextColor(campaign.textColor || '');
         setLinkColor(campaign.linkColor || '');
         setLinkSidebarColor(campaign.linkSidebarColor || '');
+        setSidebarText(campaign.sidebarText || '');
         setWidth(campaign.width || '800px');
         
         // Separator Image
@@ -710,6 +712,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           sheetMode,
           sheetDefinition: JSON.stringify(sheetDefinition),
           widgets: serializeWidgets(widgetsList),
+          sidebarText: sidebarText || '',
         };
 
         const updated = await campaignsApi.updateCampaign(campaignId, payload);
@@ -758,6 +761,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           sheetMode,
           sheetDefinition: JSON.stringify(sheetDefinition),
           widgets: serializeWidgets(widgetsList),
+          sidebarText: sidebarText || '',
         };
 
         const created = await campaignsApi.createCampaign(payload);
@@ -2287,6 +2291,51 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Sidebar Quick Info Text */}
+              <div className="pt-4 border-t border-slate-100 space-y-4">
+                <div className="border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 font-bold text-xs border border-amber-200">
+                      Barre Latérale
+                    </span>
+                    <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-amber-600" />
+                      <span>Information Rapide</span>
+                    </h2>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Texte mis en forme affiché aux participants dans l'onglet « Information rapide » de la recherche flottante de la campagne.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                      Contenu de l'information rapide
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-slate-400 font-medium">(optionnel)</span>
+                      <span className="text-slate-300">&bull;</span>
+                      <span className="text-xs text-slate-400">Riche / HTML & Mise en forme supportés</span>
+                    </div>
+                  </div>
+                  <WysiwygEditor
+                    value={sidebarText}
+                    onChange={(val) => setSidebarText(val)}
+                    placeholder="Règles de la table, rappels de session, informations d'ambiance utiles aux joueurs..."
+                    minHeight="180px"
+                    onUploadImage={
+                      isEditMode && campaignId
+                        ? async (file) => {
+                            const res = await campaignsApi.uploadCampaignImage(campaignId, file);
+                            return res.url;
+                          }
+                        : undefined
+                    }
+                  />
                 </div>
               </div>
 
