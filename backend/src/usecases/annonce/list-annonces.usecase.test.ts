@@ -14,7 +14,7 @@ class InMemoryAnnonceRepository implements IAnnonceRepository {
     return [...this.annonces];
   }
 
-  async findVisible(now: Date): Promise<Annonce[]> {
+  async findVisible(): Promise<Annonce[]> {
     return [...this.annonces];
   }
 

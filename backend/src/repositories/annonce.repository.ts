@@ -3,7 +3,7 @@ import { Annonce, RawAnnonceRow } from '../types/index.js';
 
 export interface IAnnonceRepository {
   findAll(): Promise<Annonce[]>;
-  findVisible(now: Date): Promise<Annonce[]>;
+  findVisible(): Promise<Annonce[]>;
   findById(id: number): Promise<Annonce | null>;
   create(title: string, content: string, endDate: string): Promise<Annonce>;
   update(id: number, title: string, content: string, endDate: string): Promise<boolean>;
@@ -42,13 +42,17 @@ export class MysqlAnnonceRepository implements IAnnonceRepository {
     return rows.map(mapRow);
   }
 
-  async findVisible(now: Date): Promise<Annonce[]> {
+  /**
+   * La date courante est évaluée par MySQL via NOW(), sur la même horloge
+   * que le DEFAULT CURRENT_TIMESTAMP de create_date : cela évite tout
+   * décalage entre le fuseau du process Node et celui de la base.
+   */
+  async findVisible(): Promise<Annonce[]> {
     const rows = await query<RawAnnonceRow>(
       `SELECT id, title, content, create_date, end_date
        FROM annonce
-       WHERE create_date <= ? AND end_date >= ?
-       ORDER BY create_date DESC, id DESC`,
-      [now, now]
+       WHERE create_date <= NOW() AND end_date >= NOW()
+       ORDER BY create_date DESC, id DESC`
     );
     return rows.map(mapRow);
   }

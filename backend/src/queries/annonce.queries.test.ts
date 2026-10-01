@@ -4,17 +4,22 @@ import { AnnonceQueries } from './annonce.queries.js';
 import { IAnnonceRepository } from '../repositories/annonce.repository.js';
 import { Annonce } from '../types/index.js';
 
+/**
+ * Mock simulant la sélection en base : le filtrage temporel est fait
+ * par le repository (équivalent de NOW() côté MySQL), sans date
+ * calculée côté applicatif.
+ */
 class InMemoryAnnonceRepository implements IAnnonceRepository {
   annonces: Annonce[] = [];
-  visibleCalls: Date[] = [];
+  visibleCallArgs: unknown[][] = [];
 
   async findAll(): Promise<Annonce[]> {
     return [...this.annonces];
   }
 
-  async findVisible(now: Date): Promise<Annonce[]> {
-    this.visibleCalls.push(now);
-    const time = now.getTime();
+  async findVisible(...args: unknown[]): Promise<Annonce[]> {
+    this.visibleCallArgs.push(args);
+    const time = Date.now();
     return this.annonces.filter(
       (annonce) =>
         new Date(annonce.createDate).getTime() <= time &&
@@ -74,12 +79,15 @@ describe('AnnonceQueries', () => {
     assert.equal(annonces[0].title, 'Annonce visible');
   });
 
-  it('interroge le repository avec la date courante', async () => {
+  it('délègue la sélection temporelle au repository, sans date calculée côté applicatif', async () => {
     await queries.getVisibleAnnonces();
 
-    assert.equal(repo.visibleCalls.length, 1);
-    const delta = Math.abs(Date.now() - repo.visibleCalls[0].getTime());
-    assert.ok(delta < 5000, 'la date passée au repository doit être la date courante');
+    assert.equal(repo.visibleCallArgs.length, 1);
+    assert.equal(
+      repo.visibleCallArgs[0].length,
+      0,
+      'la date courante doit être évaluée par la base (NOW()), pas passée depuis Node'
+    );
   });
 
   it('renvoie une liste vide quand aucune annonce est visible', async () => {

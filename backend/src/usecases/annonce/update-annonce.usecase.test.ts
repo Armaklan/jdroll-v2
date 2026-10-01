@@ -20,8 +20,8 @@ class InMemoryAnnonceRepository implements IAnnonceRepository {
     return [...this.annonces];
   }
 
-  async findVisible(now: Date): Promise<Annonce[]> {
-    const time = now.getTime();
+  async findVisible(): Promise<Annonce[]> {
+    const time = Date.now();
     return this.annonces.filter(
       (annonce) =>
         new Date(annonce.createDate).getTime() <= time &&
