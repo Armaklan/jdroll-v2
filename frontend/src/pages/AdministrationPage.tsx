@@ -9,7 +9,7 @@ import { FeatureFlip } from '../types/feature';
 import { Annonce } from '../types/annonce';
 import { WysiwygEditor } from '../components/WysiwygEditor';
 import { parseDbDate } from '../utils/date';
-import { Shield, RefreshCw, Megaphone, Plus, Pencil, X, Loader2 } from 'lucide-react';
+import { Shield, RefreshCw, Megaphone, Plus, Pencil, Trash2, X, Loader2 } from 'lucide-react';
 
 function toDatetimeLocalValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -45,6 +45,7 @@ export const AdministrationPage: React.FC = () => {
   const [formContent, setFormContent] = useState<string>('');
   const [formEndDate, setFormEndDate] = useState<string>('');
   const [isSavingAnnonce, setIsSavingAnnonce] = useState<boolean>(false);
+  const [deletingAnnonceId, setDeletingAnnonceId] = useState<number | null>(null);
 
   const isAdmin = isUserAdmin(user);
 
@@ -121,6 +122,22 @@ export const AdministrationPage: React.FC = () => {
       setAnnoncesError((err as Error).message || 'Erreur lors de l\'enregistrement de l\'annonce');
     } finally {
       setIsSavingAnnonce(false);
+    }
+  };
+
+  const deleteAnnonce = async (annonce: Annonce) => {
+    if (!window.confirm(`Supprimer l'annonce « ${annonce.title} » ? Cette action est définitive.`)) {
+      return;
+    }
+    setDeletingAnnonceId(annonce.id);
+    setAnnoncesError(null);
+    try {
+      await annoncesApi.deleteAnnonce(annonce.id);
+      await loadAnnonces();
+    } catch (err) {
+      setAnnoncesError((err as Error).message || 'Erreur lors de la suppression de l\'annonce');
+    } finally {
+      setDeletingAnnonceId(null);
     }
   };
 
@@ -380,14 +397,30 @@ export const AdministrationPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => openEditAnnonceForm(annonce)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 transition cursor-pointer shrink-0"
-                    aria-label={`Modifier ${annonce.title}`}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Modifier</span>
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => openEditAnnonceForm(annonce)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
+                      aria-label={`Modifier ${annonce.title}`}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Modifier</span>
+                    </button>
+                    <button
+                      onClick={() => deleteAnnonce(annonce)}
+                      disabled={deletingAnnonceId === annonce.id}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label={`Supprimer ${annonce.title}`}
+                      data-testid={`annonce-delete-button-${annonce.id}`}
+                    >
+                      {deletingAnnonceId === annonce.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                      <span className="hidden sm:inline">Supprimer</span>
+                    </button>
+                  </div>
                 </li>
               );
             })}

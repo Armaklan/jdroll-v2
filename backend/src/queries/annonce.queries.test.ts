@@ -38,6 +38,10 @@ class InMemoryAnnonceRepository implements IAnnonceRepository {
   async update(id: number, title: string, content: string, endDate: string): Promise<boolean> {
     return false;
   }
+
+  async delete(id: number): Promise<boolean> {
+    return false;
+  }
 }
 
 describe('AnnonceQueries', () => {

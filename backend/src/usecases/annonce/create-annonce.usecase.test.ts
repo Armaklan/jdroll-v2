@@ -50,6 +50,15 @@ class InMemoryAnnonceRepository implements IAnnonceRepository {
     annonce.endDate = endDate;
     return true;
   }
+
+  async delete(id: number): Promise<boolean> {
+    const index = this.annonces.findIndex((annonce) => annonce.id === id);
+    if (index === -1) {
+      return false;
+    }
+    this.annonces.splice(index, 1);
+    return true;
+  }
 }
 
 function futureDate(days: number): string {

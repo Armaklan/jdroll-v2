@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { AnnonceQueries, annonceQueries } from '../queries/annonce.queries.js';
 import { CreateAnnonceUseCase, createAnnonceUseCase } from '../usecases/annonce/create-annonce.usecase.js';
 import { UpdateAnnonceUseCase, updateAnnonceUseCase } from '../usecases/annonce/update-annonce.usecase.js';
+import { DeleteAnnonceUseCase, deleteAnnonceUseCase } from '../usecases/annonce/delete-annonce.usecase.js';
 import { ListAnnoncesUseCase, listAnnoncesUseCase } from '../usecases/annonce/list-annonces.usecase.js';
 import { AnnonceNotFoundError, DomainError, ForbiddenError } from '../errors/domain.errors.js';
 
@@ -29,6 +30,7 @@ export class AnnonceController {
     private readonly queries: AnnonceQueries = annonceQueries,
     private readonly createUseCase: CreateAnnonceUseCase = createAnnonceUseCase,
     private readonly updateUseCase: UpdateAnnonceUseCase = updateAnnonceUseCase,
+    private readonly deleteUseCase: DeleteAnnonceUseCase = deleteAnnonceUseCase,
     private readonly listUseCase: ListAnnoncesUseCase = listAnnoncesUseCase
   ) {}
 
@@ -134,6 +136,30 @@ export class AnnonceController {
     }
   }
 
+  /**
+   * DELETE /api/annonces/:id
+   * Supprime une annonce (admin).
+   */
+  async deleteAnnonce(request: FastifyRequest, reply: FastifyReply) {
+    const paramsResult = annonceIdParamsSchema.safeParse(request.params);
+    if (!paramsResult.success) {
+      return reply.status(400).send({
+        error: 'Identifiant d\'annonce invalide',
+        details: paramsResult.error.format(),
+      });
+    }
+
+    try {
+      await this.deleteUseCase.execute({
+        requesterProfil: request.user.profil,
+        id: paramsResult.data.id,
+      });
+      return reply.status(204).send();
+    } catch (error) {
+      return this.handleError(error, reply);
+    }
+  }
+
   registerRoutes(app: FastifyInstance) {
     app.get('/api/annonces/visible', { preHandler: [app.authenticate] }, (req, rep) =>
       this.getVisibleAnnonces(req, rep)
@@ -146,6 +172,9 @@ export class AnnonceController {
     );
     app.put('/api/annonces/:id', { preHandler: [app.authenticate] }, (req, rep) =>
       this.updateAnnonce(req, rep)
+    );
+    app.delete('/api/annonces/:id', { preHandler: [app.authenticate] }, (req, rep) =>
+      this.deleteAnnonce(req, rep)
     );
   }
 }

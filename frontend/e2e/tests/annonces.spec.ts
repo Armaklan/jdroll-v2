@@ -8,7 +8,8 @@ import { LoginPage } from '../page-objects/LoginPage';
  * 2. Les annonces visibles (entre create_date et end_date) s'affichent en haut de l'accueil
  *    et du forum général pour les utilisateurs authentifiés
  * 3. Un admin peut modifier une annonce, le changement est visible sur l'accueil
- * 4. Un utilisateur authentifié non admin voit les annonces mais ne peut pas les gérer (403 API)
+ * 4. Un admin peut supprimer une annonce depuis l'écran d'administration
+ * 5. Un utilisateur authentifié non admin voit les annonces mais ne peut pas les gérer (403 API)
  *
  * Le filtrage strict de la fenêtre create_date/end_date est couvert par les tests unitaires
  * backend (src/queries/annonce.queries.test.ts et src/repositories/annonce.repository.ts) :
@@ -151,6 +152,50 @@ test.describe('Annonces', () => {
     expect(updated).toBeTruthy();
     expect(updated.title).toBe(updatedTitle);
     expect(Date.parse(updated.endDate.replace(' ', 'T'))).toBeGreaterThan(Date.now() - 5 * 60 * 1000);
+  });
+
+  test("un admin supprime une annonce depuis l'écran d'administration", async ({ page, request }) => {
+    const suffix = `${Date.now().toString(36)}`;
+    const title = `Annonce E2E à supprimer ${suffix}`;
+
+    const admin = await loginViaApi(request, 'admin', 'password');
+    const inOneHour = new Date();
+    inOneHour.setHours(inOneHour.getHours() + 1);
+    const annonce = await createAnnonceViaApi(request, admin.token, title, '<p>Éphémère</p>', inOneHour);
+
+    await setBrowserToken(page, admin.token);
+    await page.goto('/administration');
+
+    // L'annonce est bien listée avant suppression
+    const row = page.getByTestId(`annonce-row-${annonce.id}`);
+    await expect(row).toBeVisible();
+
+    // Confirmation du dialog de suppression
+    page.once('dialog', (dialog) => dialog.accept());
+    await row.getByTestId(`annonce-delete-button-${annonce.id}`).click();
+
+    // La ligne disparaît de la liste d'administration
+    await expect(row).toHaveCount(0);
+
+    // L'annonce n'apparaît plus sur l'accueil
+    await page.goto('/');
+    const banner = page.getByTestId('annonces-banner');
+    await expect(banner.locator('section', { hasText: title })).toHaveCount(0);
+
+    // L'API de liste ne contient plus l'annonce
+    const listResponse = await request.get('/api/annonces', {
+      headers: { Authorization: `Bearer ${admin.token}` },
+    });
+    expect(listResponse.ok()).toBeTruthy();
+    const listBody = await listResponse.json();
+    expect(listBody.annonces.find((a: { id: number }) => a.id === annonce.id)).toBeUndefined();
+
+    // La suppression directe par un non-admin est interdite
+    const user = await loginViaApi(request, 'testuser', 'password');
+    const deleteResponse = await request.delete(`/api/annonces/${annonce.id}`, {
+      headers: { Authorization: `Bearer ${user.token}` },
+    });
+    expect(deleteResponse.status()).toBe(403);
   });
 
   test("un utilisateur authentifié non admin voit les annonces mais ne peut pas les gérer", async ({ page, request }) => {

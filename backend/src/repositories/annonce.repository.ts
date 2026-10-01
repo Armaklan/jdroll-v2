@@ -7,6 +7,7 @@ export interface IAnnonceRepository {
   findById(id: number): Promise<Annonce | null>;
   create(title: string, content: string, endDate: string): Promise<Annonce>;
   update(id: number, title: string, content: string, endDate: string): Promise<boolean>;
+  delete(id: number): Promise<boolean>;
 }
 
 function formatDate(value: Date | string): string {
@@ -87,6 +88,11 @@ export class MysqlAnnonceRepository implements IAnnonceRepository {
       `UPDATE annonce SET title = ?, content = ?, end_date = ? WHERE id = ?`,
       [title, content, endDate, id]
     );
+    return result.affectedRows > 0;
+  }
+
+  async delete(id: number): Promise<boolean> {
+    const result = await execute(`DELETE FROM annonce WHERE id = ?`, [id]);
     return result.affectedRows > 0;
   }
 }

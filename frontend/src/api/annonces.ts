@@ -51,4 +51,10 @@ export const annoncesApi = {
       body: JSON.stringify({ title, content, endDate }),
     });
   },
+
+  async deleteAnnonce(id: number): Promise<void> {
+    return request<void>(`/api/annonces/${id}`, {
+      method: 'DELETE',
+    });
+  },
 };
