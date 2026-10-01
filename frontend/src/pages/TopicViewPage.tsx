@@ -13,6 +13,7 @@ import { CampaignHeader } from '../components/CampaignHeader';
 import { GlobalFloatingSearch } from '../components/GlobalFloatingSearch';
 import { CharacterWidgetsRenderer } from '../components/CharacterWidgetsRenderer';
 import { CharacterDetailModal } from '../components/CharacterDetailModal';
+import { PostAuthorSelect } from '../components/PostAuthorSelect';
 import { formatDate } from '../utils/date';
 import {
   serializeWidgets,
@@ -1320,21 +1321,16 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                               <UserIcon className="w-3.5 h-3.5 text-indigo-500" />
                               <span>Poster en tant que :</span>
                             </label>
-                            <select
-                              value={editPersoId ?? ''}
-                              onChange={(e) => setEditPersoId(e.target.value ? Number(e.target.value) : null)}
-                              className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
-                            >
-                              <option value="">Aucun personnage ({post.user?.username || user?.username})</option>
-                              {(isMj
-                                ? topicDetail.availableCharacters
-                                : topicDetail.availableCharacters.filter((c) => c.userId === post.user?.id)
-                              ).map((perso) => (
-                                <option key={perso.id} value={perso.id}>
-                                  {perso.name} {perso.concept ? `(${perso.concept})` : ''}
-                                </option>
-                              ))}
-                            </select>
+                            <PostAuthorSelect
+                              value={editPersoId}
+                              onChange={setEditPersoId}
+                              characters={
+                                isMj
+                                  ? topicDetail.availableCharacters
+                                  : topicDetail.availableCharacters.filter((c) => c.userId === post.user?.id)
+                              }
+                              selfLabel={`Aucun personnage (${post.user?.username || user?.username})`}
+                            />
                           </div>
                         )}
 
@@ -1764,19 +1760,13 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
                   <label htmlFor="post-author-select" className="font-semibold text-slate-700 whitespace-nowrap">
                     Poster en tant que :
                   </label>
-                  <select
+                  <PostAuthorSelect
                     id="post-author-select"
-                    value={selectedPersoId ?? ''}
-                    onChange={(e) => setSelectedPersoId(e.target.value ? Number(e.target.value) : null)}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
-                  >
-                    <option value="">Moi-même ({user?.username})</option>
-                    {topicDetail.availableCharacters.map((char) => (
-                      <option key={char.id} value={char.id}>
-                        {char.name} {char.concept ? `(${char.concept})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    value={selectedPersoId}
+                    onChange={setSelectedPersoId}
+                    characters={topicDetail.availableCharacters}
+                    selfLabel={`Moi-même (${user?.username})`}
+                  />
                 </div>
               )}
             </div>
