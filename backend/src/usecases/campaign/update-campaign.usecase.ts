@@ -179,12 +179,88 @@ export class UpdateCampaignUseCase {
       sheetDefinition,
     });
 
+    if (dto.widgets !== undefined) {
+      await this.removeOrphanedCharacterWidgets(dto.campaignId, dto.widgets);
+    }
+
     const updated = await this.campaignRepo.findById(dto.campaignId);
     if (!updated) {
       throw new Error('Erreur lors de la récupération de la campagne mise à jour');
     }
 
     return updated;
+  }
+
+  private parseWidgetKeys(rawWidgets: string | null): { ids: Set<string>; names: Set<string> } | null {
+    if (rawWidgets === null || rawWidgets.trim() === '') {
+      return { ids: new Set(), names: new Set() };
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(rawWidgets);
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    for (const widget of parsed) {
+      if (!widget || typeof widget !== 'object') {
+        continue;
+      }
+      const { id, name } = widget as { id?: unknown; name?: unknown };
+      if (id !== undefined && id !== null) {
+        ids.add(String(id));
+      }
+      if (typeof name === 'string' && name.trim() !== '') {
+        names.add(name.toLowerCase());
+      }
+    }
+    return { ids, names };
+  }
+
+  private async removeOrphanedCharacterWidgets(campaignId: number, campaignWidgetsRaw: string | null): Promise<void> {
+    const keys = this.parseWidgetKeys(campaignWidgetsRaw);
+    if (!keys) {
+      return;
+    }
+
+    const characters = await this.campaignRepo.findCampaignCharacters(campaignId);
+    for (const character of characters) {
+      const rawWidgets = character.widgets;
+      if (!rawWidgets || rawWidgets.trim() === '') {
+        continue;
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(rawWidgets);
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(parsed)) {
+        continue;
+      }
+
+      const kept = parsed.filter((widget) => {
+        if (!widget || typeof widget !== 'object') {
+          return false;
+        }
+        const { id, name } = widget as { id?: unknown; name?: unknown };
+        if (id !== undefined && id !== null && keys.ids.has(String(id))) {
+          return true;
+        }
+        return typeof name === 'string' && keys.names.has(name.toLowerCase());
+      });
+
+      if (kept.length !== parsed.length) {
+        await this.campaignRepo.updateCharacter(character.id, { widgets: JSON.stringify(kept) });
+      }
+    }
   }
 }
 

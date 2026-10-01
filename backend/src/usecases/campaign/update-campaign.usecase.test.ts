@@ -9,7 +9,7 @@ import {
   ForbiddenError,
   ValidationError,
 } from '../../errors/domain.errors.js';
-import { CampaignSummary } from '../../types/index.js';
+import { CampaignSummary, RawCampaignCharacterRow } from '../../types/index.js';
 
 describe('UpdateCampaignUseCase', () => {
   const initialCampaign: CampaignSummary = {
@@ -32,11 +32,17 @@ describe('UpdateCampaignUseCase', () => {
     penseeColor: '#a855f7',
   };
 
-  const createMockCampaignRepo = (initialCampaigns: CampaignSummary[] = [initialCampaign]): {
+  const createMockCampaignRepo = (
+    initialCampaigns: CampaignSummary[] = [initialCampaign],
+    options: { characters?: RawCampaignCharacterRow[] } = {}
+  ): {
     repo: ICampaignRepository;
     campaigns: CampaignSummary[];
+    characterUpdates: Array<{ id: number; widgets?: string }>;
   } => {
     const campaigns: CampaignSummary[] = initialCampaigns.map((c) => ({ ...c }));
+    const characterUpdates: Array<{ id: number; widgets?: string }> = [];
+    const characters: RawCampaignCharacterRow[] = options.characters ?? [];
 
     const repo: ICampaignRepository = {
       findMasteredCampaigns: async () => [],
@@ -84,11 +90,13 @@ describe('UpdateCampaignUseCase', () => {
           if (data.sheetDefinition !== undefined) c.sheetDefinition = data.sheetDefinition;
         }
       },
-      findCampaignCharacters: async () => [],
+      findCampaignCharacters: async () => characters.map((c) => ({ ...c })),
       findCampaignPnjCategories: async () => [],
       findCharacterById: async () => null,
       createCharacter: async () => 1,
-      updateCharacter: async () => {},
+      updateCharacter: async (id, data) => {
+        characterUpdates.push({ id, widgets: data.widgets });
+      },
       updateCampaignBanner: async () => {},
       findCampaignParticipants: async () => [],
       isUserCampaignParticipant: async () => false,
@@ -103,7 +111,7 @@ describe('UpdateCampaignUseCase', () => {
       removeCampaignAlert: async () => {},
     };
 
-    return { repo, campaigns };
+    return { repo, campaigns, characterUpdates };
   };
 
   const createMockForumRepo = (options: { isMj?: boolean } = {}): IForumRepository =>
@@ -298,6 +306,78 @@ describe('UpdateCampaignUseCase', () => {
     });
 
     assert.equal(result.defaultPersoId, 15);
+  });
+
+  describe('UpdateCampaignUseCase - widgets de campagne', () => {
+    const makeCharacter = (id: number, widgets: string | null): RawCampaignCharacterRow => ({
+      id,
+      userId: null,
+      userName: null,
+      userAvatar: null,
+      userProfil: null,
+      campagneId: 1,
+      name: `Perso ${id}`,
+      concept: '',
+      avatar: '',
+      publicDescription: '',
+      privateDescription: '',
+      technical: '',
+      statut: 0,
+      catId: null,
+      categoryName: null,
+      persoFields: null,
+      widgets,
+      sheetValues: null,
+    });
+
+    it('retire des personnages les widgets supprimés de la configuration de la campagne', async () => {
+      const characterWidgets = JSON.stringify([
+        { id: 'w-1', name: 'Vie', type: 'jauge', low: 0, up: 100, value: 42 },
+        { id: 'w-2', name: 'Or', type: 'token', low: 0, up: 0, value: 3 },
+        { id: 'w-3', name: 'Reputation', type: 'text', low: 0, up: 0, value: 'connu' },
+      ]);
+      const { repo, characterUpdates } = createMockCampaignRepo([initialCampaign], {
+        characters: [makeCharacter(101, characterWidgets), makeCharacter(102, null)],
+      });
+      const useCase = new UpdateCampaignUseCase(repo, createMockForumRepo());
+
+      const newWidgets = JSON.stringify([
+        { id: 'w-1', name: 'Vie', type: 'jauge', low: 0, up: 100, value: 0 },
+        { id: 'w-9', name: 'Reputation', type: 'text', low: 0, up: 0, value: '' },
+      ]);
+
+      await useCase.execute({ campaignId: 1, userId: 10, widgets: newWidgets });
+
+      assert.equal(characterUpdates.length, 1);
+      assert.equal(characterUpdates[0].id, 101);
+      const kept = JSON.parse(characterUpdates[0].widgets as string);
+      assert.deepEqual(kept.map((w: { id: string }) => w.id).sort(), ['w-1', 'w-3']);
+      const vie = kept.find((w: { id: string }) => w.id === 'w-1');
+      assert.equal(vie.value, 42);
+    });
+
+    it('vide les widgets des personnages quand la campagne ne définit plus aucun widget', async () => {
+      const { repo, characterUpdates } = createMockCampaignRepo([initialCampaign], {
+        characters: [makeCharacter(101, JSON.stringify([{ id: 'w-1', name: 'Vie', type: 'jauge', low: 0, up: 100, value: 10 }]))],
+      });
+      const useCase = new UpdateCampaignUseCase(repo, createMockForumRepo());
+
+      await useCase.execute({ campaignId: 1, userId: 10, widgets: '[]' });
+
+      assert.equal(characterUpdates.length, 1);
+      assert.deepEqual(JSON.parse(characterUpdates[0].widgets as string), []);
+    });
+
+    it('ne modifie pas les personnages si les widgets de campagne ne sont pas fournis', async () => {
+      const { repo, characterUpdates } = createMockCampaignRepo([initialCampaign], {
+        characters: [makeCharacter(101, JSON.stringify([{ id: 'w-1', name: 'Vie', type: 'jauge' }]))],
+      });
+      const useCase = new UpdateCampaignUseCase(repo, createMockForumRepo());
+
+      await useCase.execute({ campaignId: 1, userId: 10, name: 'Nouveau Titre' });
+
+      assert.equal(characterUpdates.length, 0);
+    });
   });
   describe('UpdateCampaignUseCase - mode de feuille de personnage', () => {
   const validDefinition = {
