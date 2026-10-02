@@ -12,6 +12,7 @@ import {
   CampaignSearchTopicItem,
   CampaignSearchCarteItem,
   CampaignSearchCharacterItem,
+  RawCampaignCharacterRow,
 } from '../types/index.js';
 import { CampaignNotFoundError, CharacterNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 import { resolveSheetMode } from '../schemas/sheet-definition.schema.js';
@@ -145,6 +146,11 @@ export class CampaignQueries {
       const isPlayer = raw.userId !== null && raw.userId !== undefined;
       const isOwner = Boolean(currentUserId && raw.userId === currentUserId);
       const canSeePrivate = isMj || isOwner;
+
+      // Un personnage privé (statut = 1) n'apparaît que pour le MJ ou son propriétaire
+      if (raw.statut === 1 && !canSeePrivate) {
+        continue;
+      }
 
       const character: CampaignCharacter = {
         id: raw.id,
@@ -410,7 +416,7 @@ export class CampaignQueries {
     const [topicRows, carteRows, characterRows] = await Promise.all([
       this.forumRepo.searchCampaignTopics(campaignId, queryText, currentUserId, isMj),
       this.carteRepo.searchCampaignCartes(campaignId, queryText, isMj),
-      this.campaignRepo.searchCampaignCharacters(campaignId, queryText),
+      this.campaignRepo.searchCampaignCharacters(campaignId, queryText, isMj, currentUserId),
     ]);
 
     const topics: CampaignSearchTopicItem[] = topicRows.map((t) => ({
@@ -446,6 +452,38 @@ export class CampaignQueries {
       cartes,
       characters,
     };
+  }
+
+  /**
+   * Résout un personnage d'une campagne par identifiant (id numérique ou nom exact, insensible à la casse),
+   * y compris les personnages privés (statut = 1) : les droits d'accès s'appliquent ensuite à la lecture de la fiche.
+   */
+  async resolveCampaignCharacter(campaignId: number, identifier: string): Promise<{ id: number; name: string }> {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) {
+      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
+    }
+
+    const trimmed = identifier.trim();
+    if (!trimmed) {
+      throw new CharacterNotFoundError('Aucun personnage ne correspond à cet identifiant');
+    }
+
+    const numericId = Number(trimmed);
+    let raw: RawCampaignCharacterRow | null = null;
+
+    if (!isNaN(numericId) && numericId > 0 && String(numericId) === trimmed) {
+      const byId = await this.campaignRepo.findCharacterById(numericId);
+      raw = byId && byId.campagneId === campaignId ? byId : null;
+    } else if (this.campaignRepo.findCampaignCharacterByName) {
+      raw = await this.campaignRepo.findCampaignCharacterByName(campaignId, trimmed);
+    }
+
+    if (!raw) {
+      throw new CharacterNotFoundError(`Aucun personnage ne correspond à « ${trimmed} » dans cette campagne`);
+    }
+
+    return { id: raw.id, name: raw.name };
   }
 }
 

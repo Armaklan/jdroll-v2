@@ -68,6 +68,7 @@ interface CharacterFormData {
   avatar: string;
   catId: number | null;
   assignedUserId: number | null;
+  statut: number;
   publicDescription: string;
   privateDescription: string;
   technical: string;
@@ -82,6 +83,7 @@ const emptyFormData: CharacterFormData = {
   avatar: '',
   catId: null,
   assignedUserId: null,
+  statut: 0,
   publicDescription: '',
   privateDescription: '',
   technical: '',
@@ -305,6 +307,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       avatar: '',
       catId: null,
       assignedUserId: null,
+      statut: 0,
       publicDescription: '',
       privateDescription: '',
       technical: data?.campaign?.template || '',
@@ -326,6 +329,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
       avatar: char.avatar || '',
       catId: char.catId,
       assignedUserId: char.userId,
+      statut: char.statut ?? 0,
       publicDescription: char.publicDescription || '',
       privateDescription: char.privateDescription || '',
       technical: char.technical || '',
@@ -411,6 +415,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
         if (isMj) {
           payload.catId = formData.catId;
           payload.assignedUserId = formData.assignedUserId;
+          payload.statut = formData.statut;
         }
 
         const updated = await campaignsApi.updateCharacter(
@@ -450,6 +455,7 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
           avatar: formData.avatar.trim(),
           catId: formData.catId,
           assignedUserId: formData.assignedUserId,
+          statut: formData.statut,
           publicDescription: formData.publicDescription,
           privateDescription: formData.privateDescription,
           technical: formData.technical,
@@ -975,6 +981,14 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
 
                                   {/* Badges */}
                                   <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                                    {character.statut === 1 && (
+                                      <span
+                                        className="p-1.5 rounded-md bg-amber-500/90 text-white backdrop-blur-xs shadow-xs"
+                                        title="Personnage privé (visible uniquement par le MJ et son propriétaire)"
+                                      >
+                                        <Lock className="w-3 h-3" />
+                                      </span>
+                                    )}
                                     {isPJ ? (
                                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-600/90 text-white backdrop-blur-xs shadow-xs uppercase tracking-wider">
                                         PJ
@@ -1673,6 +1687,29 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    <div className="sm:col-span-2 flex items-center gap-3 pt-1">
+                      <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={formData.statut === 1}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              statut: e.target.checked ? 1 : 0,
+                            })
+                          }
+                          className="w-4 h-4 accent-amber-600 cursor-pointer"
+                        />
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-indigo-900 uppercase tracking-wider">
+                          <Lock className="w-3.5 h-3.5 text-amber-600" />
+                          Personnage privé
+                        </span>
+                      </label>
+                      <span className="text-xs text-slate-500">
+                        Invisible pour les joueurs dans la galerie et les recherches. Reste utilisable par le MJ dans les posts et sur les cartes.
+                      </span>
                     </div>
                   </div>
                 )}

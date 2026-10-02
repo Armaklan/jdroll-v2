@@ -154,6 +154,10 @@ const searchCampaignQuerySchema = z.object({
   q: z.string().optional().default(''),
 });
 
+const resolveCharacterQuerySchema = z.object({
+  target: z.string().trim().min(1, 'Le paramètre target est requis'),
+});
+
 const getTopicPostsParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
@@ -849,6 +853,43 @@ export class CampaignController {
       }
       request.log.error(error);
       return reply.status(500).send({ error: 'Erreur lors de la recherche dans la campagne' });
+    }
+  }
+
+  /**
+   * GET /api/campaigns/:id/characters/resolve?target=<id|nom>
+   * Résout un personnage par identifiant (id numérique ou nom), y compris les personnages privés,
+   * afin que les liens [pnj] restent fonctionnels. Les droits d'accès s'appliquent ensuite à la lecture de la fiche.
+   */
+  async resolveCampaignCharacter(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignForumParamsSchema.safeParse(request.params);
+
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const parseQuery = resolveCharacterQuerySchema.safeParse(request.query);
+    if (!parseQuery.success) {
+      return reply.status(400).send({
+        error: 'Paramètre target invalide',
+        details: parseQuery.error.format(),
+      });
+    }
+
+    const { id: campaignId } = parseParams.data;
+
+    try {
+      const resolved = await this.campaignQueryService.resolveCampaignCharacter(campaignId, parseQuery.data.target);
+      return reply.status(200).send(resolved);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError || error instanceof CharacterNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la résolution du personnage' });
     }
   }
 
@@ -2836,6 +2877,13 @@ export class CampaignController {
       '/api/campaigns/:id/search',
       { preHandler: [app.authenticate] },
       (req, rep) => this.searchCampaign(req, rep)
+    );
+
+    // Route authentifiée pour résoudre un personnage par id ou nom (liens [pnj]), y compris privés
+    app.get(
+      '/api/campaigns/:id/characters/resolve',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.resolveCampaignCharacter(req, rep)
     );
 
     // Routes authentifiées pour voir la fiche d'un personnage spécifique

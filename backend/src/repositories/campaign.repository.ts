@@ -86,7 +86,8 @@ export interface ICampaignRepository {
   createCampaign(data: CreateCampaignData): Promise<number>;
   updateCampaign(id: number, data: UpdateCampaignData): Promise<void>;
   findCampaignCharacters(campaignId: number): Promise<RawCampaignCharacterRow[]>;
-  searchCampaignCharacters(campaignId: number, queryText: string): Promise<RawCampaignCharacterRow[]>;
+  searchCampaignCharacters(campaignId: number, queryText: string, isMj?: boolean, currentUserId?: number): Promise<RawCampaignCharacterRow[]>;
+  findCampaignCharacterByName?(campaignId: number, name: string): Promise<RawCampaignCharacterRow | null>;
   findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]>;
   findPnjCategoryById(id: number): Promise<RawPnjCategoryRow | null>;
   createPnjCategory(category: {
@@ -1136,7 +1137,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     return query<RawCampaignCharacterRow>(sql, [campaignId]);
   }
 
-  async searchCampaignCharacters(campaignId: number, queryText: string): Promise<RawCampaignCharacterRow[]> {
+  async searchCampaignCharacters(campaignId: number, queryText: string, isMj: boolean = false, currentUserId?: number): Promise<RawCampaignCharacterRow[]> {
     const trimmed = queryText.trim();
     let sql = `
       SELECT 
@@ -1165,6 +1166,12 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     `;
     const params: any[] = [campaignId];
 
+    // Un personnage privé (statut = 1) n'est visible que du MJ ou de son propriétaire
+    if (!isMj) {
+      sql += ` AND (p.statut != 1 OR p.user_id = ?)`;
+      params.push(currentUserId ?? null);
+    }
+
     if (trimmed) {
       sql += ` AND LOWER(p.name) LIKE LOWER(?)`;
       params.push(`%${trimmed}%`);
@@ -1173,6 +1180,40 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     sql += ` ORDER BY p.name ASC LIMIT 20`;
 
     return query<RawCampaignCharacterRow>(sql, params);
+  }
+
+  async findCampaignCharacterByName(campaignId: number, name: string): Promise<RawCampaignCharacterRow | null> {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+
+    const sql = `
+      SELECT
+        p.id,
+        p.user_id AS userId,
+        u.username AS userName,
+        u.avatar AS userAvatar,
+        u.profil AS userProfil,
+        p.campagne_id AS campagneId,
+        p.name,
+        p.concept,
+        p.avatar,
+        p.publicDescription,
+        p.privateDescription,
+        p.technical,
+        p.statut,
+        p.cat_id AS catId,
+        c.name AS categoryName,
+        p.perso_fields AS persoFields,
+        p.widgets,
+        p.sheet_values AS sheetValues
+      FROM personnages p
+      LEFT JOIN user u ON p.user_id = u.id
+      LEFT JOIN pnj_category c ON p.cat_id = c.id
+      WHERE p.campagne_id = ? AND LOWER(p.name) = LOWER(?)
+      LIMIT 1
+    `;
+
+    return queryOne<RawCampaignCharacterRow>(sql, [campaignId, trimmed]);
   }
 
   async findCampaignPnjCategories(campaignId: number): Promise<RawPnjCategoryRow[]> {

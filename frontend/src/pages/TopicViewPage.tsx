@@ -794,17 +794,12 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
         return;
       }
 
+      // Résolution par id ou nom, y compris pour les personnages privés (liens [pnj]) ;
+      // la fiche affichée reste soumise aux droits d'accès (MJ / propriétaire)
       if (topicDetail?.campagneId) {
         try {
-          const campaignCharsData = await campaignsApi.getCampaignCharacters(topicDetail.campagneId);
-          const allChars = campaignCharsData.categories.flatMap((cat) => cat.characters);
-          const found = allChars.find(
-            (c) => (!isNaN(numId) && c.id === numId) || c.name.toLowerCase() === pnjIdentifier.toLowerCase()
-          );
-          if (found) {
-            setViewingCharacterId(found.id);
-            return;
-          }
+          const resolved = await campaignsApi.resolveCharacter(topicDetail.campagneId, pnjIdentifier);
+          setViewingCharacterId(resolved.id);
         } catch (err) {
           console.error('Erreur chargement personnage', err);
         }

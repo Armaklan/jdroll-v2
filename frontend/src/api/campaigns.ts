@@ -193,6 +193,10 @@ export const campaignsApi = {
     return request<{ campaign: CampaignSummary; character: CampaignCharacter }>(endpoint);
   },
 
+  async resolveCharacter(campaignId: number, target: string): Promise<{ id: number; name: string }> {
+    return request<{ id: number; name: string }>(`/api/campaigns/${campaignId}/characters/resolve?target=${encodeURIComponent(target)}`);
+  },
+
   async getCampaignParticipants(campaignId: number): Promise<CampaignParticipant[]> {
     const result = await request<{ participants: CampaignParticipant[] }>(`/api/campaigns/${campaignId}/participants`);
     return result.participants;

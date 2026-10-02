@@ -125,10 +125,11 @@ class MockCampaignRepository implements ICampaignRepository {
     return this.characters.filter((char) => char.campagneId === campaignId);
   }
 
-  async searchCampaignCharacters(campaignId: number, queryText: string): Promise<RawCampaignCharacterRow[]> {
+  async searchCampaignCharacters(campaignId: number, queryText: string, isMj: boolean = false, currentUserId?: number): Promise<RawCampaignCharacterRow[]> {
     const q = queryText.trim().toLowerCase();
     return this.characters.filter((char) => {
       if (char.campagneId !== campaignId) return false;
+      if (char.statut === 1 && !isMj && char.userId !== currentUserId) return false;
       if (q && !char.name.toLowerCase().includes(q)) return false;
       return true;
     });
@@ -140,6 +141,11 @@ class MockCampaignRepository implements ICampaignRepository {
 
   async findCharacterById(id: number): Promise<RawCampaignCharacterRow | null> {
     return this.characters.find((char) => char.id === id) || null;
+  }
+
+  async findCampaignCharacterByName(campaignId: number, name: string): Promise<RawCampaignCharacterRow | null> {
+    const trimmed = name.trim().toLowerCase();
+    return this.characters.find((char) => char.campagneId === campaignId && char.name.toLowerCase() === trimmed) || null;
   }
 
   async createCharacter(character: any): Promise<number> {
@@ -687,6 +693,63 @@ describe('CampaignQueries', () => {
       const catNoblesse = data.categories.find((c) => c.name === 'Noblesse de Barovie')!;
       assert.equal(catNoblesse.characters[0].privateDescription, undefined);
     });
+
+    it('should hide private characters (statut = 1) from non-GM users but show them to the GM', async () => {
+      const withPrivatePnj: RawCampaignCharacterRow[] = [
+        ...characters,
+        {
+          id: 4,
+          userId: null,
+          userName: null,
+          userAvatar: null,
+          campagneId: 1,
+          name: 'Rictavio',
+          concept: 'Dresseur de tigre',
+          avatar: '',
+          publicDescription: 'Voyageur excentrique',
+          privateDescription: 'Tigre de Barovie',
+          technical: '',
+          statut: 1,
+          catId: 10,
+          categoryName: 'Noblesse de Barovie',
+          persoFields: null,
+          widgets: null,
+        },
+      ];
+      const repo = new MockCampaignRepository([campaign1], [], [], withPrivatePnj, categories);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any);
+
+      // MJ sees the private character
+      const dataMj = await queries.getCampaignCharacters(1, 1);
+      const catMj = dataMj.categories.find((c) => c.name === 'Noblesse de Barovie')!;
+      assert.equal(catMj.characters.length, 2);
+      assert.ok(catMj.characters.some((c) => c.name === 'Rictavio'));
+
+      // Another user does not see the private character
+      const dataPlayer = await queries.getCampaignCharacters(1, 99);
+      const catPlayer = dataPlayer.categories.find((c) => c.name === 'Noblesse de Barovie')!;
+      assert.equal(catPlayer.characters.length, 1);
+      assert.equal(catPlayer.characters[0].name, 'Strahd von Zarovich');
+    });
+
+    it('should keep a private player character visible to its owner', async () => {
+      const privatePj: RawCampaignCharacterRow[] = characters.map((c) =>
+        c.id === 1 ? { ...c, statut: 1 } : c
+      );
+      const repo = new MockCampaignRepository([campaign1], [], [], privatePj, categories);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any);
+
+      // Owner (user 2) still sees their own private character
+      const dataOwner = await queries.getCampaignCharacters(1, 2);
+      const catOwner = dataOwner.categories.find((c) => c.name === 'Personnage joueur')!;
+      assert.equal(catOwner.characters.length, 1);
+      assert.equal(catOwner.characters[0].name, 'Kaelen');
+
+      // Another user does not
+      const dataOther = await queries.getCampaignCharacters(1, 99);
+      const catOther = dataOther.categories.find((c) => c.name === 'Personnage joueur');
+      assert.equal(catOther, undefined);
+    });
   });
 
   describe('getCharacter', () => {
@@ -1086,7 +1149,7 @@ describe('CampaignQueries', () => {
       const resultUser2 = await queries.searchCampaign(5, '', 2);
       assert.equal(resultUser2.topics.length, 3); // 101, 102 (autorisé), 103
       assert.equal(resultUser2.cartes.length, 1); // seulement 201 (published)
-      assert.equal(resultUser2.characters.length, 2);
+      assert.equal(resultUser2.characters.length, 1); // Aragorn (propriétaire), pas l'Aubergiste privé
 
       // Utilisateur 3 (sans droit sur le topic privé)
       const forumRepo3 = new MockForumRepository([], [{ campaignId: 5, userId: 3 }], topics) as any;
@@ -1094,6 +1157,24 @@ describe('CampaignQueries', () => {
       const resultUser3 = await queries3.searchCampaign(5, '', 3);
       assert.equal(resultUser3.topics.length, 2); // 101, 103 (pas 102)
       assert.equal(resultUser3.cartes.length, 1); // seulement 201
+      assert.equal(resultUser3.characters.length, 0); // aucun personnage privé
+    });
+
+    it('ne retourne pas les personnages privés (statut = 1) pour un joueur, mais les retourne pour le MJ', async () => {
+      const campaignRepo = new MockCampaignRepository([campaign], [], [], characters);
+      const dicerRepo = new MockDicerRepository();
+      const forumRepo = new MockForumRepository([], [{ campaignId: 5, userId: 3 }], topics) as any;
+      const carteRepo = new MockCarteRepository(cartes) as any;
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+
+      const resultPlayer = await queries.searchCampaign(5, 'Aragorn', 3);
+      assert.equal(resultPlayer.characters.length, 0); // Aragorn est privé (statut = 1)
+
+      const forumRepoMj = new MockForumRepository([{ campaignId: 5, userId: 1 }], [], topics) as any;
+      const queriesMj = new CampaignQueries(campaignRepo, dicerRepo, forumRepoMj, carteRepo);
+      const resultMj = await queriesMj.searchCampaign(5, 'Aubergiste', 1);
+      assert.equal(resultMj.characters.length, 1);
+      assert.equal(resultMj.characters[0].name, 'Aubergiste');
     });
 
     it('filtre par mot-clé dans le nom / titre', async () => {
@@ -1112,6 +1193,120 @@ describe('CampaignQueries', () => {
       const resultChar = await queries.searchCampaign(5, 'Aragorn', 1);
       assert.equal(resultChar.characters.length, 1);
       assert.equal(resultChar.characters[0].name, 'Aragorn');
+    });
+  });
+
+  describe('resolveCampaignCharacter', () => {
+    const campaign: CampaignSummary = {
+      id: 7,
+      name: 'Campagne des Liens PNJ',
+      mjId: 1,
+      mjUsername: 'mj_user',
+      nbJoueurs: 4,
+      nbJoueursActuel: 2,
+      banniere: '',
+      systeme: 'D&D 5',
+      univers: 'Fantasy',
+      description: 'Test',
+      statut: 0,
+      isArchived: false,
+      isRecrutementOpen: true,
+    };
+
+    const characters: RawCampaignCharacterRow[] = [
+      {
+        id: 701,
+        userId: null,
+        userName: null,
+        userAvatar: null,
+        campagneId: 7,
+        name: 'Aubergiste Joyeux',
+        concept: 'PNJ public',
+        avatar: '',
+        publicDescription: 'Tient la taverne',
+        privateDescription: '',
+        technical: '',
+        statut: 0,
+        catId: null,
+        categoryName: null,
+        persoFields: null,
+        widgets: null,
+      },
+      {
+        id: 702,
+        userId: null,
+        userName: null,
+        userAvatar: null,
+        campagneId: 7,
+        name: 'Espion Ombreux',
+        concept: 'PNJ privé',
+        avatar: '',
+        publicDescription: 'Inconnu au bataillon',
+        privateDescription: 'Agent de Strahd',
+        technical: '',
+        statut: 1,
+        catId: null,
+        categoryName: null,
+        persoFields: null,
+        widgets: null,
+      },
+      {
+        id: 801,
+        userId: null,
+        userName: null,
+        userAvatar: null,
+        campagneId: 8,
+        name: 'Hors Campagne',
+        concept: 'Autre campagne',
+        avatar: '',
+        publicDescription: '',
+        privateDescription: '',
+        technical: '',
+        statut: 0,
+        catId: null,
+        categoryName: null,
+        persoFields: null,
+        widgets: null,
+      },
+    ];
+
+    it('lève CampaignNotFoundError si la campagne n’existe pas', async () => {
+      const repo = new MockCampaignRepository();
+      const queries = new CampaignQueries(repo);
+
+      await assert.rejects(() => queries.resolveCampaignCharacter(999, 'Aubergiste Joyeux'), CampaignNotFoundError);
+    });
+
+    it('résout un personnage par identifiant numérique, y compris privé', async () => {
+      const repo = new MockCampaignRepository([campaign], [], [], characters);
+      const queries = new CampaignQueries(repo);
+
+      const resolved = await queries.resolveCampaignCharacter(7, '702');
+      assert.equal(resolved.id, 702);
+      assert.equal(resolved.name, 'Espion Ombreux');
+    });
+
+    it('résout un personnage par nom (insensible à la casse), y compris privé', async () => {
+      const repo = new MockCampaignRepository([campaign], [], [], characters);
+      const queries = new CampaignQueries(repo);
+
+      const resolved = await queries.resolveCampaignCharacter(7, 'espion ombreux');
+      assert.equal(resolved.id, 702);
+      assert.equal(resolved.name, 'Espion Ombreux');
+    });
+
+    it('lève CharacterNotFoundError si aucun personnage ne correspond dans la campagne', async () => {
+      const repo = new MockCampaignRepository([campaign], [], [], characters);
+      const queries = new CampaignQueries(repo);
+
+      await assert.rejects(() => queries.resolveCampaignCharacter(7, 'Inconnu'), CharacterNotFoundError);
+    });
+
+    it('lève CharacterNotFoundError si l’identifiant numérique pointe vers une autre campagne', async () => {
+      const repo = new MockCampaignRepository([campaign], [], [], characters);
+      const queries = new CampaignQueries(repo);
+
+      await assert.rejects(() => queries.resolveCampaignCharacter(7, '801'), CharacterNotFoundError);
     });
   });
 });
