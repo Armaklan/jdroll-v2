@@ -8,6 +8,7 @@ import {
   Minus,
   Loader2,
 } from 'lucide-react';
+import { hasWidgetValue } from '../utils/widgets';
 
 interface CharacterWidgetsRendererProps {
   widgets: CampaignWidget[];
@@ -26,7 +27,9 @@ export const CharacterWidgetsRenderer: React.FC<CharacterWidgetsRendererProps> =
 }) => {
   const [loadingWidgetId, setLoadingWidgetId] = useState<string | null>(null);
 
-  if (!widgets || widgets.length === 0) {
+  const visibleWidgets = (widgets ?? []).filter(hasWidgetValue);
+
+  if (visibleWidgets.length === 0) {
     return null;
   }
 
@@ -45,7 +48,7 @@ export const CharacterWidgetsRenderer: React.FC<CharacterWidgetsRendererProps> =
   if (variant === 'sidebar' || variant === 'card') {
     return (
       <div className="mt-2 space-y-1.5 w-full min-w-0">
-        {widgets.map((widget) => {
+        {visibleWidgets.map((widget) => {
           const isLoading = loadingWidgetId === widget.id;
           const currentVal = Number(widget.value) || 0;
           const lowVal = widget.low !== undefined && widget.low !== '' ? Number(widget.low) : 0;
@@ -208,7 +211,7 @@ export const CharacterWidgetsRenderer: React.FC<CharacterWidgetsRendererProps> =
   // Variant Full (pour fiche de perso / modal détail)
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
-      {widgets.map((widget) => {
+      {visibleWidgets.map((widget) => {
         const isLoading = loadingWidgetId === widget.id;
         const currentVal = Number(widget.value) || 0;
         const lowVal = widget.low !== undefined && widget.low !== '' ? Number(widget.low) : 0;

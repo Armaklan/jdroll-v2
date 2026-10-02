@@ -28,6 +28,17 @@ export function serializeWidgets(widgets: CampaignWidget[]): string {
   return JSON.stringify(widgets);
 }
 
+export function hasWidgetValue(widget: CampaignWidget): boolean {
+  const value = widget.value;
+  if (value === undefined || value === null) {
+    return false;
+  }
+  if (typeof value === 'string') {
+    return value.trim() !== '';
+  }
+  return true;
+}
+
 export function mergeCharacterWidgets(
   campaignWidgetsRaw?: string | null,
   characterWidgetsRaw?: string | null

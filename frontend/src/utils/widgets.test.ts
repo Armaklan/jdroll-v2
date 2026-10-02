@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseWidgets, serializeWidgets, mergeCharacterWidgets, changeWidgetValue } from './widgets.js';
+import { parseWidgets, serializeWidgets, mergeCharacterWidgets, changeWidgetValue, hasWidgetValue } from './widgets.js';
 
 describe('widgets utils', () => {
   it('parseWidgets should parse valid JSON array', () => {
@@ -80,5 +80,31 @@ describe('widgets utils', () => {
 
     const atMin = changeWidgetValue(widgets, 'w1', -10);
     assert.equal(atMin[0].value, 0);
+  });
+
+  it('hasWidgetValue should consider empty, null, undefined or whitespace-only values as not filled', () => {
+    assert.equal(hasWidgetValue({ id: 'w1', name: 'PV', type: 'jauge', low: 0, up: 10, value: '' }), false);
+    assert.equal(hasWidgetValue({ id: 'w2', name: 'Or', type: 'token', low: 0, up: 0, value: undefined }), false);
+    assert.equal(hasWidgetValue({ id: 'w3', name: 'Note', type: 'text', low: 0, up: 0, value: null }), false);
+    assert.equal(hasWidgetValue({ id: 'w4', name: 'Note', type: 'text', low: 0, up: 0, value: '   ' }), false);
+  });
+
+  it('hasWidgetValue should consider zero, numbers and non-empty text as filled', () => {
+    assert.equal(hasWidgetValue({ id: 'w1', name: 'PV', type: 'jauge', low: 0, up: 10, value: 0 }), true);
+    assert.equal(hasWidgetValue({ id: 'w2', name: 'Or', type: 'token', low: 0, up: 0, value: 42 }), true);
+    assert.equal(hasWidgetValue({ id: 'w3', name: 'Note', type: 'text', low: 0, up: 0, value: 'En forme' }), true);
+  });
+
+  it('hasWidgetValue should keep a cleared value empty after merge with campaign widgets', () => {
+    const campaignWidgets = JSON.stringify([
+      { id: 'w1', name: 'PV', type: 'jauge', low: 0, up: 20, value: 20 },
+    ]);
+    const characterWidgets = JSON.stringify([
+      { id: 'w1', name: 'PV', type: 'jauge', low: 0, up: 20, value: '' },
+    ]);
+
+    const merged = mergeCharacterWidgets(campaignWidgets, characterWidgets);
+    assert.equal(merged.length, 1);
+    assert.equal(hasWidgetValue(merged[0]), false);
   });
 });
