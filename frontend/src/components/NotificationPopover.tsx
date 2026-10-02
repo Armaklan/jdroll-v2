@@ -159,6 +159,7 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
               {/* Delete button */}
               <button
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
                   onDelete(notif.id);
                 }}
