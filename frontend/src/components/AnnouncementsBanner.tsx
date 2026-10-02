@@ -58,7 +58,7 @@ export const AnnouncementsBanner: React.FC = () => {
           </div>
           <div className="px-4 sm:px-6 py-3">
             <div
-              className="wysiwyg-content text-sm text-amber-950 prose prose-slate max-w-none break-words [&_*]:text-inherit"
+              className="wysiwyg-content text-sm text-amber-950 prose prose-slate max-w-none break-words [&_*]:text-inherit [&_a]:underline [&_a]:font-bold"
               dangerouslySetInnerHTML={{ __html: annonce.content }}
             />
           </div>

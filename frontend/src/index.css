@@ -51,7 +51,8 @@
   font-style: italic;
 }
 
-.post-content-container a {
+.post-content-container a,
+.wysiwyg-editor-area a {
   color: var(--link-color, #2563eb);
   text-decoration: underline;
 }
