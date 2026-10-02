@@ -169,13 +169,34 @@ describe('Frontend BBCode & Message Parser', () => {
   });
 
   describe('parseMessageContent integration (BBCode + Dice)', () => {
-    it('doit combiner les tags BBCode et les dés SVG', () => {
+    it('doit parser le BBCode sans transformer les dés dans un post classique', () => {
       const input = '<p>[hide=Jets]Voici mon jet : d20 ( 20 )[/hide] et [pnj=Eminence]Eminence[/pnj]</p>';
       const result = parseMessageContent(input);
       assert.ok(result.includes('hide-box'));
       assert.ok(result.includes('pnj-link'));
+      assert.ok(!result.includes('aria-label="d20 ( 20 )"'));
+      assert.ok(result.includes('d20 ( 20 )'));
+    });
+
+    it('doit transformer les dés en SVG uniquement dans un post du lanceur de dé', () => {
+      const input =
+        '<div class="dice-roll-card p-2 my-2 text-slate-800">' +
+        '<p><span class="font-medium inline-block">d20 ( 15 )</span> + <span class="font-medium inline-block">d6 ( 4 )</span></p>' +
+        '</div>';
+      const result = parseMessageContent(input);
+      assert.ok(result.includes('dice-roll-card'));
       assert.ok(result.includes('<svg'));
-      assert.ok(result.includes('20'));
+      assert.ok(!result.includes('>d20 ( 15 )<'));
+    });
+
+    it('ne doit pas transformer les dés en SVG si parseDice est explicitement désactivé sur un post du lanceur de dé', () => {
+      const input =
+        '<div class="dice-roll-card p-2 my-2 text-slate-800">' +
+        '<p><span class="font-medium inline-block">d20 ( 15 )</span></p>' +
+        '</div>';
+      const result = parseMessageContent(input, { parseDice: false });
+      assert.ok(result.includes('d20 ( 15 )'));
+      assert.ok(!result.includes('<svg'));
     });
   });
 });

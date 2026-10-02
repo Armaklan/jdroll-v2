@@ -200,6 +200,10 @@ export function parseBbcode(rawHtml: string, options?: ParseMessageOptions): str
 
 /**
  * Parse l'ensemble du contenu HTML d'un message (balises BBCode + SVG des dés)
+ *
+ * Les dés SVG ne sont rendus que pour les posts générés par le lanceur de dé
+ * (contenu marqué par la classe `dice-roll-card`), sauf forçage explicite via
+ * l'option `parseDice`.
  */
 export function parseMessageContent(
   rawHtml: string,
@@ -210,8 +214,12 @@ export function parseMessageContent(
   // 1. Parsing BBCode
   let processed = parseBbcode(rawHtml, options);
 
-  // 2. Parsing des dés (si activé, par défaut oui)
-  if (options?.parseDice !== false) {
+  // 2. Parsing des dés : uniquement pour les posts du lanceur de dé
+  const isDiceRollPost = rawHtml.includes('dice-roll-card');
+  if (
+    options?.parseDice === true ||
+    (options?.parseDice !== false && isDiceRollPost)
+  ) {
     processed = parseDiceInHtml(processed);
   }
 

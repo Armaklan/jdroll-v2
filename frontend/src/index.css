@@ -49,6 +49,10 @@
   color: var(--hrp-color, #64748b) !important;
   font-size: 0.9em;
   font-style: italic;
+  border-top: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  padding-top: 0.15em;
+  padding-bottom: 0.15em;
 }
 
 .post-content-container a,
