@@ -1,0 +1,2 @@
+default_agent = "accept-edits"
+enabled_tools = ["npm"]
