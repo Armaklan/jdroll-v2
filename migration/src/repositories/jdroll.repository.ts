@@ -3,6 +3,7 @@ import {
   NewCampaignData,
   NewSectionData,
   NewTopicData,
+  NewPnjData,
   NewPostData,
 } from '../types.js';
 import {
@@ -25,7 +26,9 @@ export interface IJdrollTarget {
   createCampaignWithMapping(sourceKey: string, data: NewCampaignData): Promise<number>;
   createSectionWithMapping(sourceKey: string, data: NewSectionData): Promise<number>;
   createTopicWithMapping(sourceKey: string, data: NewTopicData): Promise<number>;
+  createPnjWithMapping(sourceKey: string, data: NewPnjData): Promise<number>;
   createPostsWithMapping(topicKey: string, topicId: number, posts: NewPostData[]): Promise<void>;
+  deleteCampaignMigration(targetCampaignId: number, sourceKeys: string[]): Promise<void>;
 }
 
 const MAPPING_TABLE_DDL = `
@@ -182,16 +185,39 @@ export class MysqlJdrollTarget implements IJdrollTarget {
     });
   }
 
+  async createPnjWithMapping(sourceKey: string, data: NewPnjData): Promise<number> {
+    return withTargetTransaction(async (connection) => {
+      const [result] = await connection.query(
+        `INSERT INTO personnages (
+           campagne_id, user_id, name, concept, avatar,
+           publicDescription, privateDescription, technical, statut,
+           cat_id, perso_fields, widgets
+         ) VALUES (?, NULL, ?, '', ?, ?, ?, '', 0, NULL, NULL, '')`,
+        [
+          data.campagneId,
+          data.name,
+          data.avatar,
+          data.publicDescription,
+          data.privateDescription,
+        ]
+      );
+      const persoId = (result as mysql.ResultSetHeader).insertId;
+      await insertMapping(connection, 'intervenant', sourceKey, 'personnages', persoId);
+      return persoId;
+    });
+  }
+
   async createPostsWithMapping(topicKey: string, topicId: number, posts: NewPostData[]): Promise<void> {
     await withTargetTransaction(async (connection) => {
       let lastPostId: number | null = null;
 
       for (let offset = 0; offset < posts.length; offset += POST_BATCH_SIZE) {
         const batch = posts.slice(offset, offset + POST_BATCH_SIZE);
-        const values = batch.map(() => '(?, ?, NULL, ?, ?, 0)').join(', ');
+        const values = batch.map(() => '(?, ?, ?, ?, ?, 0)').join(', ');
         const params = batch.flatMap((post) => [
           topicId,
           post.userId,
+          post.persoId,
           post.content,
           post.createDate,
         ]);
@@ -220,6 +246,57 @@ export class MysqlJdrollTarget implements IJdrollTarget {
           topicId,
         ]);
       }
+    });
+  }
+
+  /**
+   * Supprime intégralement une campagne jdroll issue de la migration :
+   * mappings espritjdr_migration (identifiés par les clés sources), posts,
+   * topics, sections, personnages, configuration et campagne.
+   * Les clés étrangères sans cascade (topics.last_post_id, read_post.topic_id)
+   * sont détachées/vidées avant la suppression.
+   */
+  async deleteCampaignMigration(targetCampaignId: number, sourceKeys: string[]): Promise<void> {
+    await withTargetTransaction(async (connection) => {
+      if (sourceKeys.length > 0) {
+        await connection.query(
+          `DELETE FROM espritjdr_migration
+            WHERE source_key IN (${sourceKeys.map(() => '?').join(', ')})`,
+          sourceKeys
+        );
+      }
+
+      await connection.query(
+        `DELETE rp FROM read_post rp
+           JOIN topics t ON t.id = rp.topic_id
+           JOIN sections s ON s.id = t.section_id
+          WHERE s.campagne_id = ?`,
+        [targetCampaignId]
+      );
+      await connection.query(
+        `UPDATE topics t
+           JOIN sections s ON s.id = t.section_id
+            SET t.last_post_id = NULL
+          WHERE s.campagne_id = ?`,
+        [targetCampaignId]
+      );
+      await connection.query(
+        `DELETE p FROM posts p
+           JOIN topics t ON t.id = p.topic_id
+           JOIN sections s ON s.id = t.section_id
+          WHERE s.campagne_id = ?`,
+        [targetCampaignId]
+      );
+      await connection.query(
+        `DELETE t FROM topics t
+           JOIN sections s ON s.id = t.section_id
+          WHERE s.campagne_id = ?`,
+        [targetCampaignId]
+      );
+      await connection.query('DELETE FROM personnages WHERE campagne_id = ?', [targetCampaignId]);
+      await connection.query('DELETE FROM sections WHERE campagne_id = ?', [targetCampaignId]);
+      await connection.query('DELETE FROM campagne_config WHERE campagne_id = ?', [targetCampaignId]);
+      await connection.query('DELETE FROM campagne WHERE id = ?', [targetCampaignId]);
     });
   }
 }

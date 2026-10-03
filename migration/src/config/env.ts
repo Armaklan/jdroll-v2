@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import path from 'node:path';
 dotenv.config();
 
 export const config = {
@@ -15,4 +16,8 @@ export const config = {
     name: process.env.MIGRATION_USER_NAME || 'EspritJDR',
     mail: process.env.MIGRATION_USER_MAIL || 'espritjdr@migration.local',
   },
+  // Répertoire des fichiers servis par jdroll sous /files/<campagne_id>/<fichier>
+  filesDir: process.env.FILES_DIR
+    ? path.resolve(process.env.FILES_DIR)
+    : path.resolve(process.cwd(), '..', 'files'),
 };

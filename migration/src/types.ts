@@ -41,11 +41,39 @@ export interface SourceTheme {
   ordre: number;
 }
 
+export interface SourceIntervenant {
+  id: number;
+  nom: string;
+  descriptionPublique: string | null;
+  descriptionPrivee: string | null;
+  image: string | null;
+}
+
 export interface SourcePost {
   id: number;
   themeId: number;
+  intervenantId: number;
   contenu: string;
   dateCreation: string;
+}
+
+export interface SourceHjPostResponse {
+  id: number;
+  hjPostId: number;
+  intervenantId: number;
+  intervenantNom: string;
+  contenu: string;
+  dateCreation: string;
+}
+
+export interface SourceHjPost {
+  id: number;
+  postThemeId: number;
+  intervenantFromId: number;
+  intervenantFromNom: string;
+  contenu: string;
+  dateCreation: string;
+  reponses: SourceHjPostResponse[];
 }
 
 export interface NewCampaignData {
@@ -72,9 +100,18 @@ export interface NewTopicData {
   ordre: number;
 }
 
+export interface NewPnjData {
+  campagneId: number;
+  name: string;
+  avatar: string;
+  publicDescription: string;
+  privateDescription: string;
+}
+
 export interface NewPostData {
   sourceId: number;
   userId: number;
+  persoId: number | null;
   content: string;
   createDate: string;
 }
@@ -85,6 +122,9 @@ export interface MigrationReport {
   ownerUserId: number;
   sections: number;
   topics: number;
+  pnjs: number;
+  images: number;
   posts: number;
+  hjPosts: number;
   skippedPosts: number;
 }

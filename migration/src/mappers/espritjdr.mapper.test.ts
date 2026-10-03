@@ -6,8 +6,9 @@ import {
   buildTopicTitle,
   mapCampaignStatut,
   mapCampaign,
+  mapIntervenant,
 } from './espritjdr.mapper.js';
-import { SourceCampaign } from '../types.js';
+import { SourceCampaign, SourceIntervenant } from '../types.js';
 
 test('decodeHtmlEntities décode les entités nommées latines courantes', () => {
   assert.equal(decodeHtmlEntities('R&egrave;gles de post'), 'Règles de post');
@@ -106,4 +107,41 @@ test('mapCampaign gère les champs manquants et limite le nom à 100 caractères
   assert.equal(result.description, '');
   assert.equal(result.isRecrutementOpen, false);
   assert.equal(result.statut, 3);
+});
+
+test('mapIntervenant produit les données de PNJ jdroll depuis un intervenant', () => {
+  const source: SourceIntervenant = {
+    id: 50,
+    nom: 'H&eacute;ra&iuml;s Abayancehill',
+    descriptionPublique: '<p>Description publique</p>',
+    descriptionPrivee: '<p>Description priv&eacute;e</p>',
+    image: 'http://www.espritjdr.net/Upload/campagnes/35/intervenant/50/sanstitrego.png',
+  };
+
+  const result = mapIntervenant(source, 42, '/files/42/pnj-50.png');
+
+  assert.deepEqual(result, {
+    campagneId: 42,
+    name: 'Héraïs Abayancehill',
+    avatar: '/files/42/pnj-50.png',
+    publicDescription: '<p>Description publique</p>',
+    privateDescription: '<p>Description priv&eacute;e</p>',
+  });
+});
+
+test('mapIntervenant gère les descriptions absentes et limite le nom à 100 caractères', () => {
+  const source: SourceIntervenant = {
+    id: 106,
+    nom: 'A'.repeat(120),
+    descriptionPublique: null,
+    descriptionPrivee: null,
+    image: null,
+  };
+
+  const result = mapIntervenant(source, 1, '');
+
+  assert.equal(result.name.length, 100);
+  assert.equal(result.avatar, '');
+  assert.equal(result.publicDescription, '');
+  assert.equal(result.privateDescription, '');
 });

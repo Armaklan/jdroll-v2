@@ -1,6 +1,7 @@
 import { config } from './config/env.js';
 import { closePools } from './db/mysql.js';
 import { espritJdrSource, jdrollTarget } from './repositories/index.js';
+import { HttpImageDownloader } from './files/image-downloader.js';
 import { MigrateCampaignUseCase } from './usecases/migrate-campaign.usecase.js';
 
 function parseCampaignId(argv: string[]): number | null {
@@ -16,8 +17,13 @@ function parseCampaignId(argv: string[]): number | null {
   return null;
 }
 
+function parseForce(argv: string[]): boolean {
+  return argv.includes('--force');
+}
+
 function printUsage(): void {
-  console.error('Usage : npm run migrate -- --campaign-id <id de la campagne espritjdr>');
+  console.error('Usage : npm run migrate -- --campaign-id <id de la campagne espritjdr> [--force]');
+  console.error('  --force : supprime la campagne jdroll déjà migrée puis la réimporte intégralement');
 }
 
 async function main(): Promise<void> {
@@ -32,7 +38,8 @@ async function main(): Promise<void> {
   const useCase = new MigrateCampaignUseCase(espritJdrSource, jdrollTarget, {
     userName: config.migrationUser.name,
     userMail: config.migrationUser.mail,
-  });
+    force: parseForce(process.argv.slice(2)),
+  }, new HttpImageDownloader());
 
   try {
     console.log(`Migration de la campagne espritjdr ${campaignId} vers jdroll (${config.jdrollDatabase})...`);
@@ -43,7 +50,10 @@ async function main(): Promise<void> {
     console.log(`  MJ (utilisateur technique) : ${report.ownerUserId}`);
     console.log(`  Sections : ${report.sections}`);
     console.log(`  Topics : ${report.topics}`);
+    console.log(`  PNJ migrés : ${report.pnjs}`);
+    console.log(`  Images téléchargées : ${report.images}`);
     console.log(`  Posts migrés : ${report.posts}`);
+    console.log(`  HJ migrés (dans les posts) : ${report.hjPosts}`);
     console.log(`  Posts déjà migrés (ignorés) : ${report.skippedPosts}`);
   } catch (error) {
     console.error(`Échec de la migration : ${(error as Error).message}`);

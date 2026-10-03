@@ -13,6 +13,7 @@ Pour une campagne espritjdr donnée (argument `--campaign-id`) :
 | `espace_campagne` (+ `espace_section`) | `sections` (libellés joints par ` > `)  |
 | `groupe_campagne` + `theme_groupe` | `topics` (libellés joints par ` > `)       |
 | `post_theme`                    | `posts`                                       |
+| `hj_post` (+ `hj_post_reponse`) | bloc `[private=...]` ajouté au contenu du post principal |
 
 - Un compte technique jdroll (par défaut `EspritJDR`) est créé s'il n'existe pas :
   il devient MJ de toutes les campagnes migrées et auteur de tous les posts.

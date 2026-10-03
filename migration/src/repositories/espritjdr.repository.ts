@@ -5,6 +5,8 @@ import {
   SourceGroupe,
   SourceTheme,
   SourcePost,
+  SourceIntervenant,
+  SourceHjPost,
 } from '../types.js';
 import { queryOne, query } from '../db/mysql.js';
 
@@ -14,7 +16,10 @@ export interface IEspritJdrSource {
   getSections(campaignId: number): Promise<SourceSection[]>;
   getGroupes(campaignId: number): Promise<SourceGroupe[]>;
   getThemes(campaignId: number): Promise<SourceTheme[]>;
+  getIntervenantsByCampaign(campaignId: number): Promise<SourceIntervenant[]>;
   getPostsByTheme(themeId: number): Promise<SourcePost[]>;
+  getPostIdsByCampaign(campaignId: number): Promise<number[]>;
+  getHjPostsByTheme(themeId: number): Promise<SourceHjPost[]>;
 }
 
 interface CampaignRow {
@@ -62,8 +67,35 @@ interface ThemeRow {
 interface PostRow {
   ID: number;
   theme_groupe_ID: number;
+  intervenant_ID: number;
   contenu: string;
   date_creation: string;
+}
+
+interface HjPostRow {
+  ID: number;
+  post_theme_ID: number;
+  intervenant_from: number;
+  intervenant_from_nom: string;
+  contenu: string;
+  date_creation: string;
+}
+
+interface HjPostResponseRow {
+  ID: number;
+  hj_post_ID: number;
+  intervenant_ID: number;
+  intervenant_nom: string;
+  contenu: string;
+  date_creation: string;
+}
+
+interface IntervenantRow {
+  ID: number;
+  nom: string;
+  description_publique: string | null;
+  description_prive: string | null;
+  image: string | null;
 }
 
 export class MysqlEspritJdrSource implements IEspritJdrSource {
@@ -161,9 +193,28 @@ export class MysqlEspritJdrSource implements IEspritJdrSource {
     }));
   }
 
+  async getIntervenantsByCampaign(campaignId: number): Promise<SourceIntervenant[]> {
+    const rows = await query<IntervenantRow>(
+      `SELECT i.ID, i.nom, ii.description_publique, ii.description_prive, ii.image
+         FROM intervenant i
+         LEFT JOIN infos_intervenant ii ON ii.intervenant_ID = i.ID
+        WHERE i.campagne_ID = ?
+          AND i.type_intervenant_ID IN (3, 4)
+        ORDER BY i.ID`,
+      [campaignId]
+    );
+    return rows.map((row) => ({
+      id: row.ID,
+      nom: row.nom,
+      descriptionPublique: row.description_publique,
+      descriptionPrivee: row.description_prive,
+      image: row.image,
+    }));
+  }
+
   async getPostsByTheme(themeId: number): Promise<SourcePost[]> {
     const rows = await query<PostRow>(
-      `SELECT ID, theme_groupe_ID, contenu, date_creation
+      `SELECT ID, theme_groupe_ID, intervenant_ID, contenu, date_creation
          FROM post_theme
         WHERE theme_groupe_ID = ?
         ORDER BY date_creation, ID`,
@@ -172,8 +223,73 @@ export class MysqlEspritJdrSource implements IEspritJdrSource {
     return rows.map((row) => ({
       id: row.ID,
       themeId: row.theme_groupe_ID,
+      intervenantId: row.intervenant_ID,
       contenu: row.contenu,
       dateCreation: row.date_creation,
+    }));
+  }
+
+  async getPostIdsByCampaign(campaignId: number): Promise<number[]> {
+    const rows = await query<{ ID: number }>(
+      `SELECT DISTINCT p.ID
+         FROM post_theme p
+         LEFT JOIN theme_groupe t ON t.ID = p.theme_groupe_ID
+         LEFT JOIN groupe_campagne g ON g.ID = t.groupe_campagne_ID
+        WHERE p.campagne_ID = ? OR g.campagne_ID = ?`,
+      [campaignId, campaignId]
+    );
+    return rows.map((row) => row.ID);
+  }
+
+  async getHjPostsByTheme(themeId: number): Promise<SourceHjPost[]> {
+    const posts = await query<HjPostRow>(
+      `SELECT hj.ID, hj.post_theme_ID, hj.intervenant_from,
+              i.nom AS intervenant_from_nom, hj.contenu, hj.date_creation
+         FROM hj_post hj
+         JOIN post_theme p ON p.ID = hj.post_theme_ID
+         JOIN intervenant i ON i.ID = hj.intervenant_from
+        WHERE p.theme_groupe_ID = ?
+        ORDER BY hj.date_creation, hj.ID`,
+      [themeId]
+    );
+    if (posts.length === 0) {
+      return [];
+    }
+
+    const responses = await query<HjPostResponseRow>(
+      `SELECT r.ID, r.hj_post_ID, r.intervenant_ID,
+              i.nom AS intervenant_nom, r.contenu, r.date_creation
+         FROM hj_post_reponse r
+         JOIN hj_post hj ON hj.ID = r.hj_post_ID
+         JOIN post_theme p ON p.ID = hj.post_theme_ID
+         JOIN intervenant i ON i.ID = r.intervenant_ID
+        WHERE p.theme_groupe_ID = ?
+        ORDER BY r.date_creation, r.ID`,
+      [themeId]
+    );
+
+    const responsesByHjPostId = new Map<number, SourceHjPost['reponses']>();
+    for (const row of responses) {
+      const list = responsesByHjPostId.get(row.hj_post_ID) ?? [];
+      list.push({
+        id: row.ID,
+        hjPostId: row.hj_post_ID,
+        intervenantId: row.intervenant_ID,
+        intervenantNom: row.intervenant_nom,
+        contenu: row.contenu,
+        dateCreation: row.date_creation,
+      });
+      responsesByHjPostId.set(row.hj_post_ID, list);
+    }
+
+    return posts.map((row) => ({
+      id: row.ID,
+      postThemeId: row.post_theme_ID,
+      intervenantFromId: row.intervenant_from,
+      intervenantFromNom: row.intervenant_from_nom,
+      contenu: row.contenu,
+      dateCreation: row.date_creation,
+      reponses: responsesByHjPostId.get(row.ID) ?? [],
     }));
   }
 }

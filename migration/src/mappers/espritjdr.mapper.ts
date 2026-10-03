@@ -1,4 +1,4 @@
-import { SourceCampaign, NewCampaignData } from '../types.js';
+import { SourceCampaign, SourceIntervenant, NewCampaignData, NewPnjData } from '../types.js';
 import { decodeHtmlEntities } from '../utils/html-entities.js';
 
 export { decodeHtmlEntities };
@@ -51,5 +51,27 @@ export function mapCampaign(source: SourceCampaign, mjId: number): NewCampaignDa
     nbJoueurs,
     statut: mapCampaignStatut(source.statutCampagneId),
     isRecrutementOpen: Boolean(source.inscriptionPJ),
+  };
+}
+
+/**
+ * Les intervenants espritjdr de type PJ (3) et PNJ (4) sont importés comme
+ * PNJ jdroll : personnages sans utilisateur, non classés.
+ * L'avatar est l'URL jdroll (/files/...) de l'image téléchargée, '' si absente.
+ */
+export function mapIntervenant(
+  source: SourceIntervenant,
+  campagneId: number,
+  avatar: string
+): NewPnjData {
+  const rawName = decodeHtmlEntities(source.nom || '');
+  const name = rawName.length > 100 ? rawName.slice(0, 100) : rawName;
+
+  return {
+    campagneId,
+    name,
+    avatar,
+    publicDescription: source.descriptionPublique ?? '',
+    privateDescription: source.descriptionPrivee ?? '',
   };
 }
