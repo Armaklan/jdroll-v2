@@ -42,6 +42,7 @@ import {
   Users,
 } from 'lucide-react';
 import { campaignsApi } from '../api/campaigns';
+import { uploadsApi } from '../api/uploads';
 
 interface WysiwygEditorProps {
   value: string;
@@ -313,20 +314,10 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     setUploadError(null);
 
     try {
-      if (onUploadImage) {
-        const uploadedUrl = await onUploadImage(file);
-        insertImageAtCursor(uploadedUrl, file.name);
-      } else {
-        // Fallback: lecture en DataURL
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const result = e.target?.result as string;
-          if (result) {
-            insertImageAtCursor(result, file.name);
-          }
-        };
-        reader.readAsDataURL(file);
-      }
+      // Upload serveur : via le callback dédié (ex: image de campagne) ou l'API générique
+      const upload = onUploadImage ?? (async (f: File) => (await uploadsApi.uploadEditorImage(f)).url);
+      const uploadedUrl = await upload(file);
+      insertImageAtCursor(uploadedUrl, file.name);
     } catch (err: any) {
       setUploadError(err.message || "Erreur lors de l'envoi de l'image.");
     } finally {
@@ -566,7 +557,7 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     setModalSelectedFile(null);
     setModalPreviewUrl(null);
     setUploadError(null);
-    setImageModalMode(onUploadImage ? 'upload' : 'url');
+    setImageModalMode('upload');
   };
 
   const handleOpenEditImageModal = (img: HTMLImageElement) => {
@@ -635,17 +626,10 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       setUploadError(null);
       const size = getImageSizeInput();
       try {
-        if (onUploadImage) {
-          const url = await onUploadImage(modalSelectedFile);
-          insertImageAtCursor(url, modalSelectedFile.name, size);
-        } else {
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            const res = ev.target?.result as string;
-            if (res) insertImageAtCursor(res, modalSelectedFile.name, size);
-          };
-          reader.readAsDataURL(modalSelectedFile);
-        }
+        // Upload serveur : via le callback dédié (ex: image de campagne) ou l'API générique
+        const upload = onUploadImage ?? (async (f: File) => (await uploadsApi.uploadEditorImage(f)).url);
+        const url = await upload(modalSelectedFile);
+        insertImageAtCursor(url, modalSelectedFile.name, size);
         setIsImageModalOpen(false);
       } catch (err: any) {
         setUploadError(err.message || 'Erreur lors du téléversement.');

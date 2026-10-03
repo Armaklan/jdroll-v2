@@ -47,6 +47,10 @@ class MockFileStorage implements IFileStorage {
     this.savedUserFiles.push({ userId, filename, content });
     return `/files/users/${userId}/${filename}`;
   }
+
+  async saveEditorFile(): Promise<string> {
+    throw new Error('not implemented');
+  }
 }
 
 describe('UploadUserAvatarUseCase', () => {

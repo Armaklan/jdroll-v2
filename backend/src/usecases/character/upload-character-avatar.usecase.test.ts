@@ -99,6 +99,10 @@ class MockFileStorage implements IFileStorage {
   async saveUserFile(userId: number, filename: string, content: Buffer): Promise<string> {
     return `/files/users/${userId}/${filename}`;
   }
+
+  async saveEditorFile(): Promise<string> {
+    throw new Error('not implemented');
+  }
 }
 
 describe('UploadCharacterAvatarUseCase', () => {

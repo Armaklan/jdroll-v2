@@ -118,3 +118,84 @@ test.describe('Wysiwyg - Images (collage et taille)', () => {
       .toBe('320px');
   });
 });
+
+test.describe('Wysiwyg - Images sans callback onUploadImage (messagerie)', () => {
+  let registerPage: RegisterPage;
+
+  test.beforeEach(async ({ page }) => {
+    registerPage = new RegisterPage(page);
+
+    // Créer un utilisateur unique et se connecter (l'inscription connecte automatiquement)
+    const username = `e2e_mp_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    await registerPage.navigate();
+    await registerPage.register(username, `${username}@example.com`, 'password123');
+
+    // La page de composition d'un message privé utilise le WysiwygEditor SANS onUploadImage
+    await page.goto('/messagerie?tab=compose');
+    await expect(page.locator('div[contenteditable="true"]')).toBeVisible();
+  });
+
+  test('Coller une image dans la messagerie l\'upload vers files/ (pas de base64)', async ({ page }) => {
+    const editor = page.locator('div[contenteditable="true"]');
+    await editor.click();
+
+    await page.evaluate((b64) => {
+      const target = document.querySelector('div[contenteditable="true"]');
+      if (!target) throw new Error('Zone éditable introuvable');
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const dt = new DataTransfer();
+      dt.items.add(new File([bytes], 'image-colle.png', { type: 'image/png' }));
+      const ev = new ClipboardEvent('paste', {
+        clipboardData: dt,
+        bubbles: true,
+        cancelable: true,
+      });
+      target.dispatchEvent(ev);
+    }, TINY_PNG_BASE64);
+
+    const img = editor.locator('img');
+    await expect(img).toHaveCount(1, { timeout: 10000 });
+    const src = await img.getAttribute('src');
+    expect(src).toBeTruthy();
+    expect(src!.startsWith('data:')).toBe(false);
+    expect(src!).toMatch(/^\/files\/editor\/\d+\/[a-f0-9]{32}\.png$/);
+  });
+
+  test('Déposer une image par drag-n-drop dans la messagerie l\'upload vers files/ (pas de base64)', async ({ page }) => {
+    const editor = page.locator('div[contenteditable="true"]');
+    await editor.click();
+
+    await page.evaluate((b64) => {
+      const target = document.querySelector('div[contenteditable="true"]');
+      if (!target) throw new Error('Zone éditable introuvable');
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const dt = new DataTransfer();
+      dt.items.add(new File([bytes], 'image-deposee.png', { type: 'image/png' }));
+
+      const dragOver = new DragEvent('dragover', {
+        dataTransfer: dt,
+        bubbles: true,
+        cancelable: true,
+      });
+      target.dispatchEvent(dragOver);
+
+      const drop = new DragEvent('drop', {
+        dataTransfer: dt,
+        bubbles: true,
+        cancelable: true,
+      });
+      target.dispatchEvent(drop);
+    }, TINY_PNG_BASE64);
+
+    const img = editor.locator('img');
+    await expect(img).toHaveCount(1, { timeout: 10000 });
+    const src = await img.getAttribute('src');
+    expect(src).toBeTruthy();
+    expect(src!.startsWith('data:')).toBe(false);
+    expect(src!).toMatch(/^\/files\/editor\/\d+\/[a-f0-9]{32}\.png$/);
+  });
+});
