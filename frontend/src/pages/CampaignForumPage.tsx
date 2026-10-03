@@ -979,7 +979,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
             </>
           )}
 
-          {isCampaignMember && unreadTopics.length > 0 && (
+          {Boolean(user) && unreadTopics.length > 0 && (
             <button
               onClick={handleMarkAllAsRead}
               disabled={isMarkingAllAsRead}
