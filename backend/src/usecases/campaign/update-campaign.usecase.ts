@@ -62,7 +62,8 @@ export class UpdateCampaignUseCase {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${dto.campaignId} n'existe pas`);
     }
 
-    const isMj = campaign.mjId === dto.userId || (await this.forumRepo.isUserCampaignMj(dto.campaignId, dto.userId));
+    // Administration de campagne : réservée au MJ propriétaire (un MJ assistant n'y a pas accès)
+    const isMj = campaign.mjId === dto.userId;
     if (!isMj) {
       throw new ForbiddenError('Seul le Maître du Jeu peut modifier cette campagne');
     }

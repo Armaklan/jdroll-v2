@@ -1,5 +1,22 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { CampaignPermissionService } from '../../services/campaign-permission.service.js';
+
+// Service de permissions stub : par défaut, seul le propriétaire a les droits
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: (mjId: number, userId: number) => mjId === userId,
+    isAssistantMj: async () => false,
+    hasMjRights: async (_campaignId: number, mjId: number, userId: number) => mjId === userId,
+  } as unknown as CampaignPermissionService);
+
+// Stub assistant : l'utilisateur non-propriétaire dispose des droits MJ (feature flip activé)
+const stubAssistantPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => true,
+    hasMjRights: async () => true,
+  } as unknown as CampaignPermissionService);
 import { DeleteCharacterUseCase } from './delete-character.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
 import {
@@ -89,7 +106,7 @@ describe('DeleteCharacterUseCase', () => {
       removeCampaignAlert: async () => {},
     };
 
-    useCase = new DeleteCharacterUseCase(mockCampaignRepo);
+    useCase = new DeleteCharacterUseCase(mockCampaignRepo, stubPermissions());
   });
 
   it('devrait supprimer un personnage avec succès si l utilisateur est le MJ', async () => {
@@ -102,6 +119,18 @@ describe('DeleteCharacterUseCase', () => {
       success: true,
       characterId: 42,
     });
+    assert.deepEqual(deletedCharacterIds, [42]);
+  });
+
+  it('devrait supprimer un personnage pour un MJ Assistant (non propriétaire)', async () => {
+    const assistantUseCase = new DeleteCharacterUseCase(mockCampaignRepo, stubAssistantPermissions());
+
+    const result = await assistantUseCase.execute({
+      characterId: 42,
+      userId: 99, // MJ Assistant, le propriétaire est l'utilisateur 1
+    });
+
+    assert.deepEqual(result, { success: true, characterId: 42 });
     assert.deepEqual(deletedCharacterIds, [42]);
   });
 

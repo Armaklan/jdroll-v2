@@ -62,7 +62,7 @@ export class RollDiceUseCase {
     }
 
     if (topic.campagneId && topic.campagneId > 0) {
-      const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, dto.userId);
+      const isMj = await this.forumRepo.userHasMjRights(topic.campagneId, dto.userId);
 
       if (Boolean(topic.isClosed) && !isMj) {
         throw new TopicClosedError('Ce sujet est fermé aux réponses');

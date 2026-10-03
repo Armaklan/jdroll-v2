@@ -15,6 +15,16 @@ import {
   CampaignPlayerAbsence,
 } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
+import { CampaignPermissionService } from '../services/campaign-permission.service.js';
+import { FeatureFlipService } from '../usecases/feature/feature-flip.service.js';
+
+// Service de permissions stub : aucun MJ assistant dans les tests unitaires standards
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => false,
+    hasMjRights: async () => false,
+  } as unknown as CampaignPermissionService);
 
 const mockCampaign: CampaignSummary = {
   id: 1,
@@ -152,7 +162,10 @@ const generateMockPosts = (count: number): ForumPost[] => {
 };
 
 class MockCampaignRepository implements ICampaignRepository {
-  constructor(private campaign: CampaignSummary | null = mockCampaign) {}
+  constructor(
+    private campaign: CampaignSummary | null = mockCampaign,
+    private assistants: number[] = []
+  ) {}
 
   async findMasteredCampaigns(): Promise<CampaignSummary[]> {
     return this.campaign ? [this.campaign] : [];
@@ -207,6 +220,10 @@ class MockCampaignRepository implements ICampaignRepository {
   }
   async isUserCampaignAlert(): Promise<boolean> {
     return false;
+  }
+
+  async isUserCampaignAssistant(_campaignId: number, userId: number): Promise<boolean> {
+    return this.assistants.includes(userId);
   }
   async addCampaignAlert(): Promise<void> {}
   async removeCampaignAlert(): Promise<void> {}
@@ -298,7 +315,7 @@ class MockForumRepository implements IForumRepository {
     return [{ id: 1, name: 'Kaelen', concept: 'Mage', avatar: '', userId: 2, campagneId: 1 }];
   }
 
-  async isUserCampaignMj(_campagneId: number, userId: number): Promise<boolean> {
+  async userHasMjRights(_campagneId: number, userId: number): Promise<boolean> {
     return userId === 1;
   }
 
@@ -456,7 +473,7 @@ describe('ForumQueries', () => {
   it('should throw CampaignNotFoundError if campaign does not exist', async () => {
     const campaignRepo = new MockCampaignRepository(null);
     const forumRepo = new MockForumRepository();
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     await assert.rejects(
       () => queries.getCampaignForum(999, 1),
@@ -467,7 +484,7 @@ describe('ForumQueries', () => {
   it('should return campaign details and sections with topics when campaign exists', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getCampaignForum(1, 2);
 
@@ -493,7 +510,7 @@ describe('ForumQueries', () => {
   it('should support unauthenticated guest queries (userId undefined)', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getCampaignForum(1);
 
@@ -504,7 +521,7 @@ describe('ForumQueries', () => {
   it('should throw TopicNotFoundError if topic does not exist', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     await assert.rejects(
       () => queries.getTopicPosts(999),
@@ -515,7 +532,7 @@ describe('ForumQueries', () => {
   it('should return page 1 with the 10 most recent posts (indices 15..24) for 25 posts', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, 1);
 
@@ -540,7 +557,7 @@ describe('ForumQueries', () => {
   it('should return page 2 with posts 6 to 15 for 25 posts', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, 2);
 
@@ -553,7 +570,7 @@ describe('ForumQueries', () => {
   it('should return page 3 with posts 1 to 5 for 25 posts', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, 3);
 
@@ -568,7 +585,7 @@ describe('ForumQueries', () => {
     // 1er non lu = #13. 12 posts après #13 -> floor(12 / 10) + 1 = page 2 (posts 6 à 15)
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, 12);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, undefined, 2);
 
@@ -588,7 +605,7 @@ describe('ForumQueries', () => {
     // Utilisateur sans historique de lecture (null), le 1er non lu est le post #1 (page 3)
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, undefined, 2);
 
@@ -607,7 +624,7 @@ describe('ForumQueries', () => {
     // Utilisateur sans historique de lecture (null), ouvre la page 1 explicitement (posts 16 à 25)
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, 1, 2);
 
@@ -623,7 +640,7 @@ describe('ForumQueries', () => {
     // Utilisateur a déjà lu jusqu'au post #20, mais consulte la page 3 (posts 1 à 5)
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, 20);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, 3, 2);
 
@@ -639,7 +656,7 @@ describe('ForumQueries', () => {
     // Lu jusqu'au post #25 (0 posts après -> page 1)
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, 25);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, undefined, 2);
 
@@ -652,7 +669,7 @@ describe('ForumQueries', () => {
   it('should handle topics with 0 posts gracefully', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 0, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101);
 
@@ -666,7 +683,7 @@ describe('ForumQueries', () => {
   it('should return all posts in chronological order (oldest first) when page is 0', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 25, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, 0);
 
@@ -681,7 +698,7 @@ describe('ForumQueries', () => {
   it('should return canPost=true with userRole=mj and all campaign characters for GM user', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 5, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, 1, 1); // User 1 = MJ
 
@@ -693,7 +710,7 @@ describe('ForumQueries', () => {
   it('should return canPost=true with userRole=player and assigned characters for Player user', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 5, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, 1, 2); // User 2 = Player
 
@@ -706,7 +723,7 @@ describe('ForumQueries', () => {
   it('should return canPost=false for non-participating user in a campaign topic', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 5, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(101, 1, 999); // User 999 = non participant
 
@@ -719,7 +736,7 @@ describe('ForumQueries', () => {
     const closedTopic: RawTopicDetail = { ...mockTopic, isClosed: 1 };
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, closedTopic, 5, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const mjResult = await queries.getTopicPosts(101, 1, 1); // User 1 = MJ
     assert.equal(mjResult.isClosed, true);
@@ -747,7 +764,7 @@ describe('ForumQueries', () => {
 
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository([], closedGeneralTopic, 5, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const adminResult = await queries.getTopicPosts(201, 1, 999, 2); // profil 2 = admin
     assert.equal(adminResult.isClosed, true);
@@ -790,7 +807,7 @@ describe('ForumQueries', () => {
 
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(generalSections, mockTopic, 5, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getGeneralForum(1);
 
@@ -890,7 +907,7 @@ describe('ForumQueries', () => {
 
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(generalSections, mockTopic, 5, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getRecentGeneralTopics(1, 3);
 
@@ -907,7 +924,7 @@ describe('ForumQueries', () => {
   it('renvoie une liste vide pour un invité si aucune section générale n\'existe', async () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository([], mockTopic, 5, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getRecentGeneralTopics(undefined, 5);
 
@@ -930,7 +947,7 @@ describe('ForumQueries', () => {
 
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository([], generalTopic, 5, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     const result = await queries.getTopicPosts(201, 1, 999); // Any user 999
 
@@ -956,7 +973,7 @@ describe('ForumQueries', () => {
 
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, privateTopic, 2, null);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     // Accès anonyme -> ForbiddenError
     await assert.rejects(
@@ -1022,7 +1039,7 @@ describe('ForumQueries', () => {
 
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections, mockTopic, 2, null, [postWithPerso1, postWithPerso2]);
-    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository());
+    const queries = new ForumQueries(campaignRepo, forumRepo, new MockAbsenceRepository(), stubPermissions());
 
     // 1. En tant que MJ (User 1) : voit les widgets de tous les personnages
     const mjResult = await queries.getTopicPosts(101, 1, 1);
@@ -1044,7 +1061,7 @@ describe('ForumQueries', () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections);
     const absenceRepo = new MockAbsenceRepository();
-    const queries = new ForumQueries(campaignRepo, forumRepo, absenceRepo);
+    const queries = new ForumQueries(campaignRepo, forumRepo, absenceRepo, stubPermissions());
 
     // User 1 = MJ (mockCampaign.mjId === 1), qui a lui-même une absence en cours
     const result = await queries.getCampaignForum(1, 1);
@@ -1061,7 +1078,7 @@ describe('ForumQueries', () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections);
     const absenceRepo = new MockAbsenceRepository();
-    const queries = new ForumQueries(campaignRepo, forumRepo, absenceRepo);
+    const queries = new ForumQueries(campaignRepo, forumRepo, absenceRepo, stubPermissions());
 
     // User 2 = joueur, lui-même absent ; il doit voir l'absence du MJ mais pas la sienne
     const result = await queries.getCampaignForum(1, 2);
@@ -1076,10 +1093,58 @@ describe('ForumQueries', () => {
     const campaignRepo = new MockCampaignRepository(mockCampaign);
     const forumRepo = new MockForumRepository(mockSections);
     const absenceRepo = new MockAbsenceRepository();
-    const queries = new ForumQueries(campaignRepo, forumRepo, absenceRepo);
+    const queries = new ForumQueries(campaignRepo, forumRepo, absenceRepo, stubPermissions());
 
     const result = await queries.getCampaignForum(1);
 
     assert.equal(result.currentAbsences, undefined);
+  });
+
+  describe('MJ Assistant (feature flip assistant-mj)', () => {
+    const createAssistantPermissionService = (repo: MockCampaignRepository, flagEnabled: boolean): CampaignPermissionService =>
+      new CampaignPermissionService(
+        repo,
+        new FeatureFlipService({
+          findAll: async () => [],
+          findByName: async (name: string) =>
+            name === 'assistant-mj' ? { id: 1, name, description: '', enabled: flagEnabled } : null,
+          setEnabled: async () => {},
+        } as any)
+      );
+
+    it('accorde le rôle mj au MJ assistant avec le marqueur isAssistantMj (flag activé)', async () => {
+      const campaignRepo = new MockCampaignRepository(mockCampaign, [20]);
+      const forumRepo = new MockForumRepository(mockSections);
+      const queries = new ForumQueries(
+        campaignRepo,
+        forumRepo,
+        new MockAbsenceRepository(),
+        createAssistantPermissionService(campaignRepo, true)
+      );
+
+      const result = await queries.getCampaignForum(1, 20);
+
+      assert.equal(result.campaign.userRole, 'mj');
+      assert.equal(result.campaign.isAssistantMj, true);
+      // La liste des inscriptions en attente (administration) reste réservée au propriétaire
+      assert.equal(result.pendingParticipants, undefined);
+    });
+
+    it('traite le MJ assistant comme un joueur lorsque le flag est désactivé', async () => {
+      // User 2 est un participant validé de la campagne (voir MockForumRepository)
+      const campaignRepo = new MockCampaignRepository(mockCampaign, [2]);
+      const forumRepo = new MockForumRepository(mockSections);
+      const queries = new ForumQueries(
+        campaignRepo,
+        forumRepo,
+        new MockAbsenceRepository(),
+        createAssistantPermissionService(campaignRepo, false)
+      );
+
+      const result = await queries.getCampaignForum(1, 2);
+
+      assert.equal(result.campaign.userRole, 'player');
+      assert.notEqual(result.campaign.isAssistantMj, true);
+    });
   });
 });

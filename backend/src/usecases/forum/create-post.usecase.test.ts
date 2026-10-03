@@ -147,7 +147,7 @@ describe('CreatePostUseCase', () => {
       findUserCampaignPersos: async (campagneId, userId): Promise<CharacterSummary[]> => {
         return mockPersos.filter((p) => p.campagneId === campagneId && p.userId === userId);
       },
-      isUserCampaignMj: async (_campagneId, userId): Promise<boolean> => {
+      userHasMjRights: async (_campagneId, userId): Promise<boolean> => {
         return userId === 1; // User 1 est le MJ
       },
       isUserCampaignParticipant: async (_campagneId, userId): Promise<boolean> => {

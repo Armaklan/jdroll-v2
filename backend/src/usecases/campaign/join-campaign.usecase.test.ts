@@ -254,4 +254,16 @@ describe('JoinCampaignUseCase', () => {
     assert.equal(result.success, true);
     assert.match(result.message, /attente/);
   });
+
+  it('ne rétrograde pas un MJ Assistant (statut 2) qui tente de rejoindre la campagne', async () => {
+    const { repo, participants } = createMockCampaignRepo([sampleCampaign]);
+    participants.set('10-2', 2);
+    const useCase = new JoinCampaignUseCase(repo, mockUserRepo, mockEventBus);
+
+    const result = await useCase.execute({ campaignId: 10, userId: 2 });
+
+    assert.equal(result.success, true);
+    assert.match(result.message, /déjà/);
+    assert.equal(participants.get('10-2'), 2, 'le statut de MJ Assistant doit être préservé');
+  });
 });

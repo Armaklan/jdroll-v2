@@ -44,7 +44,7 @@ export class UpdatePostUseCase {
     let finalPersoId: number | null = post.perso?.id ?? null;
 
     if (topic.campagneId && topic.campagneId > 0) {
-      const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, dto.userId);
+      const isMj = await this.forumRepo.userHasMjRights(topic.campagneId, dto.userId);
 
       if (isMj) {
         if (dto.persoId !== undefined) {

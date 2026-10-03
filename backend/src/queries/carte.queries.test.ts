@@ -5,6 +5,16 @@ import { ICarteRepository, CarteRecord } from '../repositories/carte.repository.
 import { ICampaignRepository } from '../repositories/campaign.repository.js';
 import { CampaignNotFoundError, CarteNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 import { CampaignSummary, CarteSummary, RawCampaignCharacterRow } from '../types/index.js';
+import { CampaignPermissionService } from '../services/campaign-permission.service.js';
+import { FeatureFlipService } from '../usecases/feature/feature-flip.service.js';
+
+// Service de permissions stub : aucun MJ assistant dans les tests unitaires standards
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => false,
+    hasMjRights: async () => false,
+  } as unknown as CampaignPermissionService);
 
 describe('CarteQueries', () => {
   let queries: CarteQueries;
@@ -62,7 +72,8 @@ describe('CarteQueries', () => {
 
     queries = new CarteQueries(
       mockCarteRepo as ICarteRepository,
-      mockCampaignRepo as ICampaignRepository
+      mockCampaignRepo as ICampaignRepository,
+      stubPermissions()
     );
   });
 
@@ -225,6 +236,94 @@ describe('CarteQueries', () => {
 
     it('should throw CarteNotFoundError if carte does not exist', async () => {
       await assert.rejects(() => queries.getCarteById(999, 1), CarteNotFoundError);
+    });
+  });
+
+  describe('MJ Assistant (feature flip assistant-mj)', () => {
+    const createAssistantQueries = (flagEnabled: boolean): CarteQueries => {
+      const campaignRepo: Partial<ICampaignRepository> = {
+        findById: async (id: number) => (id === 42 ? mockCampaign : null),
+        findCampaignCharacters: async (campaignId: number) =>
+          storedCharacters.filter((c) => c.campagneId === campaignId),
+        isUserCampaignAssistant: async (campaignId: number, userId: number) =>
+          campaignId === 42 && userId === 20,
+      };
+      const permissions = new CampaignPermissionService(
+        campaignRepo as ICampaignRepository,
+        new FeatureFlipService({
+          findAll: async () => [],
+          findByName: async (name: string) =>
+            name === 'assistant-mj' ? { id: 1, name, description: '', enabled: flagEnabled } : null,
+          setEnabled: async () => {},
+        } as any)
+      );
+      return new CarteQueries(
+        mockCarteRepo as ICarteRepository,
+        campaignRepo as ICampaignRepository,
+        permissions
+      );
+    };
+
+    it('renvoie toutes les cartes au MJ assistant (flag activé)', async () => {
+      storedCartes.push(
+        {
+          id: 1,
+          campagneId: 42,
+          name: 'Donjon Secret',
+          description: 'Non publié',
+          image: '/carte1.png',
+          published: false,
+          config: '{}',
+          mjId: 1,
+        } as CarteRecord
+      );
+
+      const assistantQueries = createAssistantQueries(true);
+      const cartes = await assistantQueries.getCampaignCartes(42, 20);
+
+      assert.equal(cartes.length, 1);
+      assert.equal(cartes[0].name, 'Donjon Secret');
+    });
+
+    it('donne isMj au MJ assistant sur le détail d une carte non publiée (flag activé)', async () => {
+      storedCartes.push(
+        {
+          id: 1,
+          campagneId: 42,
+          name: 'Donjon Secret',
+          description: 'Non publié',
+          image: '/carte1.png',
+          published: false,
+          config: '{}',
+          mjId: 1,
+        } as CarteRecord
+      );
+
+      const assistantQueries = createAssistantQueries(true);
+      const detail = await assistantQueries.getCarteById(1, 20);
+
+      assert.equal(detail.isMj, true);
+    });
+
+    it('ne montre pas les cartes non publiées au MJ assistant lorsque le flag est désactivé', async () => {
+      storedCartes.push(
+        {
+          id: 1,
+          campagneId: 42,
+          name: 'Donjon Secret',
+          description: 'Non publié',
+          image: '/carte1.png',
+          published: false,
+          config: '{}',
+          mjId: 1,
+        } as CarteRecord
+      );
+
+      const assistantQueries = createAssistantQueries(false);
+      const cartes = await assistantQueries.getCampaignCartes(42, 20);
+
+      assert.equal(cartes.length, 0);
+      await assert.rejects(() => assistantQueries.getCarteById(1, 20), ForbiddenError);
     });
   });
 });

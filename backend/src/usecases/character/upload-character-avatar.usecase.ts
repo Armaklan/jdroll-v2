@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
+import { CampaignPermissionService, campaignPermissionService } from '../../services/campaign-permission.service.js';
 import { IFileStorage, diskFileStorage } from '../../storage/file-storage.js';
 import {
   CampaignNotFoundError,
@@ -34,7 +35,8 @@ const ALLOWED_MIME_TYPES: Record<string, string> = {
 export class UploadCharacterAvatarUseCase {
   constructor(
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
-    private readonly fileStorage: IFileStorage = diskFileStorage
+    private readonly fileStorage: IFileStorage = diskFileStorage,
+    private readonly campaignPermissions: CampaignPermissionService = campaignPermissionService
   ) {}
 
   async execute(input: UploadCharacterAvatarInput): Promise<UploadCharacterAvatarOutput> {
@@ -47,7 +49,7 @@ export class UploadCharacterAvatarUseCase {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${input.campagneId} n'existe pas`);
     }
 
-    const isMj = campaign.mjId === input.userId;
+    const isMj = await this.campaignPermissions.hasMjRights(input.campagneId, campaign.mjId, input.userId);
     let isParticipant = isMj;
 
     if (!isParticipant) {

@@ -129,7 +129,7 @@ describe('ReorderSectionsUseCase', () => {
       markTopicAsRead: async () => {},
       findCampaignPersos: async () => [],
       findUserCampaignPersos: async () => [],
-      isUserCampaignMj: async (campagneId: number, userId: number) => {
+      userHasMjRights: async (campagneId: number, userId: number) => {
         return campagneId === 1 && userId === 10;
       },
       isUserCampaignParticipant: async () => false,

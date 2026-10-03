@@ -57,7 +57,7 @@ function buildMockForumRepo(): IForumRepository {
       if (topicId === otherTopic.id) return otherTopic;
       return null;
     },
-    isUserCampaignMj: async (campagneId: number, userId: number) =>
+    userHasMjRights: async (campagneId: number, userId: number) =>
       campagneId === 1 && userId === 1,
     isUserTopicCanRead: async (topicId: number, userId: number) =>
       topicId === 301 && userId === 2,

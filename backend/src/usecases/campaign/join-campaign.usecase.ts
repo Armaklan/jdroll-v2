@@ -59,7 +59,8 @@ export class JoinCampaignUseCase {
     }
 
     const status = await this.campaignRepo.getCampaignParticipantStatus(campaignId, userId);
-    if (status === 1) {
+    // statut : 0 = en attente, 1 = joueur validé, 2 = joueur validé + MJ Assistant
+    if (status === 1 || status === 2) {
       return {
         success: true,
         message: 'Vous participez déjà à cette campagne',

@@ -1,5 +1,22 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { CampaignPermissionService } from '../../services/campaign-permission.service.js';
+
+// Service de permissions stub : par défaut, seul le propriétaire a les droits
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: (mjId: number, userId: number) => mjId === userId,
+    isAssistantMj: async () => false,
+    hasMjRights: async (_campaignId: number, mjId: number, userId: number) => mjId === userId,
+  } as unknown as CampaignPermissionService);
+
+// Stub assistant : l'utilisateur non-propriétaire dispose des droits MJ (feature flip activé)
+const stubAssistantPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => true,
+    hasMjRights: async () => true,
+  } as unknown as CampaignPermissionService);
 import { CreateCharacterUseCase } from './create-character.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
 import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow, CampaignParticipant } from '../../types/index.js';
@@ -122,7 +139,7 @@ describe('CreateCharacterUseCase', () => {
 
   it('should successfully create a character as GM', async () => {
     const repo = new MockCampaignRepository([campaign1], categories);
-    const useCase = new CreateCharacterUseCase(repo);
+    const useCase = new CreateCharacterUseCase(repo, stubPermissions());
 
     const result = await useCase.execute({
       campagneId: 1,
@@ -144,9 +161,29 @@ describe('CreateCharacterUseCase', () => {
     assert.equal(repo.characters.length, 1);
   });
 
+  it('permet à un MJ Assistant (non propriétaire) de créer un personnage', async () => {
+    const repo = new MockCampaignRepository([campaign1], categories);
+    const useCase = new CreateCharacterUseCase(repo, stubAssistantPermissions());
+
+    const result = await useCase.execute({
+      campagneId: 1,
+      userId: 99, // MJ Assistant, pas le propriétaire (mjId = 42)
+      name: 'Saroumane',
+      concept: 'Mage déchu',
+      avatar: 'https://example.com/saroumane.png',
+      publicDescription: 'Un mage en blanc.',
+      privateDescription: 'Corrompu par l\'Anneau.',
+      technical: 'Niveau 20',
+      catId: 20,
+    });
+
+    assert.equal(result.name, 'Saroumane');
+    assert.equal(repo.characters.length, 1);
+  });
+
   it('should successfully create a player character with assigned userId as GM', async () => {
     const repo = new MockCampaignRepository([campaign1], categories);
-    const useCase = new CreateCharacterUseCase(repo);
+    const useCase = new CreateCharacterUseCase(repo, stubPermissions());
 
     const result = await useCase.execute({
       campagneId: 1,
@@ -163,7 +200,7 @@ describe('CreateCharacterUseCase', () => {
 
   it('should throw ValidationError if name is empty', async () => {
     const repo = new MockCampaignRepository([campaign1], categories);
-    const useCase = new CreateCharacterUseCase(repo);
+    const useCase = new CreateCharacterUseCase(repo, stubPermissions());
 
     await assert.rejects(
       async () => {
@@ -183,7 +220,7 @@ describe('CreateCharacterUseCase', () => {
 
   it('should throw CampaignNotFoundError if campaign does not exist', async () => {
     const repo = new MockCampaignRepository([campaign1], categories);
-    const useCase = new CreateCharacterUseCase(repo);
+    const useCase = new CreateCharacterUseCase(repo, stubPermissions());
 
     await assert.rejects(
       async () => {
@@ -202,7 +239,7 @@ describe('CreateCharacterUseCase', () => {
 
   it('should throw ForbiddenError if user is not the GM', async () => {
     const repo = new MockCampaignRepository([campaign1], categories);
-    const useCase = new CreateCharacterUseCase(repo);
+    const useCase = new CreateCharacterUseCase(repo, stubPermissions());
 
     await assert.rejects(
       async () => {
@@ -222,7 +259,7 @@ describe('CreateCharacterUseCase', () => {
 
   it('should throw ValidationError if category does not belong to the campaign', async () => {
     const repo = new MockCampaignRepository([campaign1], categories);
-    const useCase = new CreateCharacterUseCase(repo);
+    const useCase = new CreateCharacterUseCase(repo, stubPermissions());
 
     await assert.rejects(
       async () => {

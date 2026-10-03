@@ -172,7 +172,7 @@ describe('UpdatePostUseCase', () => {
       markTopicAsRead: async () => {},
       findCampaignPersos: async () => mockPersos,
       findUserCampaignPersos: async (_, userId) => mockPersos.filter((p) => p.userId === userId),
-      isUserCampaignMj: async (campagneId, userId) => campagneId === 100 && userId === 1,
+      userHasMjRights: async (campagneId, userId) => campagneId === 100 && userId === 1,
       isUserCampaignParticipant: async (campagneId, userId) => campagneId === 100 && (userId === 2 || userId === 3),
       findPersoById: async (persoId) => mockPersos.find((p) => p.id === persoId) || null,
       getTopicCanReadUsers: async () => [],

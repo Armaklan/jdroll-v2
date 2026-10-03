@@ -120,7 +120,7 @@ describe('SaveDraftUseCase', () => {
       findCampaignPersos: async (campagneId) => mockPersos.filter((p) => p.campagneId === campagneId),
       findUserCampaignPersos: async (campagneId, userId) =>
         mockPersos.filter((p) => p.campagneId === campagneId && p.userId === userId),
-      isUserCampaignMj: async (_campagneId, userId) => userId === 1,
+      userHasMjRights: async (_campagneId, userId) => userId === 1,
       isUserCampaignParticipant: async (_campagneId, userId) => userId === 2 || userId === 3,
       findPersoById: async (persoId) => mockPersos.find((p) => p.id === persoId) || null,
       getTopicCanReadUsers: async () => [],

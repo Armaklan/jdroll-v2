@@ -13,16 +13,19 @@ import {
   CampaignSearchCarteItem,
   CampaignSearchCharacterItem,
   RawCampaignCharacterRow,
+  CampaignAssistant,
 } from '../types/index.js';
 import { CampaignNotFoundError, CharacterNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
 import { resolveSheetMode } from '../schemas/sheet-definition.schema.js';
+import { CampaignPermissionService, campaignPermissionService } from '../services/campaign-permission.service.js';
 
 export class CampaignQueries {
   constructor(
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
     private readonly dicerRepo: IDicerRepository = dicerRepository,
     private readonly forumRepo: IForumRepository = forumRepository,
-    private readonly carteRepo: ICarteRepository = carteRepository
+    private readonly carteRepo: ICarteRepository = carteRepository,
+    private readonly campaignPermissions: CampaignPermissionService = campaignPermissionService
   ) {}
 
   /**
@@ -106,12 +109,16 @@ export class CampaignQueries {
     }
 
     let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
+    let isAssistantMj = false;
     let isObserving = false;
     let hasAlert = false;
     if (currentUserId) {
       hasAlert = this.campaignRepo.isUserCampaignAlert ? await this.campaignRepo.isUserCampaignAlert(campaignId, currentUserId) : false;
       if (campaign.mjId === currentUserId) {
         userRole = 'mj';
+      } else if (await this.campaignPermissions.isAssistantMj(campaignId, currentUserId)) {
+        userRole = 'mj';
+        isAssistantMj = true;
       } else {
         const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, currentUserId);
         if (isParticipant) {
@@ -227,6 +234,7 @@ export class CampaignQueries {
         ...campaign,
         sheetMode: resolveSheetMode(campaign),
         userRole: userRole ?? campaign.userRole,
+        isAssistantMj: isAssistantMj || Boolean(campaign.isAssistantMj),
         isObserving: isObserving || campaign.isObserving,
         hasAlert: hasAlert || Boolean(campaign.hasAlert),
       },
@@ -249,12 +257,16 @@ export class CampaignQueries {
     }
 
     let userRole: 'mj' | 'player' | 'observer' | null = null;
+    let isAssistantMj = false;
     let isObserving = false;
     let hasAlert = false;
 
     if (currentUserId) {
       if (campaign.mjId === currentUserId) {
         userRole = 'mj';
+      } else if (await this.campaignPermissions.isAssistantMj(raw.campagneId, currentUserId)) {
+        userRole = 'mj';
+        isAssistantMj = true;
       } else {
         const isParticipant = await this.campaignRepo.isUserCampaignParticipant(raw.campagneId, currentUserId);
         if (isParticipant) {
@@ -303,6 +315,7 @@ export class CampaignQueries {
         ...campaign,
         sheetMode: resolveSheetMode(campaign),
         userRole: userRole ?? campaign.userRole,
+        isAssistantMj: isAssistantMj || Boolean(campaign.isAssistantMj),
         isObserving: isObserving || campaign.isObserving,
         hasAlert: hasAlert || Boolean(campaign.hasAlert),
       },
@@ -345,12 +358,16 @@ export class CampaignQueries {
     }
 
     let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
+    let isAssistantMj = false;
     let isObserving = false;
     let hasAlert = false;
     if (currentUserId) {
       hasAlert = this.campaignRepo.isUserCampaignAlert ? await this.campaignRepo.isUserCampaignAlert(campaignId, currentUserId) : false;
       if (campaign.mjId === currentUserId) {
         userRole = 'mj';
+      } else if (await this.campaignPermissions.isAssistantMj(campaignId, currentUserId)) {
+        userRole = 'mj';
+        isAssistantMj = true;
       } else {
         const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, currentUserId);
         if (isParticipant) {
@@ -368,9 +385,24 @@ export class CampaignQueries {
       ...campaign,
       sheetMode: resolveSheetMode(campaign),
       userRole: userRole ?? campaign.userRole,
+      isAssistantMj: isAssistantMj || Boolean(campaign.isAssistantMj),
       isObserving: isObserving || campaign.isObserving,
       hasAlert: hasAlert || Boolean(campaign.hasAlert),
     };
+  }
+
+  /**
+   * Récupère les MJ Assistants d'une campagne (MJ propriétaire uniquement)
+   */
+  async getCampaignAssistants(campaignId: number, mjId: number): Promise<CampaignAssistant[]> {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) {
+      throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
+    }
+    if (campaign.mjId !== mjId) {
+      throw new ForbiddenError("Seul le Maître du Jeu peut consulter la liste des MJ Assistants");
+    }
+    return this.campaignRepo.findCampaignAssistants ? this.campaignRepo.findCampaignAssistants(campaignId) : [];
   }
 
   /**
@@ -384,7 +416,7 @@ export class CampaignQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
     }
 
-    const isMj = campaign.mjId === userId || (await this.forumRepo.isUserCampaignMj(campaignId, userId));
+    const isMj = campaign.mjId === userId || (await this.forumRepo.userHasMjRights(campaignId, userId));
     const isParticipant = isMj ? true : await this.forumRepo.isUserCampaignParticipant(campaignId, userId);
 
     if (!isMj && !isParticipant) {
@@ -411,7 +443,7 @@ export class CampaignQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
     }
 
-    const isMj = Boolean(currentUserId && (campaign.mjId === currentUserId || (await this.forumRepo.isUserCampaignMj(campaignId, currentUserId))));
+    const isMj = Boolean(currentUserId && (campaign.mjId === currentUserId || (await this.forumRepo.userHasMjRights(campaignId, currentUserId))));
 
     const [topicRows, carteRows, characterRows] = await Promise.all([
       this.forumRepo.searchCampaignTopics(campaignId, queryText, currentUserId, isMj),

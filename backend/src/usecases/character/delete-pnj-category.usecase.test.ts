@@ -1,5 +1,22 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { CampaignPermissionService } from '../../services/campaign-permission.service.js';
+
+// Service de permissions stub : par défaut, seul le propriétaire a les droits
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: (mjId: number, userId: number) => mjId === userId,
+    isAssistantMj: async () => false,
+    hasMjRights: async (_campaignId: number, mjId: number, userId: number) => mjId === userId,
+  } as unknown as CampaignPermissionService);
+
+// Stub assistant : l'utilisateur non-propriétaire dispose des droits MJ (feature flip activé)
+const stubAssistantPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => true,
+    hasMjRights: async () => true,
+  } as unknown as CampaignPermissionService);
 import { DeletePnjCategoryUseCase } from './delete-pnj-category.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
 import {
@@ -77,7 +94,7 @@ describe('DeletePnjCategoryUseCase', () => {
       removeCampaignAlert: async () => {},
     };
 
-    useCase = new DeletePnjCategoryUseCase(mockCampaignRepo);
+    useCase = new DeletePnjCategoryUseCase(mockCampaignRepo, stubPermissions());
   });
 
   it('devrait supprimer une catégorie de PNJ avec succès pour le MJ', async () => {
@@ -90,6 +107,18 @@ describe('DeletePnjCategoryUseCase', () => {
       success: true,
       categoryId: 5,
     });
+    assert.deepEqual(deletedCategoryIds, [5]);
+  });
+
+  it('devrait supprimer une catégorie de PNJ pour un MJ Assistant (non propriétaire)', async () => {
+    const assistantUseCase = new DeletePnjCategoryUseCase(mockCampaignRepo, stubAssistantPermissions());
+
+    const result = await assistantUseCase.execute({
+      categoryId: 5,
+      userId: 2, // MJ Assistant, le propriétaire est l'utilisateur 1
+    });
+
+    assert.deepEqual(result, { success: true, categoryId: 5 });
     assert.deepEqual(deletedCategoryIds, [5]);
   });
 

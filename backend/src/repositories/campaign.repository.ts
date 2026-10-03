@@ -1,5 +1,5 @@
 import { query, queryOne, execute } from '../db/mysql.js';
-import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow, CampaignParticipant } from '../types/index.js';
+import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow, CampaignParticipant, CampaignAssistant } from '../types/index.js';
 
 export interface CreateCampaignData {
   mjId: number;
@@ -151,6 +151,10 @@ export interface ICampaignRepository {
   isUserCampaignAlert(campaignId: number, userId: number): Promise<boolean>;
   addCampaignAlert(campaignId: number, userId: number): Promise<void>;
   removeCampaignAlert(campaignId: number, userId: number): Promise<void>;
+  findCampaignAssistants?(campaignId: number): Promise<CampaignAssistant[]>;
+  isUserCampaignAssistant?(campaignId: number, userId: number): Promise<boolean>;
+  addCampaignAssistant?(campaignId: number, userId: number): Promise<void>;
+  removeCampaignAssistant?(campaignId: number, userId: number): Promise<void>;
 }
 
 export class MysqlCampaignRepository implements ICampaignRepository {
@@ -349,7 +353,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
       LEFT JOIN personnages p ON p.campagne_id = c.id AND p.user_id = cp.user_id
-      WHERE cp.user_id = ? AND cp.statut = 1
+      WHERE cp.user_id = ? AND cp.statut >= 1
         ${archiveCondition}
       ORDER BY hasAlert DESC, c.id DESC
     `;
@@ -1478,7 +1482,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         u.profil
       FROM campagne_participant cp
       JOIN user u ON cp.user_id = u.id
-      WHERE cp.campagne_id = ? AND cp.statut = 1
+      WHERE cp.campagne_id = ? AND cp.statut >= 1
       ORDER BY u.username ASC
     `;
 
@@ -1502,7 +1506,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
   }
 
   async isUserCampaignParticipant(campaignId: number, userId: number): Promise<boolean> {
-    const sql = `SELECT user_id FROM campagne_participant WHERE campagne_id = ? AND user_id = ? AND statut = 1`;
+    const sql = `SELECT user_id FROM campagne_participant WHERE campagne_id = ? AND user_id = ? AND statut >= 1`;
     const row = await queryOne<{ user_id: number }>(sql, [campaignId, userId]);
     return Boolean(row);
   }
@@ -1529,7 +1533,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     const countSql = `
       UPDATE campagne
       SET nb_joueurs_actuel = (
-        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ? AND statut = 1
+        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ? AND statut >= 1
       )
       WHERE id = ?
     `;
@@ -1546,7 +1550,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     const countSql = `
       UPDATE campagne
       SET nb_joueurs_actuel = (
-        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ? AND statut = 1
+        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ? AND statut >= 1
       )
       WHERE id = ?
     `;
@@ -1559,7 +1563,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     const countSql = `
       UPDATE campagne
       SET nb_joueurs_actuel = (
-        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ? AND statut = 1
+        SELECT COUNT(DISTINCT user_id) FROM campagne_participant WHERE campagne_id = ? AND statut >= 1
       )
       WHERE id = ?
     `;
@@ -1609,6 +1613,50 @@ export class MysqlCampaignRepository implements ICampaignRepository {
 
   async removeCampaignAlert(campaignId: number, userId: number): Promise<void> {
     const sql = `DELETE FROM alert WHERE campagne_id = ? AND joueur_id = ?`;
+    await execute(sql, [campaignId, userId]);
+  }
+
+  /**
+   * MJ Assistants d'une campagne : participants avec statut = 2
+   * (0 = en attente, 1 = joueur validé, 2 = joueur validé + MJ Assistant)
+   */
+  async findCampaignAssistants(campaignId: number): Promise<CampaignAssistant[]> {
+    const sql = `
+      SELECT
+        cp.user_id AS userId,
+        u.username,
+        u.avatar,
+        u.profil
+      FROM campagne_participant cp
+      JOIN user u ON cp.user_id = u.id
+      WHERE cp.campagne_id = ? AND cp.statut = 2
+      ORDER BY u.username ASC
+    `;
+
+    return query<CampaignAssistant>(sql, [campaignId]);
+  }
+
+  async isUserCampaignAssistant(campaignId: number, userId: number): Promise<boolean> {
+    const sql = `SELECT user_id FROM campagne_participant WHERE campagne_id = ? AND user_id = ? AND statut = 2`;
+    const row = await queryOne<{ user_id: number }>(sql, [campaignId, userId]);
+    return Boolean(row);
+  }
+
+  async addCampaignAssistant(campaignId: number, userId: number): Promise<void> {
+    const sql = `
+      UPDATE campagne_participant
+      SET statut = 2
+      WHERE campagne_id = ? AND user_id = ? AND statut = 1
+    `;
+    await execute(sql, [campaignId, userId]);
+  }
+
+  async removeCampaignAssistant(campaignId: number, userId: number): Promise<void> {
+    const sql = `
+      UPDATE campagne_participant
+      SET statut = 1
+      WHERE campagne_id = ? AND user_id = ? AND statut = 2
+    `;
     await execute(sql, [campaignId, userId]);
   }
 }

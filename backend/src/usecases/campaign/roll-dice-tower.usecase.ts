@@ -48,7 +48,7 @@ export class RollDiceTowerUseCase {
     }
 
     // Vérification des droits d'accès à la campagne
-    const isMj = await this.forumRepo.isUserCampaignMj(dto.campaignId, dto.userId);
+    const isMj = await this.forumRepo.userHasMjRights(dto.campaignId, dto.userId);
     const isParticipant = isMj
       ? true
       : await this.forumRepo.isUserCampaignParticipant(dto.campaignId, dto.userId);

@@ -59,7 +59,7 @@ describe('RollDiceTowerUseCase', () => {
 
   const createMockForumRepo = (options: { isMj?: boolean; isParticipant?: boolean } = {}): IForumRepository =>
     ({
-      isUserCampaignMj: async (_cId: number, userId: number) => (options.isMj !== undefined ? options.isMj : userId === 1),
+      userHasMjRights: async (_cId: number, userId: number) => (options.isMj !== undefined ? options.isMj : userId === 1),
       isUserCampaignParticipant: async (_cId: number, userId: number) => (options.isParticipant !== undefined ? options.isParticipant : userId === 2),
     } as any);
 

@@ -7,6 +7,16 @@ import { IForumRepository } from '../repositories/forum.repository.js';
 import { ICarteRepository } from '../repositories/carte.repository.js';
 import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow } from '../types/index.js';
 import { CampaignNotFoundError, CharacterNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
+import { CampaignPermissionService } from '../services/campaign-permission.service.js';
+import { FeatureFlipService } from '../usecases/feature/feature-flip.service.js';
+
+// Service de permissions stub : aucun MJ assistant dans ces tests unitaires
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => false,
+    hasMjRights: async () => false,
+  } as unknown as CampaignPermissionService);
 
 class MockDicerRepository implements IDicerRepository {
   constructor(private rolls: DicerRollWithUser[] = []) {}
@@ -37,7 +47,7 @@ class MockForumRepository implements Partial<IForumRepository> {
     private topics: Array<{ id: number; campaignId: number; sectionId: number; sectionTitle: string; title: string; isPrivate: number; canReadUserIds?: number[] }> = []
   ) {}
 
-  async isUserCampaignMj(campagneId: number, userId: number): Promise<boolean> {
+  async userHasMjRights(campagneId: number, userId: number): Promise<boolean> {
     return this.mjList.some((item) => item.campaignId === campagneId && item.userId === userId);
   }
 
@@ -81,7 +91,8 @@ class MockCampaignRepository implements ICampaignRepository {
     private allCampaigns: CampaignSummary[] = [],
     private characters: RawCampaignCharacterRow[] = [],
     private categories: RawPnjCategoryRow[] = [],
-    private observed: CampaignSummary[] = []
+    private observed: CampaignSummary[] = [],
+    private assistants: Array<{ campaignId: number; userId: number }> = []
   ) {}
 
   async findMasteredCampaigns(userId: number, includeArchived: boolean = false): Promise<CampaignSummary[]> {
@@ -204,6 +215,16 @@ class MockCampaignRepository implements ICampaignRepository {
     return Boolean(c?.hasAlert);
   }
 
+  async isUserCampaignAssistant(campaignId: number, userId: number): Promise<boolean> {
+    return this.assistants.some((item) => item.campaignId === campaignId && item.userId === userId);
+  }
+
+  async findCampaignAssistants(campaignId: number): Promise<any[]> {
+    return this.assistants
+      .filter((item) => item.campaignId === campaignId)
+      .map((item) => ({ userId: item.userId, username: `assistant_${item.userId}`, avatar: null, profil: 0 }));
+  }
+
   async addCampaignAlert(campaignId: number, userId: number): Promise<void> {}
 
   async removeCampaignAlert(campaignId: number, userId: number): Promise<void> {}
@@ -318,7 +339,7 @@ describe('CampaignQueries', () => {
 
   it('should return only active mastered campaigns by default (includeArchived = false)', async () => {
     const repo = new MockCampaignRepository([sampleMasteredCampaignActive, sampleMasteredCampaignArchived]);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getMyCampaigns(42, 'master', false);
     assert.equal(result.length, 1);
@@ -328,7 +349,7 @@ describe('CampaignQueries', () => {
 
   it('should return all mastered campaigns when includeArchived = true', async () => {
     const repo = new MockCampaignRepository([sampleMasteredCampaignActive, sampleMasteredCampaignArchived]);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getMyCampaigns(42, 'master', true);
     assert.equal(result.length, 2);
@@ -336,7 +357,7 @@ describe('CampaignQueries', () => {
 
   it('should return only active player campaigns by default', async () => {
     const repo = new MockCampaignRepository([], [samplePlayerCampaignActive, samplePlayerCampaignArchived]);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getMyCampaigns(42, 'player', false);
     assert.equal(result.length, 1);
@@ -346,7 +367,7 @@ describe('CampaignQueries', () => {
 
   it('should return all player campaigns when includeArchived = true', async () => {
     const repo = new MockCampaignRepository([], [samplePlayerCampaignActive, samplePlayerCampaignArchived]);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getMyCampaigns(42, 'player', true);
     assert.equal(result.length, 2);
@@ -354,7 +375,7 @@ describe('CampaignQueries', () => {
 
   it('should return only active observed campaigns by default when role = "observer"', async () => {
     const repo = new MockCampaignRepository([], [], [], [], [], [sampleObservedCampaignActive, sampleObservedCampaignArchived]);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getMyCampaigns(42, 'observer', false);
     assert.equal(result.length, 1);
@@ -365,7 +386,7 @@ describe('CampaignQueries', () => {
 
   it('should return all observed campaigns when role = "observer" and includeArchived = true', async () => {
     const repo = new MockCampaignRepository([], [], [], [], [], [sampleObservedCampaignActive, sampleObservedCampaignArchived]);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getMyCampaigns(42, 'observer', true);
     assert.equal(result.length, 2);
@@ -380,7 +401,7 @@ describe('CampaignQueries', () => {
       [],
       [sampleObservedCampaignActive, sampleObservedCampaignArchived]
     );
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getMyCampaigns(42, 'all', false);
     assert.equal(result.length, 3);
@@ -404,7 +425,7 @@ describe('CampaignQueries', () => {
       hasAlert: true,
     };
     const repo = new MockCampaignRepository([campaignWithoutAlert], [campaignWithAlert]);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getMyCampaigns(42, 'all', false);
     assert.equal(result.length, 2);
@@ -438,7 +459,7 @@ describe('CampaignQueries', () => {
       samplePreparationCampaign,
     ];
     const repo = new MockCampaignRepository([], [], all);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getAllCampaigns(false);
     assert.equal(result.length, 2);
@@ -471,7 +492,7 @@ describe('CampaignQueries', () => {
       samplePreparationCampaign,
     ];
     const repo = new MockCampaignRepository([], [], all);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getAllCampaigns(false, undefined, true);
     assert.equal(result.length, 3);
@@ -486,7 +507,7 @@ describe('CampaignQueries', () => {
       samplePlayerCampaignArchived,
     ];
     const repo = new MockCampaignRepository([], [], all);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     const result = await queries.getAllCampaigns(true);
     assert.equal(result.length, 4);
@@ -500,7 +521,7 @@ describe('CampaignQueries', () => {
       samplePlayerCampaignArchived, // name: 'Campagne Joueur Archivée', systeme: 'Shadowrun', univers: 'Cyber-Fantasy' (archived)
     ];
     const repo = new MockCampaignRepository([], [], all);
-    const queries = new CampaignQueries(repo);
+    const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
     // Search by system in active campaigns
     const res1 = await queries.getAllCampaigns(false, 'Cyberpunk');
@@ -603,7 +624,7 @@ describe('CampaignQueries', () => {
 
     it('should throw CampaignNotFoundError when campaign does not exist', async () => {
       const repo = new MockCampaignRepository();
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
       await assert.rejects(
         async () => {
           await queries.getCampaignCharacters(999);
@@ -617,7 +638,7 @@ describe('CampaignQueries', () => {
 
     it('should classify characters by category: custom category, "Personnage joueur" for PJ without category, "Non classées" for PNJ without category', async () => {
       const repo = new MockCampaignRepository([campaign1], [], [], characters, categories);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       const data = await queries.getCampaignCharacters(1, 1); // User 1 is MJ
       assert.equal(data.campaign.name, 'La Malédiction de Strahd');
@@ -660,7 +681,7 @@ describe('CampaignQueries', () => {
         { id: 30, campagneId: 1, name: 'Auberge du Vallon', defaultCollapse: 0 },
       ];
       const repo = new MockCampaignRepository([campaign1], [], [], characters, unorderedCategories);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       const data = await queries.getCampaignCharacters(1, 1);
 
@@ -672,7 +693,7 @@ describe('CampaignQueries', () => {
 
     it('should hide private description for users who are not GM and not character owner', async () => {
       const repo = new MockCampaignRepository([campaign1], [], [], characters, categories);
-      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       const data = await queries.getCampaignCharacters(1, 99); // Another user
       const catPJ = data.categories.find((c) => c.name === 'Personnage joueur')!;
@@ -684,7 +705,7 @@ describe('CampaignQueries', () => {
 
     it('should reveal private description to the character owner', async () => {
       const repo = new MockCampaignRepository([campaign1], [], [], characters, categories);
-      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       const data = await queries.getCampaignCharacters(1, 2); // User 2 is Kaelen's owner
       const catPJ = data.categories.find((c) => c.name === 'Personnage joueur')!;
@@ -717,7 +738,7 @@ describe('CampaignQueries', () => {
         },
       ];
       const repo = new MockCampaignRepository([campaign1], [], [], withPrivatePnj, categories);
-      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       // MJ sees the private character
       const dataMj = await queries.getCampaignCharacters(1, 1);
@@ -737,7 +758,7 @@ describe('CampaignQueries', () => {
         c.id === 1 ? { ...c, statut: 1 } : c
       );
       const repo = new MockCampaignRepository([campaign1], [], [], privatePj, categories);
-      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       // Owner (user 2) still sees their own private character
       const dataOwner = await queries.getCampaignCharacters(1, 2);
@@ -795,13 +816,13 @@ describe('CampaignQueries', () => {
 
     it('lève CharacterNotFoundError si le personnage n’existe pas', async () => {
       const repo = new MockCampaignRepository([campaign1], [], [], []);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
       await assert.rejects(() => queries.getCharacter(999, 1), CharacterNotFoundError);
     });
 
     it('retourne le personnage avec descriptions privées et widgets pour le MJ', async () => {
       const repo = new MockCampaignRepository([campaign1], [], [], [characterPj]);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
       const res = await queries.getCharacter(101, 1); // User 1 is MJ
 
       assert.equal(res.character.id, 101);
@@ -815,7 +836,7 @@ describe('CampaignQueries', () => {
 
     it('retourne le personnage avec descriptions privées pour son propriétaire joueur', async () => {
       const repo = new MockCampaignRepository([campaign1], [], [], [characterPj]);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
       const res = await queries.getCharacter(101, 2); // User 2 is character owner
 
       assert.equal(res.character.privateDescription, 'Secret de mage');
@@ -825,7 +846,7 @@ describe('CampaignQueries', () => {
 
     it('masque les descriptions privées et widgets pour un autre utilisateur', async () => {
       const repo = new MockCampaignRepository([campaign1], [], [], [characterPj]);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
       const res = await queries.getCharacter(101, 3); // User 3 is unrelated
 
       assert.equal(res.character.privateDescription, undefined);
@@ -874,7 +895,7 @@ describe('CampaignQueries', () => {
 
     it("dérive 'technical' par défaut quand aucun template n'existe", async () => {
       const repo = new MockCampaignRepository([baseCampaign], [], [], [characterPj]);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
       const data = await queries.getCampaignCharacters(1, 1);
       assert.equal(data.campaign.sheetMode, 'technical');
     });
@@ -883,7 +904,7 @@ describe('CampaignQueries', () => {
       const repo = new MockCampaignRepository([
         { ...baseCampaign, templateImg: 'fiche.png' },
       ], [], [], [characterPj]);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
       const data = await queries.getCampaignCharacters(1, 1);
       assert.equal(data.campaign.sheetMode, 'graphic');
     });
@@ -896,7 +917,7 @@ describe('CampaignQueries', () => {
       const repo = new MockCampaignRepository([
         { ...baseCampaign, sheetMode: 'programmed', sheetDefinition: definition },
       ], [], [], [characterPj]);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
       const data = await queries.getCampaignCharacters(1, 1);
       assert.equal(data.campaign.sheetMode, 'programmed');
       assert.equal(data.campaign.sheetDefinition, definition);
@@ -904,7 +925,7 @@ describe('CampaignQueries', () => {
 
     it('expose les valeurs de fiche programmée au MJ et au propriétaire uniquement', async () => {
       const repo = new MockCampaignRepository([baseCampaign], [], [], [characterPj]);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       const asMj = await queries.getCharacter(101, 1);
       assert.equal(asMj.character.sheetValues, '{"comp-nom":"Kaelen"}');
@@ -920,7 +941,7 @@ describe('CampaignQueries', () => {
       const repo = new MockCampaignRepository([
         { ...baseCampaign, templateFields: '<div/>' },
       ], [], [], [characterPj]);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
       const res = await queries.getCharacter(101, 2);
       assert.equal(res.campaign.sheetMode, 'graphic');
     });
@@ -981,7 +1002,7 @@ describe('CampaignQueries', () => {
       const campaignRepo = new MockCampaignRepository();
       const dicerRepo = new MockDicerRepository(rolls);
       const forumRepo = new MockForumRepository() as any;
-      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo);
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, new MockCarteRepository() as any, stubPermissions());
 
       await assert.rejects(
         () => queries.getCampaignDiceRolls(999, 1),
@@ -996,7 +1017,7 @@ describe('CampaignQueries', () => {
         [{ campaignId: 10, userId: 1 }],
         [{ campaignId: 10, userId: 2 }]
       ) as any;
-      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo);
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, new MockCarteRepository() as any, stubPermissions());
 
       // Utilisateur 99 n'est ni MJ ni joueur
       await assert.rejects(
@@ -1012,7 +1033,7 @@ describe('CampaignQueries', () => {
         [{ campaignId: 10, userId: 1 }],
         [{ campaignId: 10, userId: 2 }]
       ) as any;
-      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo);
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, new MockCarteRepository() as any, stubPermissions());
 
       const result = await queries.getCampaignDiceRolls(10, 1);
       assert.equal(result.length, 3);
@@ -1029,7 +1050,7 @@ describe('CampaignQueries', () => {
           { campaignId: 10, userId: 3 },
         ]
       ) as any;
-      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo);
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, new MockCarteRepository() as any, stubPermissions());
 
       const resultUser2 = await queries.getCampaignDiceRolls(10, 2);
       assert.equal(resultUser2.length, 1);
@@ -1119,7 +1140,7 @@ describe('CampaignQueries', () => {
       const dicerRepo = new MockDicerRepository();
       const forumRepo = new MockForumRepository() as any;
       const carteRepo = new MockCarteRepository() as any;
-      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo, stubPermissions());
 
       await assert.rejects(() => queries.searchCampaign(999, 'test', 1), CampaignNotFoundError);
     });
@@ -1129,7 +1150,7 @@ describe('CampaignQueries', () => {
       const dicerRepo = new MockDicerRepository();
       const forumRepo = new MockForumRepository([{ campaignId: 5, userId: 1 }], [], topics) as any;
       const carteRepo = new MockCarteRepository(cartes) as any;
-      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo, stubPermissions());
 
       const result = await queries.searchCampaign(5, '', 1);
 
@@ -1143,7 +1164,7 @@ describe('CampaignQueries', () => {
       const dicerRepo = new MockDicerRepository();
       const forumRepo = new MockForumRepository([], [{ campaignId: 5, userId: 2 }], topics) as any;
       const carteRepo = new MockCarteRepository(cartes) as any;
-      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo, stubPermissions());
 
       // Utilisateur 2 a accès au topic 102 car il est dans canReadUserIds
       const resultUser2 = await queries.searchCampaign(5, '', 2);
@@ -1153,7 +1174,7 @@ describe('CampaignQueries', () => {
 
       // Utilisateur 3 (sans droit sur le topic privé)
       const forumRepo3 = new MockForumRepository([], [{ campaignId: 5, userId: 3 }], topics) as any;
-      const queries3 = new CampaignQueries(campaignRepo, dicerRepo, forumRepo3, carteRepo);
+      const queries3 = new CampaignQueries(campaignRepo, dicerRepo, forumRepo3, carteRepo, stubPermissions());
       const resultUser3 = await queries3.searchCampaign(5, '', 3);
       assert.equal(resultUser3.topics.length, 2); // 101, 103 (pas 102)
       assert.equal(resultUser3.cartes.length, 1); // seulement 201
@@ -1165,13 +1186,13 @@ describe('CampaignQueries', () => {
       const dicerRepo = new MockDicerRepository();
       const forumRepo = new MockForumRepository([], [{ campaignId: 5, userId: 3 }], topics) as any;
       const carteRepo = new MockCarteRepository(cartes) as any;
-      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo, stubPermissions());
 
       const resultPlayer = await queries.searchCampaign(5, 'Aragorn', 3);
       assert.equal(resultPlayer.characters.length, 0); // Aragorn est privé (statut = 1)
 
       const forumRepoMj = new MockForumRepository([{ campaignId: 5, userId: 1 }], [], topics) as any;
-      const queriesMj = new CampaignQueries(campaignRepo, dicerRepo, forumRepoMj, carteRepo);
+      const queriesMj = new CampaignQueries(campaignRepo, dicerRepo, forumRepoMj, carteRepo, stubPermissions());
       const resultMj = await queriesMj.searchCampaign(5, 'Aubergiste', 1);
       assert.equal(resultMj.characters.length, 1);
       assert.equal(resultMj.characters[0].name, 'Aubergiste');
@@ -1182,7 +1203,7 @@ describe('CampaignQueries', () => {
       const dicerRepo = new MockDicerRepository();
       const forumRepo = new MockForumRepository([{ campaignId: 5, userId: 1 }], [], topics) as any;
       const carteRepo = new MockCarteRepository(cartes) as any;
-      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo);
+      const queries = new CampaignQueries(campaignRepo, dicerRepo, forumRepo, carteRepo, stubPermissions());
 
       const result = await queries.searchCampaign(5, 'forêt', 1);
       assert.equal(result.topics.length, 1);
@@ -1272,14 +1293,14 @@ describe('CampaignQueries', () => {
 
     it('lève CampaignNotFoundError si la campagne n’existe pas', async () => {
       const repo = new MockCampaignRepository();
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       await assert.rejects(() => queries.resolveCampaignCharacter(999, 'Aubergiste Joyeux'), CampaignNotFoundError);
     });
 
     it('résout un personnage par identifiant numérique, y compris privé', async () => {
       const repo = new MockCampaignRepository([campaign], [], [], characters);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       const resolved = await queries.resolveCampaignCharacter(7, '702');
       assert.equal(resolved.id, 702);
@@ -1288,7 +1309,7 @@ describe('CampaignQueries', () => {
 
     it('résout un personnage par nom (insensible à la casse), y compris privé', async () => {
       const repo = new MockCampaignRepository([campaign], [], [], characters);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       const resolved = await queries.resolveCampaignCharacter(7, 'espion ombreux');
       assert.equal(resolved.id, 702);
@@ -1297,16 +1318,130 @@ describe('CampaignQueries', () => {
 
     it('lève CharacterNotFoundError si aucun personnage ne correspond dans la campagne', async () => {
       const repo = new MockCampaignRepository([campaign], [], [], characters);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       await assert.rejects(() => queries.resolveCampaignCharacter(7, 'Inconnu'), CharacterNotFoundError);
     });
 
     it('lève CharacterNotFoundError si l’identifiant numérique pointe vers une autre campagne', async () => {
       const repo = new MockCampaignRepository([campaign], [], [], characters);
-      const queries = new CampaignQueries(repo);
+      const queries = new CampaignQueries(repo, new MockDicerRepository(), new MockForumRepository() as any, new MockCarteRepository() as any, stubPermissions());
 
       await assert.rejects(() => queries.resolveCampaignCharacter(7, '801'), CharacterNotFoundError);
+    });
+  });
+
+  describe('MJ Assistant (feature flip assistant-mj)', () => {
+    const campaign1: CampaignSummary = {
+      id: 1,
+      name: 'Campagne Assistant',
+      mjId: 1,
+      mjUsername: 'admin',
+      nbJoueurs: 4,
+      nbJoueursActuel: 2,
+      banniere: '',
+      systeme: 'D&D 5e',
+      univers: 'Ravenloft',
+      description: 'Test',
+      statut: 0,
+      isArchived: false,
+      isRecrutementOpen: true,
+    };
+
+    const privateCharacters: RawCampaignCharacterRow[] = [
+      {
+        id: 5,
+        userId: null,
+        userName: null,
+        userAvatar: null,
+        campagneId: 1,
+        name: 'PNJ secret',
+        concept: 'Espion',
+        avatar: '',
+        publicDescription: 'Un simple voyageur',
+        privateDescription: 'Espion du culte',
+        technical: 'Niveau 3',
+        statut: 1,
+        catId: null,
+        categoryName: null,
+        persoFields: null,
+        widgets: null,
+      },
+    ];
+
+    const createPermissionService = (repo: MockCampaignRepository, flagEnabled: boolean): CampaignPermissionService =>
+      new CampaignPermissionService(
+        repo,
+        new FeatureFlipService({
+          findAll: async () => [],
+          findByName: async (name: string) =>
+            name === 'assistant-mj' ? { id: 1, name, description: '', enabled: flagEnabled } : null,
+          setEnabled: async () => {},
+        } as any)
+      );
+
+    const createQueries = (repo: MockCampaignRepository, flagEnabled: boolean, participants: Array<{ campaignId: number; userId: number }> = []) =>
+      new CampaignQueries(
+        repo,
+        new MockDicerRepository(),
+        new MockForumRepository([], participants) as any,
+        new MockCarteRepository() as any,
+        createPermissionService(repo, flagEnabled)
+      );
+
+    it('accorde le rôle mj au MJ assistant et expose isAssistantMj (flag activé)', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], privateCharacters, [], [], [{ campaignId: 1, userId: 20 }]);
+      const queries = createQueries(repo, true, [{ campaignId: 1, userId: 20 }]);
+
+      const campaign = await queries.getCampaignById(1, 20);
+
+      assert.equal(campaign.userRole, 'mj');
+      assert.equal(campaign.isAssistantMj, true);
+    });
+
+    it('traite le MJ assistant comme un joueur lorsque le flag est désactivé', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], privateCharacters, [], [], [{ campaignId: 1, userId: 20 }]);
+      const queries = createQueries(repo, false, [{ campaignId: 1, userId: 20 }]);
+
+      const campaign = await queries.getCampaignById(1, 20);
+
+      assert.equal(campaign.userRole, 'player');
+      assert.notEqual(campaign.isAssistantMj, true);
+    });
+
+    it('montre les personnages privés au MJ assistant comme au MJ', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], privateCharacters, [], [], [{ campaignId: 1, userId: 20 }]);
+      const queries = createQueries(repo, true, [{ campaignId: 1, userId: 20 }]);
+
+      const data = await queries.getCampaignCharacters(1, 20);
+
+      assert.equal(data.campaign.userRole, 'mj');
+      assert.equal(data.campaign.isAssistantMj, true);
+      const pnj = data.categories.find((c) => c.name === 'Non classées');
+      assert.ok(pnj, 'le PNJ privé doit être visible pour le MJ assistant');
+      assert.equal(pnj!.characters[0].privateDescription, 'Espion du culte');
+    });
+
+    it('montre la fiche complète d un personnage au MJ assistant', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], privateCharacters, [], [], [{ campaignId: 1, userId: 20 }]);
+      const queries = createQueries(repo, true, [{ campaignId: 1, userId: 20 }]);
+
+      const { character, campaign } = await queries.getCharacter(5, 20);
+
+      assert.equal(character.privateDescription, 'Espion du culte');
+      assert.equal(campaign.userRole, 'mj');
+      assert.equal(campaign.isAssistantMj, true);
+    });
+
+    it('liste les assistants pour le MJ propriétaire uniquement', async () => {
+      const repo = new MockCampaignRepository([campaign1], [], [], [], [], [], [{ campaignId: 1, userId: 20 }]);
+      const queries = createQueries(repo, true);
+
+      const assistants = await queries.getCampaignAssistants(1, 1);
+      assert.deepEqual(assistants.map((a) => a.userId), [20]);
+
+      await assert.rejects(() => queries.getCampaignAssistants(1, 30), ForbiddenError);
+      await assert.rejects(() => queries.getCampaignAssistants(999, 1), CampaignNotFoundError);
     });
   });
 });

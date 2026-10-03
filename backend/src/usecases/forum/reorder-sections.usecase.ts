@@ -40,7 +40,7 @@ export class ReorderSectionsUseCase {
         throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
       }
 
-      const isMj = await this.forumRepo.isUserCampaignMj(campaignId, input.userId);
+      const isMj = await this.forumRepo.userHasMjRights(campaignId, input.userId);
       if (!isMj) {
         throw new ForbiddenError('Seul le Maître du Jeu peut réorganiser les sections de cette campagne');
       }

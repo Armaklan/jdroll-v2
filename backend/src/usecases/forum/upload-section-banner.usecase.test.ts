@@ -70,7 +70,7 @@ describe('UploadSectionBannerUseCase', () => {
       markTopicAsRead: async () => {},
       findCampaignPersos: async () => [],
       findUserCampaignPersos: async () => [],
-      isUserCampaignMj: async (campagneId: number, userId: number) => {
+      userHasMjRights: async (campagneId: number, userId: number) => {
         return campagneId === 10 && userId === 1; // MJ is userId 1
       },
       isUserCampaignParticipant: async () => true,

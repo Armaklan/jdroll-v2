@@ -1,4 +1,5 @@
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
+import { CampaignPermissionService, campaignPermissionService } from '../../services/campaign-permission.service.js';
 import {
   CampaignNotFoundError,
   CharacterNotFoundError,
@@ -16,7 +17,10 @@ export interface DeleteCharacterOutput {
 }
 
 export class DeleteCharacterUseCase {
-  constructor(private readonly campaignRepo: ICampaignRepository = campaignRepository) {}
+  constructor(
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly campaignPermissions: CampaignPermissionService = campaignPermissionService
+  ) {}
 
   async execute(input: DeleteCharacterInput): Promise<DeleteCharacterOutput> {
     const existingCharacter = await this.campaignRepo.findCharacterById(input.characterId);
@@ -29,7 +33,7 @@ export class DeleteCharacterUseCase {
       throw new CampaignNotFoundError(`La campagne associée n'existe pas`);
     }
 
-    const isMj = campaign.mjId === input.userId;
+    const isMj = await this.campaignPermissions.hasMjRights(existingCharacter.campagneId, campaign.mjId, input.userId);
     if (!isMj) {
       throw new ForbiddenError('Seul le Maître du Jeu peut supprimer un personnage');
     }

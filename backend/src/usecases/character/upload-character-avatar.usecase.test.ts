@@ -1,5 +1,22 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { CampaignPermissionService } from '../../services/campaign-permission.service.js';
+
+// Service de permissions stub : par défaut, seul le propriétaire a les droits
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: (mjId: number, userId: number) => mjId === userId,
+    isAssistantMj: async () => false,
+    hasMjRights: async (_campaignId: number, mjId: number, userId: number) => mjId === userId,
+  } as unknown as CampaignPermissionService);
+
+// Stub assistant : l'utilisateur non-propriétaire dispose des droits MJ (feature flip activé)
+const stubAssistantPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => true,
+    hasMjRights: async () => true,
+  } as unknown as CampaignPermissionService);
 import { UploadCharacterAvatarUseCase } from './upload-character-avatar.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
 import { IFileStorage } from '../../storage/file-storage.js';
@@ -111,7 +128,7 @@ describe('UploadCharacterAvatarUseCase', () => {
   it('should successfully upload an avatar as GM and generate random filename in campaign subfolder', async () => {
     const repo = new MockCampaignRepository([campaign1], [participantUser]);
     const storage = new MockFileStorage();
-    const useCase = new UploadCharacterAvatarUseCase(repo, storage);
+    const useCase = new UploadCharacterAvatarUseCase(repo, storage, stubPermissions());
 
     const buffer = Buffer.from('fake-image-binary-data');
     const result = await useCase.execute({
@@ -130,10 +147,27 @@ describe('UploadCharacterAvatarUseCase', () => {
     assert.equal(storage.savedFiles[0].content, buffer);
   });
 
+  it('permet à un MJ Assistant (non propriétaire) de téléverser un avatar', async () => {
+    const repo = new MockCampaignRepository([campaign1], [participantUser]);
+    const storage = new MockFileStorage();
+    const useCase = new UploadCharacterAvatarUseCase(repo, storage, stubAssistantPermissions());
+
+    const result = await useCase.execute({
+      campagneId: 1,
+      userId: 99, // MJ Assistant, le propriétaire est l'utilisateur 42
+      filename: 'assistant-art.png',
+      mimetype: 'image/png',
+      content: Buffer.from('fake-image'),
+    });
+
+    assert.match(result.url, /^\/files\/1\/[a-f0-9]{32}\.png$/);
+    assert.equal(storage.savedFiles.length, 1);
+  });
+
   it('should successfully upload an avatar as Campaign Player', async () => {
     const repo = new MockCampaignRepository([campaign1], [participantUser]);
     const storage = new MockFileStorage();
-    const useCase = new UploadCharacterAvatarUseCase(repo, storage);
+    const useCase = new UploadCharacterAvatarUseCase(repo, storage, stubPermissions());
 
     const buffer = Buffer.from('fake-jpeg-data');
     const result = await useCase.execute({
@@ -151,7 +185,7 @@ describe('UploadCharacterAvatarUseCase', () => {
   it('should reject upload if user is not GM and not participant', async () => {
     const repo = new MockCampaignRepository([campaign1], [participantUser]);
     const storage = new MockFileStorage();
-    const useCase = new UploadCharacterAvatarUseCase(repo, storage);
+    const useCase = new UploadCharacterAvatarUseCase(repo, storage, stubPermissions());
 
     await assert.rejects(
       () =>
@@ -169,7 +203,7 @@ describe('UploadCharacterAvatarUseCase', () => {
   it('should reject non-image mimetypes/files', async () => {
     const repo = new MockCampaignRepository([campaign1], [participantUser]);
     const storage = new MockFileStorage();
-    const useCase = new UploadCharacterAvatarUseCase(repo, storage);
+    const useCase = new UploadCharacterAvatarUseCase(repo, storage, stubPermissions());
 
     await assert.rejects(
       () =>
@@ -187,7 +221,7 @@ describe('UploadCharacterAvatarUseCase', () => {
   it('should reject non-existing campaign', async () => {
     const repo = new MockCampaignRepository([campaign1], [participantUser]);
     const storage = new MockFileStorage();
-    const useCase = new UploadCharacterAvatarUseCase(repo, storage);
+    const useCase = new UploadCharacterAvatarUseCase(repo, storage, stubPermissions());
 
     await assert.rejects(
       () =>

@@ -116,7 +116,7 @@ describe('UpdateCampaignUseCase', () => {
 
   const createMockForumRepo = (options: { isMj?: boolean } = {}): IForumRepository =>
     ({
-      isUserCampaignMj: async (_cId: number, userId: number) => (options.isMj !== undefined ? options.isMj : userId === 10),
+      userHasMjRights: async (_cId: number, userId: number) => (options.isMj !== undefined ? options.isMj : userId === 10),
       isUserCampaignParticipant: async () => false,
     } as any);
 
@@ -135,6 +135,17 @@ describe('UpdateCampaignUseCase', () => {
     const useCase = new UpdateCampaignUseCase(repo, createMockForumRepo({ isMj: false }));
 
     // User 99 is not GM
+    await assert.rejects(
+      () => useCase.execute({ campaignId: 1, userId: 99, name: 'Nouveau nom' }),
+      ForbiddenError
+    );
+  });
+
+  it('refuse la modification à un MJ assistant (administration réservée au propriétaire)', async () => {
+    const { repo } = createMockCampaignRepo();
+    const useCase = new UpdateCampaignUseCase(repo, createMockForumRepo({ isMj: true }));
+
+    // User 99 dispose des droits MJ (MJ assistant) mais n'est pas le propriétaire
     await assert.rejects(
       () => useCase.execute({ campaignId: 1, userId: 99, name: 'Nouveau nom' }),
       ForbiddenError

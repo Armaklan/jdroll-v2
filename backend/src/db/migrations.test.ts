@@ -83,6 +83,22 @@ describe('dossier des migrations du projet', () => {
     assert.match(featureFlipCreate!, /AUTO_INCREMENT/);
   });
 
+  it('définit la migration 13 (assistant_mj) : feature flip assistant-mj, sans nouvelle table (statut 2 dans campagne_participant)', () => {
+    const migration = loadMigrations().find((m: Migration) => m.id === 13);
+
+    assert.ok(migration, 'la migration 13 doit exister');
+    assert.equal(migration!.name, 'assistant_mj');
+    const statements = migration!.statements.join('\n');
+    assert.match(statements, /INSERT INTO `feature_flip`/);
+    assert.match(statements, /'assistant-mj'/);
+    assert.match(statements, /WHERE NOT EXISTS \(SELECT 1 FROM `feature_flip` WHERE `name` = 'assistant-mj'\)/);
+    // Le rôle de MJ Assistant repose sur campagne_participant.statut = 2 :
+    // aucune nouvelle table ne doit être créée.
+    assert.doesNotMatch(statements, /CREATE TABLE/);
+    // Nettoyage d'une éventuelle table résiduelle d'une migration 13 antérieure défaillante
+    assert.match(statements, /DROP TABLE IF EXISTS `campagne_assistant_mj`/);
+  });
+
   it('définit la migration 12 (chat_notification_settings) avec les réglages de notification dédiés au tchat privé', () => {
     const migration = loadMigrations().find((m: Migration) => m.id === 12);
 

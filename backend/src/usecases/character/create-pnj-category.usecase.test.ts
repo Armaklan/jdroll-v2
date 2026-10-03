@@ -1,5 +1,22 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { CampaignPermissionService } from '../../services/campaign-permission.service.js';
+
+// Service de permissions stub : par défaut, seul le propriétaire a les droits
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: (mjId: number, userId: number) => mjId === userId,
+    isAssistantMj: async () => false,
+    hasMjRights: async (_campaignId: number, mjId: number, userId: number) => mjId === userId,
+  } as unknown as CampaignPermissionService);
+
+// Stub assistant : l'utilisateur non-propriétaire dispose des droits MJ (feature flip activé)
+const stubAssistantPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => true,
+    hasMjRights: async () => true,
+  } as unknown as CampaignPermissionService);
 import { CreatePnjCategoryUseCase } from './create-pnj-category.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
 import {
@@ -69,7 +86,7 @@ describe('CreatePnjCategoryUseCase', () => {
       removeCampaignAlert: async () => {},
     };
 
-    useCase = new CreatePnjCategoryUseCase(mockCampaignRepo);
+    useCase = new CreatePnjCategoryUseCase(mockCampaignRepo, stubPermissions());
   });
 
   it('devrait créer une catégorie de PNJ avec succès pour le MJ', async () => {
@@ -92,6 +109,19 @@ describe('CreatePnjCategoryUseCase', () => {
       name: 'Alliés de la garde',
       defaultCollapse: 1,
     });
+  });
+
+  it('devrait créer une catégorie de PNJ pour un MJ Assistant (non propriétaire)', async () => {
+    const assistantUseCase = new CreatePnjCategoryUseCase(mockCampaignRepo, stubAssistantPermissions());
+
+    const result = await assistantUseCase.execute({
+      campagneId: 10,
+      userId: 2, // MJ Assistant, le propriétaire est l'utilisateur 1
+      name: 'Catégorie de l assistant',
+      defaultCollapse: false,
+    });
+
+    assert.equal(result.name, 'Catégorie de l assistant');
   });
 
   it('devrait rejeter si le nom est vide', async () => {

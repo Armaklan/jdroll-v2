@@ -40,3 +40,23 @@ services:
       PMA_PORT: 3306
     depends_on:
       - db
+
+  jd-import:
+    image: mysql:8.0
+    container_name: jdroll-import
+    depends_on:
+      - db
+    volumes:
+      - ./dump/espritjdr.sql:/dump.sql:ro
+    entrypoint:
+      - bash
+      - -c
+      - |
+        echo "Attente de la disponibilité de MySQL..."
+        until mysqladmin ping -h db -ujdroll -pjdroll --silent; do
+          sleep 2
+        done
+        echo "Import de espritjdr.sql..."
+        mysql -h db -ujdroll -pjdroll espritjdr < /dump.sql
+        echo "Import terminé."
+    restart: "no"

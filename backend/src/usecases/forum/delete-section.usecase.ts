@@ -37,7 +37,7 @@ export class DeleteSectionUseCase {
         throw new CampaignNotFoundError(`La campagne avec l'identifiant ${section.campagneId} n'existe pas`);
       }
 
-      const isMj = await this.forumRepo.isUserCampaignMj(section.campagneId, input.userId);
+      const isMj = await this.forumRepo.userHasMjRights(section.campagneId, input.userId);
       if (!isMj) {
         throw new ForbiddenError('Seul le Maître du Jeu peut supprimer une section de cette campagne');
       }

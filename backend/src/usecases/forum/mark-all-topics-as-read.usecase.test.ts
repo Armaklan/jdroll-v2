@@ -42,7 +42,7 @@ describe('MarkAllForumTopicsAsReadUseCase', () => {
       },
       findCampaignPersos: async () => [],
       findUserCampaignPersos: async () => [],
-      isUserCampaignMj: async () => false,
+      userHasMjRights: async () => false,
       isUserCampaignParticipant: async () => false,
       findPersoById: async () => null,
       getTopicCanReadUsers: async () => [],

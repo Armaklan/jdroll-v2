@@ -40,7 +40,7 @@ export class UpdateTopicUseCase {
     }
 
     if (topic.campagneId !== null && topic.campagneId !== undefined) {
-      const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, input.userId);
+      const isMj = await this.forumRepo.userHasMjRights(topic.campagneId, input.userId);
       if (!isMj) {
         throw new ForbiddenError('Seul le Maître du Jeu peut modifier ce sujet');
       }

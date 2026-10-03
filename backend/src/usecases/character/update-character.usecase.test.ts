@@ -1,7 +1,25 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { CampaignPermissionService } from '../../services/campaign-permission.service.js';
+
+// Service de permissions stub : par défaut, seul le propriétaire a les droits
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: (mjId: number, userId: number) => mjId === userId,
+    isAssistantMj: async () => false,
+    hasMjRights: async (_campaignId: number, mjId: number, userId: number) => mjId === userId,
+  } as unknown as CampaignPermissionService);
+
+// Stub assistant : l'utilisateur non-propriétaire dispose des droits MJ (feature flip activé)
+const stubAssistantPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => true,
+    hasMjRights: async () => true,
+  } as unknown as CampaignPermissionService);
 import { UpdateCharacterUseCase } from './update-character.usecase.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
+import { domainEventBus } from '../../events/event-bus.js';
 import { CampaignSummary, RawCampaignCharacterRow, RawPnjCategoryRow, CampaignParticipant } from '../../types/index.js';
 import {
   CampaignNotFoundError,
@@ -146,7 +164,7 @@ describe('UpdateCharacterUseCase', () => {
 
   it('should allow GM to edit any character including assignment and category', async () => {
     const repo = new MockCampaignRepository([campaign1], categories, characters);
-    const useCase = new UpdateCharacterUseCase(repo);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
 
     const result = await useCase.execute({
       characterId: 2,
@@ -167,9 +185,24 @@ describe('UpdateCharacterUseCase', () => {
     assert.equal(updated?.userId, 7);
   });
 
+  it('permet à un MJ Assistant (non propriétaire) de modifier n importe quel personnage', async () => {
+    const repo = new MockCampaignRepository([campaign1], categories, characters);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubAssistantPermissions());
+
+    const result = await useCase.execute({
+      characterId: 2,
+      userId: 99, // MJ Assistant, le propriétaire est l'utilisateur 42
+      name: 'Aubergiste du Assistant',
+    });
+
+    assert.equal(result.name, 'Aubergiste du Assistant');
+    const updated = await repo.findCharacterById(2);
+    assert.equal(updated?.name, 'Aubergiste du Assistant');
+  });
+
   it('should allow player to edit their assigned character', async () => {
     const repo = new MockCampaignRepository([campaign1], categories, characters);
-    const useCase = new UpdateCharacterUseCase(repo);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
 
     const result = await useCase.execute({
       characterId: 1,
@@ -188,7 +221,7 @@ describe('UpdateCharacterUseCase', () => {
 
   it('should ignore reassigning user or category if player attempts it', async () => {
     const repo = new MockCampaignRepository([campaign1], categories, characters);
-    const useCase = new UpdateCharacterUseCase(repo);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
 
     const result = await useCase.execute({
       characterId: 1,
@@ -204,7 +237,7 @@ describe('UpdateCharacterUseCase', () => {
 
   it('should throw ForbiddenError if user is neither GM nor assigned player', async () => {
     const repo = new MockCampaignRepository([campaign1], categories, characters);
-    const useCase = new UpdateCharacterUseCase(repo);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
 
     await assert.rejects(
       async () => {
@@ -224,7 +257,7 @@ describe('UpdateCharacterUseCase', () => {
 
   it('should throw CharacterNotFoundError if character does not exist', async () => {
     const repo = new MockCampaignRepository([campaign1], categories, characters);
-    const useCase = new UpdateCharacterUseCase(repo);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
 
     await assert.rejects(
       async () => {
@@ -243,7 +276,7 @@ describe('UpdateCharacterUseCase', () => {
 
   it('should throw ValidationError if updated name is empty', async () => {
     const repo = new MockCampaignRepository([campaign1], categories, characters);
-    const useCase = new UpdateCharacterUseCase(repo);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
 
     await assert.rejects(
       async () => {
@@ -262,7 +295,7 @@ describe('UpdateCharacterUseCase', () => {
 
   it('met à jour les valeurs de fiche programmée (sheetValues) du propriétaire', async () => {
     const repo = new MockCampaignRepository([campaign1], categories, characters);
-    const useCase = new UpdateCharacterUseCase(repo);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
 
     const values = JSON.stringify({ 'comp-nom': 'Kaelen', 'comp-force': 4 });
     const result = await useCase.execute({
@@ -278,7 +311,7 @@ describe('UpdateCharacterUseCase', () => {
 
   it('refuse des sheetValues qui ne sont pas un objet JSON valide', async () => {
     const repo = new MockCampaignRepository([campaign1], categories, characters);
-    const useCase = new UpdateCharacterUseCase(repo);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
 
     await assert.rejects(
       () => useCase.execute({ characterId: 1, userId: 5, sheetValues: 'pas du json' }),
@@ -295,7 +328,7 @@ describe('UpdateCharacterUseCase', () => {
     const repo = new MockCampaignRepository([campaign1], categories, [
       ...characters.map((c) => (c.id === 1 ? { ...c, sheetValues: '{"a":1}' } : c)),
     ]);
-    const useCase = new UpdateCharacterUseCase(repo);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
 
     const result = await useCase.execute({ characterId: 1, userId: 5, sheetValues: null });
     assert.equal(result.sheetValues, null);

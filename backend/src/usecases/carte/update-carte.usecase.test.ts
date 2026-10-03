@@ -1,5 +1,22 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { CampaignPermissionService } from '../../services/campaign-permission.service.js';
+
+// Service de permissions stub : par défaut, seul le propriétaire a les droits
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: (mjId: number, userId: number) => mjId === userId,
+    isAssistantMj: async () => false,
+    hasMjRights: async (_campaignId: number, mjId: number, userId: number) => mjId === userId,
+  } as unknown as CampaignPermissionService);
+
+// Stub assistant : l'utilisateur non-propriétaire dispose des droits MJ (feature flip activé)
+const stubAssistantPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => true,
+    hasMjRights: async () => true,
+  } as unknown as CampaignPermissionService);
 import { UpdateCarteUseCase } from './update-carte.usecase.js';
 import { ICarteRepository, CarteRecord, UpdateCarteData } from '../../repositories/carte.repository.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
@@ -110,7 +127,8 @@ describe('UpdateCarteUseCase', () => {
 
     useCase = new UpdateCarteUseCase(
       mockCarteRepo as ICarteRepository,
-      mockCampaignRepo as ICampaignRepository
+      mockCampaignRepo as ICampaignRepository,
+      stubPermissions()
     );
   });
 
@@ -131,6 +149,24 @@ describe('UpdateCarteUseCase', () => {
     assert.equal(updatedData.description, 'Nouvelle description');
     assert.equal(updatedData.published, false);
     assert.ok(updatedData.config?.includes('Boss'));
+  });
+
+  it('permet à un MJ Assistant (non propriétaire) de modifier tous les champs d une carte', async () => {
+    const assistantUseCase = new UpdateCarteUseCase(
+      mockCarteRepo as ICarteRepository,
+      mockCampaignRepo as ICampaignRepository,
+      stubAssistantPermissions()
+    );
+
+    await assistantUseCase.execute({
+      carteId: 10,
+      userId: 99, // MJ Assistant, le propriétaire est l'utilisateur 1
+      name: 'Carte renommée par l assistant',
+      published: false,
+    });
+
+    assert.equal(storedCarte.name, 'Carte renommée par l assistant');
+    assert.equal(storedCarte.published, false);
   });
 
   it('should allow player to update only their own character token position', async () => {

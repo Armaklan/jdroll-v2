@@ -9,6 +9,7 @@ import {
   TopicDetail,
   CampaignCharactersData,
   CampaignParticipant,
+  CampaignAssistant,
   CreateCharacterPayload,
   UpdateCharacterPayload,
   CampaignCharacter,
@@ -205,6 +206,24 @@ export const campaignsApi = {
   async getPendingParticipants(campaignId: number): Promise<CampaignParticipant[]> {
     const result = await request<{ pendingParticipants: CampaignParticipant[] }>(`/api/campaigns/${campaignId}/pending-participants`);
     return result.pendingParticipants;
+  },
+
+  async getCampaignAssistants(campaignId: number): Promise<CampaignAssistant[]> {
+    const result = await request<{ assistants: CampaignAssistant[] }>(`/api/campaigns/${campaignId}/assistants`);
+    return result.assistants;
+  },
+
+  async promoteAssistantMj(campaignId: number, userId: number): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>(`/api/campaigns/${campaignId}/assistants`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  },
+
+  async removeAssistantMj(campaignId: number, userId: number): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>(`/api/campaigns/${campaignId}/assistants/${userId}`, {
+      method: 'DELETE',
+    });
   },
 
   async acceptParticipant(campaignId: number, userId: number): Promise<{ success: boolean; message: string }> {

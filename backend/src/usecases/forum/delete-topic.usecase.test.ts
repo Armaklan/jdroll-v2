@@ -129,7 +129,7 @@ describe('DeleteTopicUseCase', () => {
       markTopicAsRead: async () => {},
       findCampaignPersos: async () => [],
       findUserCampaignPersos: async () => [],
-      isUserCampaignMj: async (campagneId: number, userId: number) => campagneId === 10 && userId === 1,
+      userHasMjRights: async (campagneId: number, userId: number) => campagneId === 10 && userId === 1,
       isUserCampaignParticipant: async () => true,
       findPersoById: async () => null,
       getTopicCanReadUsers: async () => [],

@@ -37,6 +37,8 @@ import { uploadCampaignBannerUseCase, UploadCampaignBannerUseCase } from '../use
 import { observeCampaignUseCase, ObserveCampaignUseCase } from '../usecases/campaign/observe-campaign.usecase.js';
 import { unobserveCampaignUseCase, UnobserveCampaignUseCase } from '../usecases/campaign/unobserve-campaign.usecase.js';
 import { setCampaignAlertUseCase, SetCampaignAlertUseCase } from '../usecases/campaign/set-campaign-alert.usecase.js';
+import { promoteAssistantMjUseCase, PromoteAssistantMjUseCase } from '../usecases/campaign/promote-assistant-mj.usecase.js';
+import { removeAssistantMjUseCase, RemoveAssistantMjUseCase } from '../usecases/campaign/remove-assistant-mj.usecase.js';
 import { removeCampaignAlertUseCase, RemoveCampaignAlertUseCase } from '../usecases/campaign/remove-campaign-alert.usecase.js';
 import { applyThemeUseCase, ApplyThemeUseCase } from '../usecases/campaign/apply-theme.usecase.js';
 import { themeQueries, ThemeQueries } from '../queries/theme.queries.js';
@@ -400,7 +402,9 @@ export class CampaignController {
     private readonly updateNoteUseCaseService: UpdateNoteUseCase = updateNoteUseCase,
     private readonly deleteNoteUseCaseService: DeleteNoteUseCase = deleteNoteUseCase,
     private readonly themeQueryService: ThemeQueries = themeQueries,
-    private readonly applyThemeUseCaseService: ApplyThemeUseCase = applyThemeUseCase
+    private readonly applyThemeUseCaseService: ApplyThemeUseCase = applyThemeUseCase,
+    private readonly promoteAssistantMjUseCaseService: PromoteAssistantMjUseCase = promoteAssistantMjUseCase,
+    private readonly removeAssistantMjUseCaseService: RemoveAssistantMjUseCase = removeAssistantMjUseCase
   ) {}
 
   /**
@@ -2383,6 +2387,125 @@ export class CampaignController {
   }
 
   /**
+   * GET /api/campaigns/:id/assistants
+   * Récupère la liste des MJ Assistants d'une campagne (MJ propriétaire uniquement)
+   */
+  async getCampaignAssistants(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const assistants = await this.campaignQueryService.getCampaignAssistants(
+        parseParams.data.id,
+        user.id
+      );
+
+      return reply.status(200).send({ assistants });
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la récupération des MJ Assistants' });
+    }
+  }
+
+  /**
+   * POST /api/campaigns/:id/assistants
+   * Promeut un participant de la campagne en MJ Assistant (MJ propriétaire uniquement)
+   */
+  async promoteAssistantMj(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = getCampaignParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Identifiant de campagne invalide',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const bodySchema = z.object({ userId: z.coerce.number().int().positive() });
+    const parseBody = bodySchema.safeParse(request.body);
+    if (!parseBody.success) {
+      return reply.status(400).send({
+        error: 'Identifiant utilisateur invalide',
+        details: parseBody.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.promoteAssistantMjUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        mjId: user.id,
+        targetUserId: parseBody.data.userId,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la promotion du MJ Assistant' });
+    }
+  }
+
+  /**
+   * DELETE /api/campaigns/:id/assistants/:userId
+   * Rétrograde un MJ Assistant (MJ propriétaire ou l'assistant concerné)
+   */
+  async removeAssistantMj(request: FastifyRequest, reply: FastifyReply) {
+    const parseParams = participantActionParamsSchema.safeParse(request.params);
+    if (!parseParams.success) {
+      return reply.status(400).send({
+        error: 'Paramètres invalides',
+        details: parseParams.error.format(),
+      });
+    }
+
+    const user = request.user as JWTPayload;
+
+    try {
+      const result = await this.removeAssistantMjUseCaseService.execute({
+        campaignId: parseParams.data.id,
+        mjId: user.id,
+        targetUserId: parseParams.data.userId,
+      });
+
+      return reply.status(200).send(result);
+    } catch (error) {
+      if (error instanceof CampaignNotFoundError) {
+        return reply.status(404).send({ error: error.message });
+      }
+      if (error instanceof ForbiddenError) {
+        return reply.status(403).send({ error: error.message });
+      }
+      if (error instanceof ValidationError) {
+        return reply.status(400).send({ error: error.message });
+      }
+      request.log.error(error);
+      return reply.status(500).send({ error: 'Erreur lors de la rétrogradation du MJ Assistant' });
+    }
+  }
+
+  /**
    * POST /api/campaigns/:id/observe
    * Permet à un utilisateur connecté d'observer une campagne
    */
@@ -2752,6 +2875,23 @@ export class CampaignController {
       '/api/campaigns/:id/pending-participants',
       { preHandler: [app.authenticate] },
       (req, rep) => this.getPendingParticipants(req, rep)
+    );
+
+    // Routes authentifiées pour la gestion des MJ Assistants (MJ propriétaire)
+    app.get(
+      '/api/campaigns/:id/assistants',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.getCampaignAssistants(req, rep)
+    );
+    app.post(
+      '/api/campaigns/:id/assistants',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.promoteAssistantMj(req, rep)
+    );
+    app.delete(
+      '/api/campaigns/:id/assistants/:userId',
+      { preHandler: [app.authenticate] },
+      (req, rep) => this.removeAssistantMj(req, rep)
     );
 
     // Routes authentifiées pour observer / ne plus observer une campagne

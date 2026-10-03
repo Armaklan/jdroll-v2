@@ -1,5 +1,22 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { CampaignPermissionService } from '../../services/campaign-permission.service.js';
+
+// Service de permissions stub : par défaut, seul le propriétaire a les droits
+const stubPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: (mjId: number, userId: number) => mjId === userId,
+    isAssistantMj: async () => false,
+    hasMjRights: async (_campaignId: number, mjId: number, userId: number) => mjId === userId,
+  } as unknown as CampaignPermissionService);
+
+// Stub assistant : l'utilisateur non-propriétaire dispose des droits MJ (feature flip activé)
+const stubAssistantPermissions = (): CampaignPermissionService =>
+  ({
+    isOwner: () => false,
+    isAssistantMj: async () => true,
+    hasMjRights: async () => true,
+  } as unknown as CampaignPermissionService);
 import { DeleteCarteUseCase } from './delete-carte.usecase.js';
 import { ICarteRepository, CarteRecord } from '../../repositories/carte.repository.js';
 import { ICampaignRepository } from '../../repositories/campaign.repository.js';
@@ -53,7 +70,8 @@ describe('DeleteCarteUseCase', () => {
     };
     useCase = new DeleteCarteUseCase(
       mockCarteRepo as ICarteRepository,
-      mockCampaignRepo as ICampaignRepository
+      mockCampaignRepo as ICampaignRepository,
+      stubPermissions()
     );
   });
 
@@ -61,6 +79,21 @@ describe('DeleteCarteUseCase', () => {
     await useCase.execute({
       carteId: 10,
       userId: 1, // MJ
+    });
+
+    assert.equal(deletedId, 10);
+  });
+
+  it('permet à un MJ Assistant (non propriétaire) de supprimer une carte', async () => {
+    const assistantUseCase = new DeleteCarteUseCase(
+      mockCarteRepo as ICarteRepository,
+      mockCampaignRepo as ICampaignRepository,
+      stubAssistantPermissions()
+    );
+
+    await assistantUseCase.execute({
+      carteId: 10,
+      userId: 99, // MJ Assistant, le propriétaire est l'utilisateur 1
     });
 
     assert.equal(deletedId, 10);

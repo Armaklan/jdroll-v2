@@ -105,7 +105,7 @@ export class TopicWebSocketService {
       return true;
     }
     if (topic.campagneId && topic.campagneId > 0) {
-      const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, user.id);
+      const isMj = await this.forumRepo.userHasMjRights(topic.campagneId, user.id);
       if (isMj) {
         return true;
       }

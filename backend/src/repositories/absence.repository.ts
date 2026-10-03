@@ -107,7 +107,7 @@ export class MysqlAbsenceRepository implements IAbsenceRepository {
        FROM absences a
        INNER JOIN user u ON u.id = a.user_id
        INNER JOIN campagne c ON c.id = ?
-       LEFT JOIN campagne_participant cp ON cp.user_id = a.user_id AND cp.campagne_id = c.id AND cp.statut = 1
+       LEFT JOIN campagne_participant cp ON cp.user_id = a.user_id AND cp.campagne_id = c.id AND cp.statut >= 1
        WHERE (cp.user_id IS NOT NULL OR a.user_id = c.mj_id)
          AND a.begin_date <= CURDATE()
          AND a.end_date >= CURDATE()

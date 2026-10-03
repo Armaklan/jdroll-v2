@@ -55,7 +55,7 @@ export class UploadSectionBannerUseCase {
     const campagneId = section.campagneId ?? (input.campagneId && input.campagneId > 0 ? input.campagneId : null);
 
     if (campagneId) {
-      const isMj = await this.forumRepo.isUserCampaignMj(campagneId, input.userId);
+      const isMj = await this.forumRepo.userHasMjRights(campagneId, input.userId);
       if (!isMj) {
         throw new ForbiddenError('Seul le Maître du Jeu peut modifier la bannière de la section');
       }

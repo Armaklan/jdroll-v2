@@ -128,6 +128,7 @@ export interface CampaignSummary {
   rp?: number;
   isMultiCharacter?: boolean;
   userRole?: 'mj' | 'player' | 'observer';
+  isAssistantMj?: boolean;
   isObserving?: boolean;
   isPending?: boolean;
   characterName?: string | null;
@@ -326,6 +327,13 @@ export interface CampaignCharacterCategory {
 
 export interface CampaignParticipant {
   id: number;
+  username: string;
+  avatar: string | null;
+  profil?: number;
+}
+
+export interface CampaignAssistant {
+  userId: number;
   username: string;
   avatar: string | null;
   profil?: number;

@@ -132,6 +132,7 @@ INSERT INTO `theme` (
 -- Feature flips initiaux (mécanisme de feature flipping, désactivés par défaut)
 INSERT INTO `feature_flip` (`name`, `description`, `enabled`) VALUES
 ('sample-feature', 'Feature d''exemple pour valider le mécanisme de feature flipping', 0),
-('programmed-sheet', 'Module de fiche de personnage programmée (construction de fiche par pages, sections et composants)', 0);
+('programmed-sheet', 'Module de fiche de personnage programmée (construction de fiche par pages, sections et composants)', 0),
+('assistant-mj', 'Rôle de MJ Assistant : le MJ peut promouvoir un joueur qui hérite de tous ses droits sauf l''administration de la campagne', 0);
 
 SET FOREIGN_KEY_CHECKS = 1;

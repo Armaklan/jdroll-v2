@@ -3,12 +3,14 @@ import { IForumRepository, forumRepository } from '../repositories/forum.reposit
 import { IAbsenceRepository, absenceRepository } from '../repositories/absence.repository.js';
 import { CampaignForumData, GeneralForumData, RecentGeneralTopicsData, TopicDetail, CharacterSummary, CampaignSummary, TopicUserSummary, CampaignParticipant } from '../types/index.js';
 import { CampaignNotFoundError, TopicNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
+import { CampaignPermissionService, campaignPermissionService } from '../services/campaign-permission.service.js';
 
 export class ForumQueries {
   constructor(
     private readonly campaignRepo: ICampaignRepository = campaignRepository,
     private readonly forumRepo: IForumRepository = forumRepository,
-    private readonly absenceRepo: IAbsenceRepository = absenceRepository
+    private readonly absenceRepo: IAbsenceRepository = absenceRepository,
+    private readonly campaignPermissions: CampaignPermissionService = campaignPermissionService
   ) {}
 
   /**
@@ -54,6 +56,7 @@ export class ForumQueries {
     }
 
     let userRole: 'mj' | 'player' | 'observer' | undefined = undefined;
+    let isAssistantMj = false;
     let isObserving = false;
     let isPending = false;
     let hasAlert = false;
@@ -66,6 +69,11 @@ export class ForumQueries {
         pendingParticipants = this.campaignRepo.findPendingCampaignParticipants
           ? await this.campaignRepo.findPendingCampaignParticipants(campaignId)
           : [];
+      } else if (await this.campaignPermissions.isAssistantMj(campaignId, userId)) {
+        // MJ assistant : droits MJ de jeu, mais pas l'administration
+        // (les inscriptions en attente restent réservées au propriétaire)
+        userRole = 'mj';
+        isAssistantMj = true;
       } else {
         const isParticipant = await this.forumRepo.isUserCampaignParticipant(campaignId, userId);
         if (isParticipant) {
@@ -94,6 +102,7 @@ export class ForumQueries {
       campaign: {
         ...campaign,
         userRole: userRole ?? campaign.userRole,
+        isAssistantMj: isAssistantMj || Boolean(campaign.isAssistantMj),
         isObserving: isObserving || campaign.isObserving,
         isPending: isPending || campaign.isPending,
         hasAlert: hasAlert || Boolean(campaign.hasAlert),
@@ -132,7 +141,7 @@ export class ForumQueries {
         throw new ForbiddenError("Vous n'avez pas accès à ce sujet privé");
       }
       if (topic.campagneId && topic.campagneId > 0) {
-        const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, userId);
+        const isMj = await this.forumRepo.userHasMjRights(topic.campagneId, userId);
         const isCanRead = isMj ? true : await this.forumRepo.isUserTopicCanRead(topic.id, userId);
         if (!isMj && !isCanRead) {
           throw new ForbiddenError("Vous n'avez pas accès à ce sujet privé");
@@ -250,7 +259,7 @@ export class ForumQueries {
 
     if (userId) {
       if (topic.campagneId && topic.campagneId > 0) {
-        const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, userId);
+        const isMj = await this.forumRepo.userHasMjRights(topic.campagneId, userId);
         let isParticipant = false;
         if (isMj) {
           userRole = 'mj';

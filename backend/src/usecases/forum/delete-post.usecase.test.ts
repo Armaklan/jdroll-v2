@@ -155,7 +155,7 @@ describe('DeletePostUseCase', () => {
       markTopicAsRead: async () => {},
       findCampaignPersos: async () => [],
       findUserCampaignPersos: async () => [],
-      isUserCampaignMj: async (campagneId, userId) => campagneId === 100 && userId === 1,
+      userHasMjRights: async (campagneId, userId) => campagneId === 100 && userId === 1,
       isUserCampaignParticipant: async (campagneId, userId) => campagneId === 100 && (userId === 2 || userId === 3),
       findPersoById: async () => null,
       getTopicCanReadUsers: async () => [],

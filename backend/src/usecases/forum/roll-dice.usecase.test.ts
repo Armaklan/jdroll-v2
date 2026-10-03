@@ -122,7 +122,7 @@ describe('RollDiceUseCase', () => {
       },
       findCampaignPersos: async () => [],
       findUserCampaignPersos: async () => [],
-      isUserCampaignMj: async (campagneId: number, userId: number) => {
+      userHasMjRights: async (campagneId: number, userId: number) => {
         return campagneId === 100 && userId === 1; // MJ = 1
       },
       isUserCampaignParticipant: async (campagneId: number, userId: number) => {

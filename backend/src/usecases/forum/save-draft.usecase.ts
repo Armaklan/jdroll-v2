@@ -38,7 +38,7 @@ export class SaveDraftUseCase {
     let finalPersoId: number | null = null;
 
     if (topic.campagneId && topic.campagneId > 0) {
-      const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, dto.userId);
+      const isMj = await this.forumRepo.userHasMjRights(topic.campagneId, dto.userId);
       const isParticipant = isMj
         ? true
         : await this.forumRepo.isUserCampaignParticipant(topic.campagneId, dto.userId);

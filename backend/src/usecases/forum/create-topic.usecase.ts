@@ -54,7 +54,7 @@ export class CreateTopicUseCase {
     }
 
     if (section.campagneId) {
-      const isMj = await this.forumRepo.isUserCampaignMj(section.campagneId, input.userId);
+      const isMj = await this.forumRepo.userHasMjRights(section.campagneId, input.userId);
       if (!isMj) {
         throw new ForbiddenError('Seul le Maître du Jeu peut créer un sujet dans cette campagne');
       }

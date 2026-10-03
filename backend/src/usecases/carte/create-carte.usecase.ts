@@ -1,5 +1,6 @@
 import { ICarteRepository, carteRepository } from '../../repositories/carte.repository.js';
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
+import { CampaignPermissionService, campaignPermissionService } from '../../services/campaign-permission.service.js';
 import { CampaignNotFoundError, ForbiddenError, ValidationError } from '../../errors/domain.errors.js';
 import { CarteConfig } from '../../types/index.js';
 
@@ -16,7 +17,8 @@ export interface CreateCarteInput {
 export class CreateCarteUseCase {
   constructor(
     private readonly carteRepo: ICarteRepository = carteRepository,
-    private readonly campaignRepo: ICampaignRepository = campaignRepository
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly campaignPermissions: CampaignPermissionService = campaignPermissionService
   ) {}
 
   async execute(input: CreateCarteInput): Promise<{ id: number }> {
@@ -32,7 +34,7 @@ export class CreateCarteUseCase {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${input.campaignId} n'existe pas`);
     }
 
-    if (campaign.mjId !== input.userId) {
+    if (!(await this.campaignPermissions.hasMjRights(input.campaignId, campaign.mjId, input.userId))) {
       throw new ForbiddenError('Seul le MJ peut créer une carte');
     }
 

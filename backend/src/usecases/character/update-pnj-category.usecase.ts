@@ -1,4 +1,5 @@
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
+import { CampaignPermissionService, campaignPermissionService } from '../../services/campaign-permission.service.js';
 import {
   CategoryNotFoundError,
   CampaignNotFoundError,
@@ -21,7 +22,10 @@ export interface UpdatePnjCategoryOutput {
 }
 
 export class UpdatePnjCategoryUseCase {
-  constructor(private readonly campaignRepo: ICampaignRepository = campaignRepository) {}
+  constructor(
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly campaignPermissions: CampaignPermissionService = campaignPermissionService
+  ) {}
 
   async execute(input: UpdatePnjCategoryInput): Promise<UpdatePnjCategoryOutput> {
     const category = await this.campaignRepo.findPnjCategoryById(input.categoryId);
@@ -34,7 +38,7 @@ export class UpdatePnjCategoryUseCase {
       throw new CampaignNotFoundError(`La campagne associée n'existe pas`);
     }
 
-    const isMj = campaign.mjId === input.userId;
+    const isMj = await this.campaignPermissions.hasMjRights(category.campagneId, campaign.mjId, input.userId);
     if (!isMj) {
       throw new ForbiddenError('Seul le Maître du Jeu peut modifier une catégorie');
     }

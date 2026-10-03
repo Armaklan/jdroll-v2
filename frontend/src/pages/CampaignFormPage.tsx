@@ -3,7 +3,7 @@ import {useNavigate, useParams} from 'react-router-dom';
 import {useAuth} from '../contexts/AuthContext';
 import {useFeatures} from '../contexts/FeatureContext';
 import {campaignsApi} from '../api/campaigns';
-import {CampaignCharacter, CampaignWidget, CreateCampaignPayload, UpdateCampaignPayload, CampaignParticipant, PredefinedTheme, SheetDefinition, SheetMode} from '../types/campaign';
+import {CampaignCharacter, CampaignWidget, CreateCampaignPayload, UpdateCampaignPayload, CampaignParticipant, CampaignAssistant, PredefinedTheme, SheetDefinition, SheetMode} from '../types/campaign';
 import {WysiwygEditor} from '../components/WysiwygEditor';
 import {
   Activity,
@@ -28,6 +28,8 @@ import {
   Users,
   X,
   Ban,
+  Crown,
+  UserMinus,
 } from 'lucide-react';
 import {CharacterSheetRenderer} from '../components/CharacterSheetRenderer';
 import {ProgrammedSheetBuilder} from '../components/ProgrammedSheetBuilder';
@@ -179,6 +181,12 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   const [isExcluding, setIsExcluding] = useState<number | null>(null);
   const [participantToExclude, setParticipantToExclude] = useState<CampaignParticipant | null>(null);
   const [showExcludeModal, setShowExcludeModal] = useState<boolean>(false);
+
+  // MJ Assistants (feature flip assistant-mj)
+  const isAssistantMjFeatureEnabled = isFeatureEnabled('assistant-mj');
+  const [assistants, setAssistants] = useState<CampaignAssistant[]>([]);
+  const [isTogglingAssistant, setIsTogglingAssistant] = useState<number | null>(null);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
 
   // Active tab in form
   const [activeTab, setActiveTab] = useState<'general' | 'gameplay' | 'appearance' | 'sheet' | 'widgets'>('general');
@@ -347,10 +355,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
 
   const confirmExcludeParticipant = async () => {
     if (!participantToExclude || !campaignId) return;
-    
+
     setIsExcluding(participantToExclude.id);
     setShowExcludeModal(false);
-    
+
     try {
       await campaignsApi.excludeParticipant(campaignId, participantToExclude.id);
       setExcludeError(null);
@@ -362,6 +370,54 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
       setParticipantToExclude(null);
     }
   };
+
+  // MJ Assistants : chargement, promotion et rétrogradation
+  const loadAssistants = async () => {
+    if (!campaignId || !user || !mjId || user.id !== mjId) return;
+    try {
+      const list = await campaignsApi.getCampaignAssistants(campaignId);
+      setAssistants(list);
+      setAssistantError(null);
+    } catch (err: any) {
+      setAssistantError(err.message || 'Impossible de charger les MJ Assistants.');
+    }
+  };
+
+  useEffect(() => {
+    if (isEditMode && isAssistantMjFeatureEnabled) {
+      loadAssistants();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, isAssistantMjFeatureEnabled, campaignId, mjId, user?.id]);
+
+  const handlePromoteAssistant = async (participant: CampaignParticipant) => {
+    if (!campaignId || isTogglingAssistant !== null) return;
+    setIsTogglingAssistant(participant.id);
+    try {
+      await campaignsApi.promoteAssistantMj(campaignId, participant.id);
+      await loadAssistants();
+    } catch (err: any) {
+      setAssistantError(err.message || 'Impossible de promouvoir le MJ Assistant.');
+    } finally {
+      setIsTogglingAssistant(null);
+    }
+  };
+
+  const handleDemoteAssistant = async (assistant: CampaignAssistant) => {
+    if (!campaignId || isTogglingAssistant !== null) return;
+    setIsTogglingAssistant(assistant.userId);
+    try {
+      await campaignsApi.removeAssistantMj(campaignId, assistant.userId);
+      await loadAssistants();
+    } catch (err: any) {
+      setAssistantError(err.message || 'Impossible de rétrograder le MJ Assistant.');
+    } finally {
+      setIsTogglingAssistant(null);
+    }
+  };
+
+  const isCampaignAssistant = (userId: number): boolean =>
+    assistants.some((assistant) => assistant.userId === userId);
 
   // Handlers for Vignette (Campagne)
   const handleVignetteFileSelect = (file: File) => {
@@ -1307,6 +1363,12 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     </div>
                   )}
 
+                  {assistantError && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs">
+                      {assistantError}
+                    </div>
+                  )}
+
                   {isLoadingParticipants ? (
                     <div className="flex items-center justify-center p-4">
                       <Loader2 className="w-5 h-5 text-indigo-600 animate-spin" />
@@ -1334,19 +1396,60 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                               <span className="text-sm font-semibold text-slate-900">
                                 {participant.username}
                               </span>
+                              {isAssistantMjFeatureEnabled && isCampaignAssistant(participant.id) && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700">
+                                  <Crown className="w-3 h-3" />
+                                  MJ Assistant
+                                </span>
+                              )}
                             </div>
                           </div>
-                          
-                          <button
-                            type="button"
-                            onClick={() => handleExcludeParticipant(participant)}
-                            disabled={isExcluding === participant.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 disabled:bg-rose-100 text-rose-700 font-semibold text-xs rounded-lg border border-rose-200 transition disabled:cursor-not-allowed"
-                            title={`Exclure ${participant.username} de la campagne`}
-                          >
-                            <Ban className="w-3.5 h-3.5" />
-                            <span>Exclure</span>
-                          </button>
+
+                          <div className="flex items-center gap-2">
+                            {isAssistantMjFeatureEnabled && (
+                              isCampaignAssistant(participant.id) ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDemoteAssistant({ userId: participant.id, username: participant.username, avatar: participant.avatar, profil: participant.profil })}
+                                  disabled={isTogglingAssistant === participant.id}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 disabled:bg-amber-100 text-amber-800 font-semibold text-xs rounded-lg border border-amber-200 transition disabled:cursor-not-allowed"
+                                  title={`Rétrograder ${participant.username} en simple joueur`}
+                                >
+                                  {isTogglingAssistant === participant.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <UserMinus className="w-3.5 h-3.5" />
+                                  )}
+                                  <span>Rétrograder</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePromoteAssistant(participant)}
+                                  disabled={isTogglingAssistant === participant.id}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 disabled:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-lg border border-indigo-200 transition disabled:cursor-not-allowed"
+                                  title={`Promouvoir ${participant.username} en MJ Assistant : il hérite de tous vos droits sauf l'administration de la campagne`}
+                                >
+                                  {isTogglingAssistant === participant.id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <Crown className="w-3.5 h-3.5" />
+                                  )}
+                                  <span>MJ Assistant</span>
+                                </button>
+                              )
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleExcludeParticipant(participant)}
+                              disabled={isExcluding === participant.id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 disabled:bg-rose-100 text-rose-700 font-semibold text-xs rounded-lg border border-rose-200 transition disabled:cursor-not-allowed"
+                              title={`Exclure ${participant.username} de la campagne`}
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                              <span>Exclure</span>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>

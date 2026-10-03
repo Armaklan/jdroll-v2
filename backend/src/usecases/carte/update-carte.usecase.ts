@@ -1,5 +1,6 @@
 import { ICarteRepository, carteRepository, UpdateCarteData } from '../../repositories/carte.repository.js';
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
+import { CampaignPermissionService, campaignPermissionService } from '../../services/campaign-permission.service.js';
 import { CampaignNotFoundError, CarteNotFoundError, ForbiddenError } from '../../errors/domain.errors.js';
 import { CarteConfig, CarteMarker } from '../../types/index.js';
 
@@ -16,7 +17,8 @@ export interface UpdateCarteInput {
 export class UpdateCarteUseCase {
   constructor(
     private readonly carteRepo: ICarteRepository = carteRepository,
-    private readonly campaignRepo: ICampaignRepository = campaignRepository
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly campaignPermissions: CampaignPermissionService = campaignPermissionService
   ) {}
 
   async execute(input: UpdateCarteInput): Promise<void> {
@@ -30,7 +32,7 @@ export class UpdateCarteUseCase {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${carte.campagneId} n'existe pas`);
     }
 
-    const isMj = campaign.mjId === input.userId;
+    const isMj = await this.campaignPermissions.hasMjRights(carte.campagneId, campaign.mjId, input.userId);
 
     if (!carte.published && !isMj) {
       throw new ForbiddenError("Vous n'avez pas accès à cette carte non publiée");

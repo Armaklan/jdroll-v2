@@ -2,11 +2,13 @@ import { ICarteRepository, carteRepository } from '../repositories/carte.reposit
 import { ICampaignRepository, campaignRepository } from '../repositories/campaign.repository.js';
 import { CarteDetail, CarteSummary, CarteConfig } from '../types/index.js';
 import { CampaignNotFoundError, CarteNotFoundError, ForbiddenError } from '../errors/domain.errors.js';
+import { CampaignPermissionService, campaignPermissionService } from '../services/campaign-permission.service.js';
 
 export class CarteQueries {
   constructor(
     private readonly carteRepo: ICarteRepository = carteRepository,
-    private readonly campaignRepo: ICampaignRepository = campaignRepository
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly campaignPermissions: CampaignPermissionService = campaignPermissionService
   ) {}
 
   /**
@@ -20,7 +22,9 @@ export class CarteQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${campaignId} n'existe pas`);
     }
 
-    const isMj = Boolean(currentUserId && campaign.mjId === currentUserId);
+    const isMj = Boolean(
+      currentUserId && (campaign.mjId === currentUserId || await this.campaignPermissions.isAssistantMj(campaignId, currentUserId))
+    );
     return this.carteRepo.findByCampaignId(campaignId, isMj);
   }
 
@@ -39,7 +43,9 @@ export class CarteQueries {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${carte.campagneId} n'existe pas`);
     }
 
-    const isMj = Boolean(currentUserId && campaign.mjId === currentUserId);
+    const isMj = Boolean(
+      currentUserId && (campaign.mjId === currentUserId || await this.campaignPermissions.isAssistantMj(carte.campagneId, currentUserId))
+    );
 
     if (!carte.published && !isMj) {
       throw new ForbiddenError("Vous n'avez pas accès à cette carte non publiée");

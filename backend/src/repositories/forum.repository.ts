@@ -39,7 +39,12 @@ export interface IForumRepository {
   markTopicAsRead(topicId: number, userId: number, postId: number): Promise<void>;
   findCampaignPersos(campagneId: number): Promise<CharacterSummary[]>;
   findUserCampaignPersos(campagneId: number, userId: number): Promise<CharacterSummary[]>;
-  isUserCampaignMj(campagneId: number, userId: number): Promise<boolean>;
+  /**
+   * L'utilisateur dispose-t-il des droits MJ de jeu sur la campagne ?
+   * (MJ propriétaire, ou MJ assistant lorsque le feature flip `assistant-mj`
+   * est activé — l'administration de campagne reste réservée au propriétaire)
+   */
+  userHasMjRights(campagneId: number, userId: number): Promise<boolean>;
   isUserCampaignParticipant(campagneId: number, userId: number): Promise<boolean>;
   findPersoById(persoId: number): Promise<CharacterSummary | null>;
   getTopicCanReadUsers(topicId: number): Promise<TopicUserSummary[]>;
@@ -119,7 +124,25 @@ export class MysqlForumRepository implements IForumRepository {
         AND (
           t.is_private != 1
           OR (? > 0 AND EXISTS (SELECT 1 FROM can_read cr WHERE cr.topic_id = t.id AND cr.user_id = ?))
-          OR (? > 0 AND s.campagne_id IS NOT NULL AND EXISTS (SELECT 1 FROM campagne c WHERE c.id = s.campagne_id AND c.mj_id = ?))
+          OR (
+            ? > 0
+            AND s.campagne_id IS NOT NULL
+            AND EXISTS (
+              SELECT 1 FROM campagne c
+              LEFT JOIN feature_flip ff ON ff.name = 'assistant-mj'
+              WHERE c.id = s.campagne_id
+                AND (
+                  c.mj_id = ?
+                  OR (
+                    ff.enabled = 1
+                    AND EXISTS (
+                      SELECT 1 FROM campagne_participant a
+                      WHERE a.campagne_id = c.id AND a.user_id = ? AND a.statut = 2
+                    )
+                  )
+                )
+            )
+          )
         )
       ORDER BY t.stickable DESC, t.ordre ASC, t.id DESC
     `;
@@ -144,8 +167,8 @@ export class MysqlForumRepository implements IForumRepository {
     }
 
     const queryParams = isGeneral
-      ? [currentUserId, currentUserId, currentUserId, currentUserId, currentUserId]
-      : [currentUserId, campaignId, currentUserId, currentUserId, currentUserId, currentUserId];
+      ? [currentUserId, currentUserId, currentUserId, currentUserId, currentUserId, currentUserId]
+      : [currentUserId, campaignId, currentUserId, currentUserId, currentUserId, currentUserId, currentUserId];
 
     const topicRows = await query<RawTopicRow>(topicsSql, queryParams);
 
@@ -710,14 +733,33 @@ export class MysqlForumRepository implements IForumRepository {
     }));
   }
 
-  async isUserCampaignMj(campagneId: number, userId: number): Promise<boolean> {
-    const sql = `SELECT mj_id AS mjId FROM campagne WHERE id = ?`;
-    const row = await queryOne<{ mjId: number }>(sql, [campagneId]);
-    return row ? row.mjId === userId : false;
+  async userHasMjRights(campagneId: number, userId: number): Promise<boolean> {
+    // Droits MJ de jeu : MJ propriétaire, ou MJ assistant lorsque le feature
+    // flip `assistant-mj` est activé (l'administration de campagne reste
+    // réservée au propriétaire, vérifiée séparément via campaign.mjId).
+    const sql = `
+      SELECT
+        (c.mj_id = ?) AS isOwner,
+        CASE
+          WHEN ff.enabled = 1 AND EXISTS (
+            SELECT 1 FROM campagne_participant a
+            WHERE a.campagne_id = c.id AND a.user_id = ? AND a.statut = 2
+          ) THEN 1
+          ELSE 0
+        END AS isAssistant
+      FROM campagne c
+      LEFT JOIN feature_flip ff ON ff.name = 'assistant-mj'
+      WHERE c.id = ?
+    `;
+    const row = await queryOne<{ isOwner: number; isAssistant: number }>(sql, [userId, userId, campagneId]);
+    if (!row) {
+      return false;
+    }
+    return Boolean(row.isOwner) || Boolean(row.isAssistant);
   }
 
   async isUserCampaignParticipant(campagneId: number, userId: number): Promise<boolean> {
-    const sql = `SELECT user_id AS userId FROM campagne_participant WHERE campagne_id = ? AND user_id = ? AND statut = 1`;
+    const sql = `SELECT user_id AS userId FROM campagne_participant WHERE campagne_id = ? AND user_id = ? AND statut >= 1`;
     const row = await queryOne<{ userId: number }>(sql, [campagneId, userId]);
     return Boolean(row);
   }

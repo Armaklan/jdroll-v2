@@ -1,4 +1,5 @@
 import { ICampaignRepository, campaignRepository } from '../../repositories/campaign.repository.js';
+import { CampaignPermissionService, campaignPermissionService } from '../../services/campaign-permission.service.js';
 import {
   CampaignNotFoundError,
   ForbiddenError,
@@ -38,7 +39,10 @@ export interface CreateCharacterOutput {
 }
 
 export class CreateCharacterUseCase {
-  constructor(private readonly campaignRepo: ICampaignRepository = campaignRepository) {}
+  constructor(
+    private readonly campaignRepo: ICampaignRepository = campaignRepository,
+    private readonly campaignPermissions: CampaignPermissionService = campaignPermissionService
+  ) {}
 
   async execute(input: CreateCharacterInput): Promise<CreateCharacterOutput> {
     const trimmedName = input.name ? input.name.trim() : '';
@@ -65,7 +69,7 @@ export class CreateCharacterUseCase {
       throw new CampaignNotFoundError(`La campagne avec l'identifiant ${input.campagneId} n'existe pas`);
     }
 
-    const isMj = campaign.mjId === input.userId;
+    const isMj = await this.campaignPermissions.hasMjRights(input.campagneId, campaign.mjId, input.userId);
     if (!isMj) {
       throw new ForbiddenError('Seul le Maître du Jeu peut créer un personnage');
     }

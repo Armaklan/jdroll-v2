@@ -37,7 +37,7 @@ export class DeleteTopicUseCase {
         throw new CampaignNotFoundError(`La campagne avec l'identifiant ${topic.campagneId} n'existe pas`);
       }
 
-      const isMj = await this.forumRepo.isUserCampaignMj(topic.campagneId, input.userId);
+      const isMj = await this.forumRepo.userHasMjRights(topic.campagneId, input.userId);
       if (!isMj) {
         throw new ForbiddenError('Seul le Maître du Jeu peut supprimer un sujet de cette campagne');
       }

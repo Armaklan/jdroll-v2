@@ -109,6 +109,8 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
   const isMj = Boolean(
     user && (user.id === campaign.mjId || campaign.userRole === 'mj')
   );
+  const isAssistantMj = Boolean(user && campaign.isAssistantMj);
+  const isCampaignOwner = Boolean(user && user.id === campaign.mjId);
   const isPlayer = Boolean(campaign.userRole === 'player');
   const isCampaignMember = Boolean(
     user && (isMj || isPlayer)
@@ -376,9 +378,15 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
             </span>
           </div>
 
-          {isMj && (
+          {isMj && !isAssistantMj && (
             <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
               <Crown className="w-3 h-3" /> Vous êtes le Maître du Jeu
+            </span>
+          )}
+
+          {isAssistantMj && (
+            <span className="px-2.5 py-0.5 rounded-md text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200 flex items-center gap-1">
+              <Crown className="w-3 h-3" /> Vous êtes MJ Assistant
             </span>
           )}
 
@@ -391,7 +399,8 @@ export const CampaignHeader: React.FC<CampaignHeaderProps> = ({
 
         {/* 3 Main Action Links + Admin Config */}
         <div className="flex flex-wrap items-center gap-2">
-          {isAdminMode && (
+          {/* La configuration de la campagne (administration) reste réservée au MJ propriétaire */}
+          {isAdminMode && isCampaignOwner && (
             <a
               href={`/campaigns/${campaign.id}/edit`}
               onClick={(e) => handleLinkClick(e, `/campaigns/${campaign.id}/edit`)}

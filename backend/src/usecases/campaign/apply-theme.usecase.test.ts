@@ -56,7 +56,7 @@ describe('ApplyThemeUseCase', () => {
       },
     };
     mockForumRepo = {
-      isUserCampaignMj: async () => false,
+      userHasMjRights: async () => false,
     };
     mockThemeRepo = {
       findById: async (id: number) => (id === 7 ? mockTheme : null),
@@ -98,9 +98,9 @@ describe('ApplyThemeUseCase', () => {
     assert.equal(data.template, undefined);
   });
 
-  it('should allow a co-MJ to apply a theme', async () => {
+  it('refuse l application d un thème à un MJ assistant (administration réservée au propriétaire)', async () => {
     mockForumRepo = {
-      isUserCampaignMj: async (campaignId: number, userId: number) => campaignId === 42 && userId === 5,
+      userHasMjRights: async (campaignId: number, userId: number) => campaignId === 42 && userId === 5,
     };
     useCase = new ApplyThemeUseCase(
       mockCampaignRepo as ICampaignRepository,
@@ -108,10 +108,11 @@ describe('ApplyThemeUseCase', () => {
       mockThemeRepo as IThemeRepository
     );
 
-    const result = await useCase.execute({ campaignId: 42, userId: 5, themeId: 7 });
-
-    assert.equal(updateCampaignCalls.length, 1);
-    assert.equal(result.id, 42);
+    await assert.rejects(
+      () => useCase.execute({ campaignId: 42, userId: 5, themeId: 7 }),
+      ForbiddenError
+    );
+    assert.equal(updateCampaignCalls.length, 0);
   });
 
   it('should throw CampaignNotFoundError when campaign does not exist', async () => {

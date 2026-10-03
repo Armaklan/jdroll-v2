@@ -37,7 +37,7 @@ export class UpdateSectionUseCase {
     }
 
     if (section.campagneId !== null && section.campagneId !== undefined) {
-      const isMj = await this.forumRepo.isUserCampaignMj(section.campagneId, input.userId);
+      const isMj = await this.forumRepo.userHasMjRights(section.campagneId, input.userId);
       if (!isMj) {
         throw new ForbiddenError('Seul le Maître du Jeu peut modifier cette section');
       }
