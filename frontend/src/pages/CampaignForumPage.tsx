@@ -1387,7 +1387,7 @@ export const CampaignForumPage: React.FC<CampaignForumPageProps> = ({
                         <img
                           src={section.banniere}
                           alt={section.title}
-                          className="max-h-12 max-w-full object-contain rounded"
+                          className="max-h-28 max-w-full object-contain rounded"
                         />
                       ) : (
                         <h2
