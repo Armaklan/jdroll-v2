@@ -1,5 +1,6 @@
 backend/dist
 backend/.env
+migration/.env
 backend/smtp.json
 node_modules
 frontend/dist
