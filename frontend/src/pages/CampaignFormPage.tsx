@@ -1590,7 +1590,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </h2>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Cette image est utilisée comme <strong>vignette de présentation</strong> sur les cartes de la page « Mes campagnes » et « Toutes les campagnes » (format carte / miniature).
+                  Cette image est utilisée comme <strong>vignette de présentation</strong> sur les cartes de la page « Mes campagnes ». Dimension conseillée : 500x175.
                 </p>
               </div>
 
@@ -1755,7 +1755,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </h2>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  Cette <strong>bannière panoramique</strong> est affichée tout en haut de la page du forum de votre campagne (table campagne_config).
+                  Cette <strong>bannière panoramique</strong> est affichée tout en haut de la page du forum de votre campagne. Dimension suggérée : 900x200.
                 </p>
               </div>
 
@@ -1764,7 +1764,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-700 block">
                   Aperçu de l'en-tête du forum
                 </span>
-                <div className="h-44 sm:h-52 rounded-2xl overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 relative border border-slate-200 shadow-inner flex flex-col justify-end p-6">
+                <div className="h-40 sm:h-48 rounded-2xl overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 relative border border-slate-200 shadow-inner flex flex-col justify-end p-6">
                   {forumBannerPreview || (forumBannerMode === 'url' && forumBannerUrl) ? (
                     <img
                       src={forumBannerPreview || forumBannerUrl}
