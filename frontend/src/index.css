@@ -236,3 +236,13 @@
   font-size: 2.5rem;
   line-height: 1.1;
 }
+
+/*
+ * Modales : hauteur maximale de 80vh et défilement interne du panneau.
+ * Cible le panneau enfant des overlays plein écran (fixed inset-0 z-50 flex).
+ * Les backdrops positionnés en absolute (ex: sheet-config-backdrop) sont exclus.
+ */
+.fixed.inset-0.z-50.flex > div:not(.absolute) {
+  max-height: 80vh;
+  overflow-y: auto;
+}
