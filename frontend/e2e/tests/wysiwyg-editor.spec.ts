@@ -199,3 +199,80 @@ test.describe('Wysiwyg - Images sans callback onUploadImage (messagerie)', () =>
     expect(src!).toMatch(/^\/files\/editor\/\d+\/[a-f0-9]{32}\.png$/);
   });
 });
+
+test.describe('Wysiwyg - Masqué / Privé : conservation du formatage', () => {
+  let settingsPage: SettingsPage;
+  let registerPage: RegisterPage;
+
+  test.beforeEach(async ({ page }) => {
+    settingsPage = new SettingsPage(page);
+    registerPage = new RegisterPage(page);
+
+    // Créer un utilisateur unique et se connecter (l'inscription connecte automatiquement)
+    const username = `e2e_hide_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    await registerPage.navigate();
+    await registerPage.register(username, `${username}@example.com`, 'password123');
+    await settingsPage.navigate();
+    await settingsPage.switchToProfileTab();
+  });
+
+  // Sélectionne tout le contenu de l'éditeur
+  async function selectAllEditorContent(page: import('@playwright/test').Page) {
+    await page.evaluate(() => {
+      const editor = document.querySelector('div[contenteditable="true"]');
+      if (!editor) throw new Error('Zone éditable introuvable');
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      const sel = window.getSelection();
+      sel!.removeAllRanges();
+      sel!.addRange(range);
+    });
+  }
+
+  test('Le texte masqué conserve le gras de la sélection', async ({ page }) => {
+    const editor = page.locator('div[contenteditable="true"]');
+    await expect(editor).toBeVisible();
+
+    // Saisir du texte, le mettre en gras, puis le sélectionner
+    await editor.click();
+    await page.keyboard.type('Contenu secret');
+    await selectAllEditorContent(page);
+    await page.locator('button[title="Gras (Ctrl+B)"]').click();
+    await selectAllEditorContent(page);
+
+    // Encapsuler la sélection formatée dans une balise [hide]
+    await page.locator('button[title^="Texte masqué"]').click();
+    const modal = page.locator('div.fixed.inset-0').filter({ hasText: 'Zone de texte repliable' });
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('textarea')).toHaveValue('Contenu secret');
+    await modal.getByRole('button', { name: 'Insérer' }).click();
+
+    // Le HTML inséré doit conserver la mise en gras à l'intérieur de la balise
+    const html = await editor.evaluate((el) => (el as HTMLElement).innerHTML);
+    expect(html).toMatch(/\[hide\](?:<b>|<strong>)Contenu secret(?:<\/b>|<\/strong>)\[\/hide\]/);
+  });
+
+  test('Le message privé conserve le gras de la sélection', async ({ page }) => {
+    const editor = page.locator('div[contenteditable="true"]');
+    await expect(editor).toBeVisible();
+
+    await editor.click();
+    await page.keyboard.type('Message confidentiel');
+    await selectAllEditorContent(page);
+    await page.locator('button[title="Gras (Ctrl+B)"]').click();
+    await selectAllEditorContent(page);
+
+    // Encapsuler la sélection formatée dans une balise [private]
+    await page.locator('button[title^="Message privé"]').click();
+    const modal = page.locator('div.fixed.inset-0').filter({ hasText: 'Message Privé' });
+    await expect(modal).toBeVisible();
+    await expect(modal.locator('textarea')).toHaveValue('Message confidentiel');
+    await modal.locator('input[placeholder*="Gandalf"]').fill('Destinataire');
+    await modal.getByRole('button', { name: 'Insérer' }).click();
+
+    const html = await editor.evaluate((el) => (el as HTMLElement).innerHTML);
+    expect(html).toMatch(
+      /\[private=Destinataire\](?:<b>|<strong>)Message confidentiel(?:<\/b>|<\/strong>)\[\/private\]/
+    );
+  });
+});

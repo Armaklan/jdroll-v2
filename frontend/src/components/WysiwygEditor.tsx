@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { campaignsApi } from '../api/campaigns';
 import { cleanFormatting } from '../utils/wysiwyg-format-cleaner';
+import { resolveTagInnerHtml, buildAdvancedTagHtml } from '../utils/wysiwyg-tag-builder';
 import { uploadsApi } from '../api/uploads';
 
 interface WysiwygEditorProps {
@@ -105,6 +106,11 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const [tableColsInput, setTableColsInput] = useState<number>(3);
   const [tableHasHeader, setTableHasHeader] = useState<boolean>(true);
   const savedRangeRef = useRef<Range | null>(null);
+
+  // HTML / texte de la sélection à l'ouverture d'une modale avancée (Hide, Private)
+  // pour conserver le formatage du contenu encapsulé
+  const selectedTextRef = useRef<string>('');
+  const selectedHtmlRef = useRef<string>('');
 
   // Advanced BBCode Modals states (Hide, Private, PNJ, Carte)
   const [isHideModalOpen, setIsHideModalOpen] = useState<boolean>(false);
@@ -696,6 +702,17 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     return '';
   };
 
+  // HTML de la sélection (avec le formatage) pour les balises avancées
+  const getSelectedHtml = (): string => {
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0 && editorRef.current?.contains(selection.anchorNode)) {
+      const container = document.createElement('div');
+      container.appendChild(selection.getRangeAt(0).cloneContents());
+      return container.innerHTML;
+    }
+    return '';
+  };
+
   const insertTextAtCursor = (text: string) => {
     if (disabled) return;
     if (isSourceMode) {
@@ -726,6 +743,49 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       selection.addRange(range);
     } else if (editorRef.current) {
       editorRef.current.appendChild(document.createTextNode(text));
+    }
+
+    savedRangeRef.current = null;
+    handleInput();
+  };
+
+  // Comme insertTextAtCursor mais insère un fragment HTML (ex: balise [hide]
+  // encapsulant le HTML formaté de la sélection)
+  const insertHtmlAtCursor = (html: string) => {
+    if (disabled) return;
+    if (isSourceMode) {
+      onChange((value || '') + html);
+      return;
+    }
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+
+    if (savedRangeRef.current) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedRangeRef.current);
+      }
+    }
+
+    const template = document.createElement('template');
+    template.innerHTML = html;
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0 && editorRef.current?.contains(selection.anchorNode)) {
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const lastNode = template.content.lastChild;
+      range.insertNode(template.content);
+      if (lastNode) {
+        range.setStartAfter(lastNode);
+      }
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else if (editorRef.current) {
+      editorRef.current.appendChild(template.content);
     }
 
     savedRangeRef.current = null;
@@ -768,6 +828,8 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const handleOpenHideModal = () => {
     saveSelection();
     const selected = getSelectedText();
+    selectedTextRef.current = selected;
+    selectedHtmlRef.current = getSelectedHtml();
     setHideTitleInput('');
     setHideContentInput(selected);
     setIsHideModalOpen(true);
@@ -776,6 +838,8 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   const handleOpenPrivateModal = () => {
     saveSelection();
     const selected = getSelectedText();
+    selectedTextRef.current = selected;
+    selectedHtmlRef.current = getSelectedHtml();
     setPrivateTargetInput('');
     setPrivateContentInput(selected);
     setIsPrivateModalOpen(true);
@@ -818,8 +882,11 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     if (e) e.preventDefault();
     const title = hideTitleInput.trim();
     const content = hideContentInput || 'Contenu masqué';
-    const tag = title ? `[hide=${title}]${content}[/hide]` : `[hide]${content}[/hide]`;
-    insertTextAtCursor(tag);
+    const innerHtml =
+      resolveTagInnerHtml(selectedTextRef.current, selectedHtmlRef.current, content) ||
+      content;
+    const openTag = title ? `[hide=${title}]` : '[hide]';
+    insertHtmlAtCursor(buildAdvancedTagHtml(openTag, innerHtml, '[/hide]'));
     setIsHideModalOpen(false);
   };
 
@@ -832,8 +899,10 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       .join(', ');
     if (!target) return;
     const content = privateContentInput || 'Contenu privé';
-    const tag = `[private=${target}]${content}[/private]`;
-    insertTextAtCursor(tag);
+    const innerHtml =
+      resolveTagInnerHtml(selectedTextRef.current, selectedHtmlRef.current, content) ||
+      content;
+    insertHtmlAtCursor(buildAdvancedTagHtml(`[private=${target}]`, innerHtml, '[/private]'));
     setIsPrivateModalOpen(false);
   };
 
