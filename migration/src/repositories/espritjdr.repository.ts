@@ -6,7 +6,9 @@ import {
   SourceTheme,
   SourcePost,
   SourceIntervenant,
+  SourceMjIntervenant,
   SourceHjPost,
+  SourceDiceRequest,
 } from '../types.js';
 import { queryOne, query } from '../db/mysql.js';
 
@@ -17,9 +19,11 @@ export interface IEspritJdrSource {
   getGroupes(campaignId: number): Promise<SourceGroupe[]>;
   getThemes(campaignId: number): Promise<SourceTheme[]>;
   getIntervenantsByCampaign(campaignId: number): Promise<SourceIntervenant[]>;
+  getMjIntervenantsByCampaign(campaignId: number): Promise<SourceMjIntervenant[]>;
   getPostsByTheme(themeId: number): Promise<SourcePost[]>;
   getPostIdsByCampaign(campaignId: number): Promise<number[]>;
   getHjPostsByTheme(themeId: number): Promise<SourceHjPost[]>;
+  getDiceRequestsByCampaign(campaignId: number): Promise<SourceDiceRequest[]>;
 }
 
 interface CampaignRow {
@@ -90,12 +94,46 @@ interface HjPostResponseRow {
   date_creation: string;
 }
 
+interface DiceRequestRow {
+  ID: number;
+  intervenant_from: number;
+  intervenant_to: number;
+  type_jet: string;
+  jet_secret: number;
+  nom: string;
+  Jet1: string | null;
+  Jet2: string | null;
+  Jet3: string | null;
+  Jet4: string | null;
+  Jet5: string | null;
+  Jet6: string | null;
+  Jet7: string | null;
+  Jet8: string | null;
+  Jet9: string | null;
+  Jet10: string | null;
+  etat: number;
+  nbjet: number;
+  title: string;
+  resultat: string | null;
+  campagne_ID: number | null;
+  post_theme_ID: number | null;
+}
+
 interface IntervenantRow {
   ID: number;
   nom: string;
   description_publique: string | null;
   description_prive: string | null;
   image: string | null;
+  utilisateur_ID: number | null;
+  pseudo: string | null;
+}
+
+interface MjIntervenantRow {
+  ID: number;
+  type_intervenant_ID: number;
+  utilisateur_ID: number | null;
+  pseudo: string | null;
 }
 
 export class MysqlEspritJdrSource implements IEspritJdrSource {
@@ -195,9 +233,11 @@ export class MysqlEspritJdrSource implements IEspritJdrSource {
 
   async getIntervenantsByCampaign(campaignId: number): Promise<SourceIntervenant[]> {
     const rows = await query<IntervenantRow>(
-      `SELECT i.ID, i.nom, ii.description_publique, ii.description_prive, ii.image
+      `SELECT i.ID, i.nom, ii.description_publique, ii.description_prive, ii.image,
+              i.utilisateur_ID, u.pseudo
          FROM intervenant i
          LEFT JOIN infos_intervenant ii ON ii.intervenant_ID = i.ID
+         LEFT JOIN utilisateur u ON u.ID = i.utilisateur_ID
         WHERE i.campagne_ID = ?
           AND i.type_intervenant_ID IN (3, 4)
         ORDER BY i.ID`,
@@ -209,6 +249,26 @@ export class MysqlEspritJdrSource implements IEspritJdrSource {
       descriptionPublique: row.description_publique,
       descriptionPrivee: row.description_prive,
       image: row.image,
+      utilisateurId: row.utilisateur_ID ?? null,
+      utilisateurPseudo: row.pseudo ?? null,
+    }));
+  }
+
+  async getMjIntervenantsByCampaign(campaignId: number): Promise<SourceMjIntervenant[]> {
+    const rows = await query<MjIntervenantRow>(
+      `SELECT i.ID, i.type_intervenant_ID, i.utilisateur_ID, u.pseudo
+         FROM intervenant i
+         LEFT JOIN utilisateur u ON u.ID = i.utilisateur_ID
+        WHERE i.campagne_ID = ?
+          AND i.type_intervenant_ID IN (1, 2)
+        ORDER BY i.type_intervenant_ID, i.ID`,
+      [campaignId]
+    );
+    return rows.map((row) => ({
+      id: row.ID,
+      typeIntervenantId: row.type_intervenant_ID,
+      utilisateurId: row.utilisateur_ID ?? null,
+      utilisateurPseudo: row.pseudo ?? null,
     }));
   }
 
@@ -290,6 +350,50 @@ export class MysqlEspritJdrSource implements IEspritJdrSource {
       contenu: row.contenu,
       dateCreation: row.date_creation,
       reponses: responsesByHjPostId.get(row.ID) ?? [],
+    }));
+  }
+
+  /**
+   * Demandes de jet de dés rattachées à une campagne : celles portant la
+   * campagne, plus celles liées à un post de la campagne (certains jets
+   * n'ont pas de campagne renseignée mais un post lié).
+   */
+  async getDiceRequestsByCampaign(campaignId: number): Promise<SourceDiceRequest[]> {
+    const rows = await query<DiceRequestRow>(
+      `SELECT dj.ID, dj.intervenant_from, dj.intervenant_to, dj.type_jet,
+              dj.jet_secret, dj.nom, dj.Jet1, dj.Jet2, dj.Jet3, dj.Jet4, dj.Jet5,
+              dj.Jet6, dj.Jet7, dj.Jet8, dj.Jet9, dj.Jet10,
+              dj.etat, dj.nbjet, dj.title, dj.resultat,
+              dj.campagne_ID, dj.post_theme_ID
+         FROM demande_jet dj
+        WHERE dj.campagne_ID = ?
+           OR dj.post_theme_ID IN (
+             SELECT p.ID
+               FROM post_theme p
+               LEFT JOIN theme_groupe t ON t.ID = p.theme_groupe_ID
+               LEFT JOIN groupe_campagne g ON g.ID = t.groupe_campagne_ID
+              WHERE p.campagne_ID = ? OR g.campagne_ID = ?
+           )
+        ORDER BY dj.ID`,
+      [campaignId, campaignId, campaignId]
+    );
+    return rows.map((row) => ({
+      id: row.ID,
+      intervenantFromId: row.intervenant_from,
+      intervenantToId: row.intervenant_to,
+      typeJet: row.type_jet,
+      jetSecret: Boolean(row.jet_secret),
+      nom: row.nom,
+      jets: [
+        row.Jet1, row.Jet2, row.Jet3, row.Jet4, row.Jet5,
+        row.Jet6, row.Jet7, row.Jet8, row.Jet9, row.Jet10,
+      ].filter((jet): jet is string => (jet ?? '').trim() !== ''),
+      etat: row.etat,
+      nbjet: row.nbjet,
+      title: row.title,
+      resultat: row.resultat ?? null,
+      campagneId: row.campagne_ID ?? null,
+      postThemeId: row.post_theme_ID ?? null,
     }));
   }
 }

@@ -26,7 +26,9 @@ import {
   SourceTheme,
   SourcePost,
   SourceIntervenant,
+  SourceMjIntervenant,
   SourceHjPost,
+  SourceDiceRequest,
 } from '../types.js';
 
 const CAMPAIGN: SourceCampaign = {
@@ -65,6 +67,8 @@ const INTERVENANTS: SourceIntervenant[] = [
     descriptionPublique: `<p>Description publique <img src="${INLINE_PORTRAIT_URL}"></p>`,
     descriptionPrivee: '<p>Description priv&eacute;e</p>',
     image: 'http://www.espritjdr.net/Upload/campagnes/35/intervenant/50/sanstitrego.png',
+    utilisateurId: 52,
+    utilisateurPseudo: 'Armaklan',
   },
   {
     id: 68,
@@ -72,7 +76,14 @@ const INTERVENANTS: SourceIntervenant[] = [
     descriptionPublique: null,
     descriptionPrivee: null,
     image: null,
+    utilisateurId: 5,
+    utilisateurPseudo: 'Quincey',
   },
+];
+
+// Intervenants non importés comme personnages : CREA (type 1) et MJ (type 2)
+const MJ_INTERVENANTS: SourceMjIntervenant[] = [
+  { id: 43, typeIntervenantId: 1, utilisateurId: 5, utilisateurPseudo: 'Arkeos' },
 ];
 
 const POSTS: Record<number, SourcePost[]> = {
@@ -96,6 +107,56 @@ const POSTS: Record<number, SourcePost[]> = {
     },
   ],
 };
+
+const DICE_REQUESTS: SourceDiceRequest[] = [
+  {
+    id: 501,
+    intervenantFromId: 43,
+    intervenantToId: 50,
+    typeJet: 'PJ',
+    jetSecret: false,
+    nom: 'H&eacute;ra&iuml;s Abayancehill',
+    jets: ['11|0|D10|Perception|7|0|2|-1|0|9'],
+    etat: 3,
+    nbjet: 1,
+    title: 'Jet pour H&eacute;ra&iuml;s Abayancehill (Perception) / 9 att  bonus ( 0)',
+    resultat:
+      'Demande de jet de d&eacute;s de H&eacute;ra&iuml;s Abayancehill : <br \\>' +
+      'Jet de Perception : 9 => (  <img src=\'http://www.espritjdr.net/images/des/D10/d10_bleu_2.png\' width=\'40\' alt=\'\' />) + 7<br />',
+    campagneId: 1356,
+    postThemeId: 2,
+  },
+  {
+    id: 502,
+    intervenantFromId: 43,
+    intervenantToId: 68,
+    typeJet: 'PJ',
+    jetSecret: true,
+    nom: 'Jeremy Elgmoore',
+    jets: ['7|0|D6|Esprit-Ame|5||0|0|0|0'],
+    etat: 1,
+    nbjet: 1,
+    title: 'Jet secret pour Jeremy Elgmoore (Esprit-Ame) bonus ( 0)',
+    resultat: null,
+    campagneId: 1356,
+    postThemeId: 3,
+  },
+  {
+    id: 503,
+    intervenantFromId: 43,
+    intervenantToId: 50,
+    typeJet: 'PJ',
+    jetSecret: false,
+    nom: 'H&eacute;ra&iuml;s Abayancehill',
+    jets: ['0|0|D6|3'],
+    etat: 3,
+    nbjet: 1,
+    title: 'Jet pour H&eacute;ra&iuml;s Abayancehill (g&eacute;n&eacute;rique : 3 D6)',
+    resultat: null,
+    campagneId: 1356,
+    postThemeId: null,
+  },
+];
 
 const HJ_POSTS: Record<number, SourceHjPost[]> = {
   59030: [
@@ -131,6 +192,9 @@ const HJ_POSTS: Record<number, SourceHjPost[]> = {
 
 class InMemorySource implements IEspritJdrSource {
   campaign: SourceCampaign | null = CAMPAIGN;
+  intervenants: SourceIntervenant[] = INTERVENANTS;
+  mjIntervenants: SourceMjIntervenant[] = MJ_INTERVENANTS;
+  diceRequests: SourceDiceRequest[] = DICE_REQUESTS;
 
   async getCampaign(campaignId: number): Promise<SourceCampaign | null> {
     return this.campaign && this.campaign.id === campaignId ? this.campaign : null;
@@ -153,7 +217,11 @@ class InMemorySource implements IEspritJdrSource {
   }
 
   async getIntervenantsByCampaign(): Promise<SourceIntervenant[]> {
-    return INTERVENANTS;
+    return this.intervenants;
+  }
+
+  async getMjIntervenantsByCampaign(): Promise<SourceMjIntervenant[]> {
+    return this.mjIntervenants;
   }
 
   async getPostsByTheme(themeId: number): Promise<SourcePost[]> {
@@ -167,6 +235,10 @@ class InMemorySource implements IEspritJdrSource {
   async getPostIdsByCampaign(): Promise<number[]> {
     return Object.values(POSTS).flat().map((post) => post.id);
   }
+
+  async getDiceRequestsByCampaign(): Promise<SourceDiceRequest[]> {
+    return this.diceRequests;
+  }
 }
 
 class InMemoryTarget implements IJdrollTarget {
@@ -177,6 +249,8 @@ class InMemoryTarget implements IJdrollTarget {
   topicMappings: Map<string, number> = new Map();
   postMappings: Map<string, number> = new Map();
   pnjMappings: Map<string, number> = new Map();
+  diceRollMappings: Map<string, number> = new Map();
+  dicePostMappings: Map<string, number> = new Map();
 
   createdUsernames: string[] = [];
   createdCampaigns: any[] = [];
@@ -184,7 +258,14 @@ class InMemoryTarget implements IJdrollTarget {
   createdTopics: any[] = [];
   createdPnjs: any[] = [];
   createdPosts: any[] = [];
+  createdDiceRolls: any[] = [];
   deletedMigrations: { targetCampaignId: number; sourceKeys: string[] }[] = [];
+
+  // Utilisateurs jdroll préexistants (pseudo -> id)
+  knownUsers: Record<string, number> = {};
+  participants: { campaignId: number; userId: number; statut: number }[] = [];
+  attachedPersos: { persoId: number; userId: number }[] = [];
+  updatedMjs: { campaignId: number; mjId: number }[] = [];
 
   id(): number {
     this.nextId += 1;
@@ -194,9 +275,24 @@ class InMemoryTarget implements IJdrollTarget {
   async ensureMigrationTable(): Promise<void> {}
 
   async findUserIdByUsername(username: string): Promise<number | null> {
+    if (username in this.knownUsers) {
+      return this.knownUsers[username];
+    }
     return this.existingUserId !== null && this.createdUsernames.includes(username)
       ? this.existingUserId
       : null;
+  }
+
+  async addCampaignParticipant(campaignId: number, userId: number, statut: number): Promise<void> {
+    this.participants.push({ campaignId, userId, statut });
+  }
+
+  async setCampaignMj(campaignId: number, mjId: number): Promise<void> {
+    this.updatedMjs.push({ campaignId, mjId });
+  }
+
+  async attachPersoToUser(persoId: number, userId: number): Promise<void> {
+    this.attachedPersos.push({ persoId, userId });
   }
 
   async createUser(data: { username: string; mail: string; passwordHash: string; description: string }): Promise<number> {
@@ -210,6 +306,10 @@ class InMemoryTarget implements IJdrollTarget {
       : sourceTable === 'section' ? this.sectionMappings
       : sourceTable === 'topic' ? this.topicMappings
       : sourceTable === 'intervenant' ? this.pnjMappings
+      : sourceTable === 'demande_jet'
+        ? sourceKey.startsWith('demande_jet_post:')
+          ? this.dicePostMappings
+          : this.diceRollMappings
       : this.postMappings;
     return map.get(sourceKey) ?? null;
   }
@@ -261,14 +361,28 @@ class InMemoryTarget implements IJdrollTarget {
       this.topicMappings.delete(key);
       this.postMappings.delete(key);
       this.pnjMappings.delete(key);
+      this.diceRollMappings.delete(key);
+      this.dicePostMappings.delete(key);
     }
   }
 
-  async createPostsWithMapping(topicSourceKey: string, topicId: number, posts: any[]): Promise<void> {
-    for (const post of posts) {
+  async createPostsWithMapping(topicId: number, items: any[]): Promise<void> {
+    for (const item of items) {
       const id = this.id();
-      this.createdPosts.push({ topicId, post });
-      this.postMappings.set(`post:${post.sourceId}`, id);
+      this.createdPosts.push({ topicId, post: item });
+      if (item.mappingKey.startsWith('demande_jet_post:')) {
+        this.dicePostMappings.set(item.mappingKey, id);
+      } else {
+        this.postMappings.set(item.mappingKey, id);
+      }
+    }
+  }
+
+  async createDiceRollsWithMapping(rolls: any[]): Promise<void> {
+    for (const roll of rolls) {
+      const id = this.id();
+      this.createdDiceRolls.push(roll);
+      this.diceRollMappings.set(`demande_jet:${roll.sourceId}`, id);
     }
   }
 }
@@ -296,12 +410,14 @@ function buildUseCase(
   source: IEspritJdrSource,
   target: IJdrollTarget,
   downloader: IImageDownloader = new FakeImageDownloader(),
-  force: boolean = false
+  force: boolean = false,
+  noImages: boolean = false
 ): MigrateCampaignUseCase {
   return new MigrateCampaignUseCase(source, target, {
     userName: 'EspritJDR',
     userMail: 'espritjdr@migration.local',
     force,
+    noImages,
   }, downloader);
 }
 
@@ -324,16 +440,17 @@ test('migrate une campagne complète : utilisateur technique, campagne, sections
   assert.equal(target.createdCampaigns[0].data.mjId, 1001);
   assert.equal(report.targetCampaignId, 1002);
 
-  // Sections : une par couple espace/intercalaire occupé
+  // Sections : une par groupe portant des thèmes, libellés
+  // "espace > intercalaire > groupe" (intercalaire omis si absent)
   assert.deepEqual(
     target.createdSections.map((s: any) => s.data.title),
-    ['Discussions libres', 'Contexte et Règles > Secondaire']
+    ['Discussions libres > Accueil', 'Contexte et Règles > Secondaire > Principale']
   );
 
-  // Topics : libellés "groupe > thème", topic du groupe fermé marqué fermé
+  // Topics : libellés du seul thème, topic du groupe fermé marqué fermé
   assert.deepEqual(
     target.createdTopics.map((t: any) => t.data.title),
-    ['Accueil > Hors jeu', 'Principale > Episode 1']
+    ['Hors jeu', 'Episode 1']
   );
   assert.equal(target.createdTopics[1].data.isClosed, true);
 
@@ -377,15 +494,20 @@ test('migrate une campagne complète : utilisateur technique, campagne, sections
   ]);
 
   // Posts : tous migrés vers le topic correspondant, auteur = utilisateur technique,
-  // perso = PNJ correspondant à l'intervenant d'origine (null si non importé)
-  assert.equal(target.createdPosts.length, 3);
+  // perso = PNJ correspondant à l'intervenant d'origine (null si non importé).
+  // Les posts de jet de dés sont intercalés juste après le post lié.
+  assert.equal(target.createdPosts.length, 5);
+  assert.deepEqual(
+    target.createdPosts.map((p: any) => p.post.mappingKey),
+    ['post:1', 'post:2', 'demande_jet_post:501', 'post:3', 'demande_jet_post:502']
+  );
   assert.deepEqual(
     target.createdPosts.map((p: any) => p.post.userId),
-    [1001, 1001, 1001]
+    [1001, 1001, null, 1001, null]
   );
   assert.deepEqual(
     target.createdPosts.map((p: any) => p.post.persoId),
-    [1004, 1003, null]
+    [1004, 1003, null, null, null]
   );
   // Images inline : lien espritjdr.net réécrit vers files/, lien externe inchangé
   assert.equal(
@@ -403,7 +525,7 @@ test('migrate une campagne complète : utilisateur technique, campagne, sections
       '[/private]'
   );
   assert.equal(
-    target.createdPosts[2].post.content,
+    target.createdPosts[3].post.content,
     `<p>Post 2 <img src="${INLINE_FOREIGN_URL}"></p>\n` +
       '[private=Jeremy Elgmoore]\n' +
       'Question sans r&eacute;ponse\n' +
@@ -411,17 +533,68 @@ test('migrate une campagne complète : utilisateur technique, campagne, sections
   );
   assert.equal(target.createdPosts[1].post.createDate, '2022-05-26 19:26:21');
 
+  // Posts de jet de dés : même carte que les jets du site, sans auteur ni perso,
+  // datés du post lié, dans le topic du post lié
+  const dicePost501 = target.createdPosts[2];
+  // Topic du post lié (post 2, thème 59030 -> topic créé après sections et post 1)
+  assert.equal(dicePost501.topicId, 1009);
+  assert.equal(target.createdPosts[4].topicId, 1009);
+  assert.equal(dicePost501.post.createDate, '2022-05-26 19:26:21');
+  assert.ok(
+    dicePost501.post.content.includes(
+      'Jet pour Héraïs Abayancehill (Perception) / 9 att  bonus ( 0)'
+    )
+  );
+  assert.ok(dicePost501.post.content.includes('Jet de Perception : 9 =&gt; (  d10 ( 2 )) + 7'));
+  assert.ok(target.createdPosts[4].post.content.includes('Jet demandé, sans résultat enregistré.'));
+
+  // Jets de dés : une ligne dicer par demande_jet, mappée demande_jet:<id>
+  assert.deepEqual(
+    target.createdDiceRolls,
+    [
+      {
+        sourceId: 501,
+        userId: 1001,
+        campagneId: 1002,
+        createDate: '2022-05-26 19:26:21',
+        result: 'Jet de Perception : 9 =&gt; (  d10 ( 2 )) + 7',
+        description: 'Jet pour Héraïs Abayancehill (Perception) / 9 att  bonus ( 0)',
+      },
+      {
+        sourceId: 502,
+        userId: 1001,
+        campagneId: 1002,
+        createDate: '2022-05-26 19:27:06',
+        result: '',
+        description: 'Jet secret pour Jeremy Elgmoore (Esprit-Ame) bonus ( 0)',
+      },
+      {
+        sourceId: 503,
+        userId: 1001,
+        campagneId: 1002,
+        createDate: null,
+        result: '',
+        description: 'Jet pour Héraïs Abayancehill (générique : 3 D6)',
+      },
+    ]
+  );
+
   assert.deepEqual(report, {
     sourceCampaignId: 1356,
     targetCampaignId: 1002,
     ownerUserId: 1001,
+    mjUserId: 1001,
     sections: 2,
     topics: 2,
     pnjs: 2,
     images: 3,
     posts: 3,
+    diceRolls: 3,
+    dicePosts: 2,
     hjPosts: 2,
     skippedPosts: 0,
+    participants: 0,
+    assistants: 0,
   });
 });
 
@@ -494,12 +667,17 @@ test('reprend une migration interrompue : topics, PNJ et posts déjà migrés so
   assert.equal(report.pnjs, 1);
 
   // Posts du topic 59028 : le post 1 déjà migré est sauté, aucun appel avec lui
-  const postIds = target.createdPosts.map((p: any) => p.post);
-  assert.equal(target.createdPosts.length, 2); // posts 2 et 3 du thème 59030
+  assert.equal(target.createdPosts.length, 4); // posts 2 et 3 + leurs posts de jet de dés
+  assert.deepEqual(
+    target.createdPosts.map((p: any) => p.post.mappingKey),
+    ['post:2', 'demande_jet_post:501', 'post:3', 'demande_jet_post:502']
+  );
   // Le post 2 (intervenant 50) est lié au PNJ déjà existant
   assert.equal(target.createdPosts[0].post.persoId, 777);
   assert.equal(report.skippedPosts, 1);
   assert.equal(report.posts, 2);
+  assert.equal(report.diceRolls, 3);
+  assert.equal(report.dicePosts, 2);
 });
 
 test('force : supprime puis réimporte intégralement une campagne déjà migrée', async () => {
@@ -519,8 +697,8 @@ test('force : supprime puis réimporte intégralement une campagne déjà migré
   assert.equal(target.deletedMigrations[0].targetCampaignId, 555);
   assert.deepEqual(target.deletedMigrations[0].sourceKeys, [
     'campagne:1356',
-    'espace:4652',
-    'espace:4653:section:10746',
+    'espace:4652:groupe:24652',
+    'espace:4653:section:10746:groupe:24653',
     'theme:59028',
     'theme:59030',
     'intervenant:50',
@@ -528,6 +706,11 @@ test('force : supprime puis réimporte intégralement une campagne déjà migré
     'post:1',
     'post:2',
     'post:3',
+    'demande_jet:501',
+    'demande_jet_post:501',
+    'demande_jet:502',
+    'demande_jet_post:502',
+    'demande_jet:503',
   ]);
   // Fichiers téléchargés de l'ancienne campagne supprimés
   assert.deepEqual(downloader.deletedFileCampaignIds, [555]);
@@ -537,10 +720,12 @@ test('force : supprime puis réimporte intégralement une campagne déjà migré
   assert.equal(report.pnjs, 2);
   assert.equal(report.images, 3);
   assert.equal(report.posts, 3);
+  assert.equal(report.diceRolls, 3);
+  assert.equal(report.dicePosts, 2);
   assert.equal(report.skippedPosts, 0);
   assert.equal(target.createdPnjs.length, 2);
   assert.equal(target.createdTopics.length, 2);
-  assert.equal(target.createdPosts.length, 3);
+  assert.equal(target.createdPosts.length, 5);
 });
 
 test('force sans migration préalable n\'efface rien', async () => {
@@ -580,4 +765,231 @@ test('laisse les liens d\'origine si le téléchargement des images échoue', as
   );
   assert.equal(report.pnjs, 2);
   assert.equal(report.images, 0);
+});
+
+test('rattache un intervenant lié à un utilisateur jdroll connu : participant validé et perso associé', async () => {
+  const source = new InMemorySource();
+  const target = new InMemoryTarget();
+  target.knownUsers = { Armaklan: 500 };
+
+  const report = await buildUseCase(source, target).execute(1356);
+
+  // Intervenant 50 (PJ) : utilisateur jdroll du même pseudo ajouté en participant validé
+  assert.deepEqual(target.participants, [{ campaignId: 1002, userId: 500, statut: 1 }]);
+  // et le personnage migré lui est associé
+  assert.deepEqual(target.attachedPersos, [{ persoId: 1003, userId: 500 }]);
+  assert.equal(report.participants, 1);
+  // Intervenant 68 : pseudo 'Quincey' inconnu, aucun rattachement
+  assert.equal(target.participants.filter((p) => p.userId !== 500).length, 0);
+  // Le MJ technique reste MJ de la campagne
+  assert.deepEqual(target.updatedMjs, []);
+  assert.equal(report.mjUserId, 1001);
+});
+
+test('reprise : un perso déjà migré reste associé à l\'utilisateur jdroll connu', async () => {
+  const source = new InMemorySource();
+  const target = new InMemoryTarget();
+  target.pnjMappings.set('intervenant:50', 777);
+  target.knownUsers = { Armaklan: 500 };
+
+  const report = await buildUseCase(source, target).execute(1356);
+
+  assert.deepEqual(target.attachedPersos, [{ persoId: 777, userId: 500 }]);
+  assert.deepEqual(target.participants, [{ campaignId: 1002, userId: 500, statut: 1 }]);
+  assert.equal(report.participants, 1);
+});
+
+test('un post d\'un intervenant rattaché à un utilisateur jdroll connu est attribué à cet utilisateur', async () => {
+  const source = new InMemorySource();
+  const target = new InMemoryTarget();
+  target.knownUsers = { Armaklan: 500 };
+
+  await buildUseCase(source, target).execute(1356);
+
+  // Post 1 : intervenant 68 (pseudo 'Quincey' inconnu) -> utilisateur technique
+  // Post 2 : intervenant 50 (pseudo 'Armaklan' connu) -> utilisateur jdroll 500
+  // Post 3 : intervenant 43 (CREA, non importé) -> utilisateur technique
+  // Les posts de jet de dés restent sans auteur (comme sur le site)
+  assert.deepEqual(
+    target.createdPosts.map((p: any) => p.post.userId),
+    [1001, 500, null, 1001, null]
+  );
+  // Le perso reste associé au post
+  assert.deepEqual(
+    target.createdPosts.map((p: any) => p.post.persoId),
+    [1004, 1003, null, null, null]
+  );
+});
+
+test('le MJ identifié via le CREA n\'est pas inséré participant, même s\'il a des personnages', async () => {
+  const source = new InMemorySource();
+  // PNJ supplémentaire lié à l'utilisateur du CREA (pseudo 'Arkeos')
+  source.intervenants = [
+    ...INTERVENANTS,
+    {
+      id: 70,
+      nom: 'PNJ du MJ',
+      descriptionPublique: null,
+      descriptionPrivee: null,
+      image: null,
+      utilisateurId: 5,
+      utilisateurPseudo: 'Arkeos',
+    },
+  ];
+  const target = new InMemoryTarget();
+  target.knownUsers = { Arkeos: 600, Armaklan: 500 };
+
+  const report = await buildUseCase(source, target).execute(1356);
+
+  // Le CREA unique devient MJ de la campagne
+  assert.deepEqual(target.updatedMjs, [{ campaignId: 1002, mjId: 600 }]);
+  assert.equal(report.mjUserId, 600);
+  // Participant uniquement pour le PJ 'Armaklan' : le MJ n'est pas inséré
+  assert.deepEqual(target.participants, [{ campaignId: 1002, userId: 500, statut: 1 }]);
+  assert.equal(report.participants, 1);
+  // Mais le personnage du MJ lui reste associé
+  assert.deepEqual(target.attachedPersos, [
+    { persoId: 1003, userId: 500 },
+    { persoId: 1005, userId: 600 },
+  ]);
+});
+
+test('un seul intervenant CREA (type 1) lié à un utilisateur connu : la campagne lui est associée', async () => {
+  const source = new InMemorySource();
+  const target = new InMemoryTarget();
+  target.knownUsers = { Arkeos: 600 };
+
+  const report = await buildUseCase(source, target).execute(1356);
+
+  assert.deepEqual(target.updatedMjs, [{ campaignId: 1002, mjId: 600 }]);
+  assert.equal(report.mjUserId, 600);
+});
+
+test('plusieurs intervenants CREA (type 1) : la campagne reste au MJ technique', async () => {
+  const source = new InMemorySource();
+  source.mjIntervenants = [
+    { id: 43, typeIntervenantId: 1, utilisateurId: 5, utilisateurPseudo: 'Arkeos' },
+    { id: 44, typeIntervenantId: 1, utilisateurId: 6, utilisateurPseudo: 'DoubleCreame' },
+  ];
+  const target = new InMemoryTarget();
+  target.knownUsers = { Arkeos: 600, DoubleCreame: 601 };
+
+  const report = await buildUseCase(source, target).execute(1356);
+
+  assert.deepEqual(target.updatedMjs, []);
+  assert.equal(report.mjUserId, 1001);
+});
+
+test('les intervenants MJ (type 2) liés à des utilisateurs connus deviennent MJ assistants', async () => {
+  const source = new InMemorySource();
+  source.mjIntervenants = [
+    { id: 90, typeIntervenantId: 2, utilisateurId: 7, utilisateurPseudo: 'CoMj' },
+    { id: 91, typeIntervenantId: 2, utilisateurId: 8, utilisateurPseudo: 'Inconnu' },
+  ];
+  const target = new InMemoryTarget();
+  target.knownUsers = { CoMj: 601 };
+
+  const report = await buildUseCase(source, target).execute(1356);
+
+  assert.deepEqual(target.participants, [{ campaignId: 1002, userId: 601, statut: 2 }]);
+  assert.equal(report.assistants, 1);
+  assert.equal(report.mjUserId, 1001);
+});
+
+test('un utilisateur lié à la fois au CREA (type 1) et à un MJ (type 2) est juste MJ, pas assistant', async () => {
+  const source = new InMemorySource();
+  source.mjIntervenants = [
+    { id: 43, typeIntervenantId: 1, utilisateurId: 5, utilisateurPseudo: 'Arkeos' },
+    { id: 90, typeIntervenantId: 2, utilisateurId: 5, utilisateurPseudo: 'Arkeos' },
+  ];
+  const target = new InMemoryTarget();
+  target.knownUsers = { Arkeos: 600 };
+
+  const report = await buildUseCase(source, target).execute(1356);
+
+  // Il devient MJ de la campagne...
+  assert.deepEqual(target.updatedMjs, [{ campaignId: 1002, mjId: 600 }]);
+  assert.equal(report.mjUserId, 600);
+  // ...mais n'est pas inséré dans campagne_participant (ni assistant, ni joueur)
+  assert.deepEqual(target.participants, []);
+  assert.equal(report.assistants, 0);
+});
+
+test('--noimg : aucun téléchargement, les liens d\'origine des images sont conservés', async () => {
+  const source = new InMemorySource();
+  const target = new InMemoryTarget();
+  const downloader = new FakeImageDownloader();
+
+  const report = await buildUseCase(source, target, downloader, false, true).execute(1356);
+
+  // Aucun téléchargement : ni avatar, ni image inline
+  assert.deepEqual(downloader.calls, []);
+  assert.equal(target.createdPnjs[0].data.avatar, '');
+  assert.equal(
+    target.createdPnjs[0].data.publicDescription,
+    `<p>Description publique <img src="${INLINE_PORTRAIT_URL}"></p>`
+  );
+  assert.equal(
+    target.createdPosts[1].post.content,
+    `<p>Post 1</p><p><img src="${INLINE_SCENE_URL}"></p>\n` +
+      '[private=Héraïs Abayancehill]\n' +
+      '<p>Question HJ sur la sc&egrave;ne</p>\n' +
+      '<p><strong>Maitre du Jeu :</strong> R&eacute;ponse du MJ</p>\n' +
+      '[/private]'
+  );
+  assert.equal(report.images, 0);
+  assert.equal(report.pnjs, 2);
+  assert.equal(report.posts, 3);
+});
+
+test('reprise : un jet lié à un post déjà migré est posté en fin de topic', async () => {
+  const source = new InMemorySource();
+  // Une seule demande de jet, liée au post 2 déjà migré
+  source.diceRequests = [DICE_REQUESTS[0]];
+  const target = new InMemoryTarget();
+  target.postMappings.set('post:2', 9001);
+
+  const report = await buildUseCase(source, target).execute(1356);
+
+  // Le post de jet, impossible à intercaler (post lié déjà migré), est posté
+  // en fin du topic du post lié, avec la date du post lié
+  assert.deepEqual(
+    target.createdPosts.map((p: any) => p.post.mappingKey),
+    ['post:1', 'post:3', 'demande_jet_post:501']
+  );
+  assert.equal(target.createdPosts[2].post.createDate, '2022-05-26 19:26:21');
+  assert.equal(report.dicePosts, 1);
+  assert.equal(report.diceRolls, 1);
+});
+
+test('reprise : un jet déjà migré (ligne dicer et post) n\'est pas recréé', async () => {
+  const source = new InMemorySource();
+  const target = new InMemoryTarget();
+  target.diceRollMappings.set('demande_jet:501', 8001);
+  target.dicePostMappings.set('demande_jet_post:501', 9002);
+
+  const report = await buildUseCase(source, target).execute(1356);
+
+  assert.equal(target.createdDiceRolls.filter((r: any) => r.sourceId === 501).length, 0);
+  assert.equal(
+    target.createdPosts.filter((p: any) => p.post.mappingKey === 'demande_jet_post:501').length,
+    0
+  );
+  assert.equal(report.diceRolls, 2);
+  assert.equal(report.dicePosts, 1);
+});
+
+test('la ligne dicer d\'un jet est attribuée au joueur jdroll de l\'intervenant destinataire', async () => {
+  const source = new InMemorySource();
+  const target = new InMemoryTarget();
+  target.knownUsers = { Armaklan: 500 };
+
+  await buildUseCase(source, target).execute(1356);
+
+  // Jet 501 et 503 : intervenant destinataire 50 (pseudo Armaklan) -> 500
+  // Jet 502 : intervenant destinataire 68 (pseudo Quincey inconnu) -> technique
+  assert.deepEqual(
+    target.createdDiceRolls.map((r: any) => r.userId),
+    [500, 1001, 500]
+  );
 });

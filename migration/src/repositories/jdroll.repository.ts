@@ -5,6 +5,7 @@ import {
   NewTopicData,
   NewPnjData,
   NewPostData,
+  NewDiceRollData,
 } from '../types.js';
 import {
   targetQuery,
@@ -15,6 +16,9 @@ import {
 export interface IJdrollTarget {
   ensureMigrationTable(): Promise<void>;
   findUserIdByUsername(username: string): Promise<number | null>;
+  addCampaignParticipant(campaignId: number, userId: number, statut: number): Promise<void>;
+  setCampaignMj(campaignId: number, mjId: number): Promise<void>;
+  attachPersoToUser(persoId: number, userId: number): Promise<void>;
   createUser(data: {
     username: string;
     mail: string;
@@ -27,7 +31,8 @@ export interface IJdrollTarget {
   createSectionWithMapping(sourceKey: string, data: NewSectionData): Promise<number>;
   createTopicWithMapping(sourceKey: string, data: NewTopicData): Promise<number>;
   createPnjWithMapping(sourceKey: string, data: NewPnjData): Promise<number>;
-  createPostsWithMapping(topicKey: string, topicId: number, posts: NewPostData[]): Promise<void>;
+  createPostsWithMapping(topicId: number, posts: NewPostData[]): Promise<void>;
+  createDiceRollsWithMapping(rolls: NewDiceRollData[]): Promise<void>;
   deleteCampaignMigration(targetCampaignId: number, sourceKeys: string[]): Promise<void>;
 }
 
@@ -45,6 +50,7 @@ const MAPPING_TABLE_DDL = `
 `;
 
 const POST_BATCH_SIZE = 500;
+const DICE_ROLL_BATCH_SIZE = 500;
 
 function placeholders(count: number): string {
   return `(${', ?'.repeat(count).slice(2)})`;
@@ -75,6 +81,43 @@ export class MysqlJdrollTarget implements IJdrollTarget {
       [username]
     );
     return row?.id ?? null;
+  }
+
+  /**
+   * Ajoute (ou met à jour) le statut d'un participant d'une campagne.
+   * statut : 0 = en attente, 1 = joueur validé, 2 = joueur validé + MJ assistant.
+   * Un statut existant supérieur n'est jamais rétrogradé.
+   */
+  async addCampaignParticipant(campaignId: number, userId: number, statut: number): Promise<void> {
+    await withTargetTransaction(async (connection) => {
+      await connection.query(
+        `INSERT INTO campagne_participant (campagne_id, user_id, statut)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE statut = GREATEST(statut, VALUES(statut))`,
+        [campaignId, userId, statut]
+      );
+      await connection.query(
+        `UPDATE campagne
+          SET nb_joueurs_actuel = (
+            SELECT COUNT(DISTINCT user_id) FROM campagne_participant
+             WHERE campagne_id = ? AND statut >= 1
+          )
+          WHERE id = ?`,
+        [campaignId, campaignId]
+      );
+    });
+  }
+
+  async setCampaignMj(campaignId: number, mjId: number): Promise<void> {
+    await withTargetTransaction(async (connection) => {
+      await connection.query('UPDATE campagne SET mj_id = ? WHERE id = ?', [mjId, campaignId]);
+    });
+  }
+
+  async attachPersoToUser(persoId: number, userId: number): Promise<void> {
+    await withTargetTransaction(async (connection) => {
+      await connection.query('UPDATE personnages SET user_id = ? WHERE id = ?', [userId, persoId]);
+    });
   }
 
   async createUser(data: {
@@ -207,7 +250,7 @@ export class MysqlJdrollTarget implements IJdrollTarget {
     });
   }
 
-  async createPostsWithMapping(topicKey: string, topicId: number, posts: NewPostData[]): Promise<void> {
+  async createPostsWithMapping(topicId: number, posts: NewPostData[]): Promise<void> {
     await withTargetTransaction(async (connection) => {
       let lastPostId: number | null = null;
 
@@ -228,10 +271,19 @@ export class MysqlJdrollTarget implements IJdrollTarget {
         );
 
         const mappingValues = batch.map(() => '(?, ?, ?, ?)').join(', ');
+        // insertId est l'id de la première ligne du batch courant : l'offset
+        // du découpage ne doit pas être ajouté (les ids du batch suivent
+        // directement insertId).
         const mappingParams = batch.flatMap((post, index) => {
-          const insertId = (result as mysql.ResultSetHeader).insertId + offset + index;
+          const insertId = (result as mysql.ResultSetHeader).insertId + index;
           lastPostId = insertId;
-          return ['post', `post:${post.sourceId}`, 'posts', insertId];
+          const isDicePost = post.mappingKey.startsWith('demande_jet_post:');
+          return [
+            isDicePost ? 'demande_jet' : 'post',
+            post.mappingKey,
+            'posts',
+            insertId,
+          ];
         });
         await connection.query(
           `INSERT INTO espritjdr_migration (source_table, source_key, target_table, target_id)
@@ -250,9 +302,53 @@ export class MysqlJdrollTarget implements IJdrollTarget {
   }
 
   /**
+   * Insère des lignes dicer (jets de dés espritjdr) avec leur mapping
+   * demande_jet:<id source>. Les dates de création absentes (jet sans post
+   * lié) prennent l'heure de la migration.
+   */
+  async createDiceRollsWithMapping(rolls: NewDiceRollData[]): Promise<void> {
+    if (rolls.length === 0) {
+      return;
+    }
+
+    await withTargetTransaction(async (connection) => {
+      for (let offset = 0; offset < rolls.length; offset += DICE_ROLL_BATCH_SIZE) {
+        const batch = rolls.slice(offset, offset + DICE_ROLL_BATCH_SIZE);
+        const values = batch.map(() => '(?, ?, COALESCE(?, NOW()), ?, ?)').join(', ');
+        const params = batch.flatMap((roll) => [
+          roll.userId,
+          roll.campagneId,
+          roll.createDate,
+          roll.result.slice(0, 500),
+          roll.description.slice(0, 900),
+        ]);
+        const [result] = await connection.query(
+          `INSERT INTO dicer (user_id, campagne_id, create_date, result, description)
+           VALUES ${values}`,
+          params
+        );
+
+        const mappingValues = batch.map(() => '(?, ?, ?, ?)').join(', ');
+        // insertId est l'id de la première ligne du batch courant (voir
+        // createPostsWithMapping).
+        const mappingParams = batch.flatMap((roll, index) => {
+          const insertId = (result as mysql.ResultSetHeader).insertId + index;
+          return ['demande_jet', `demande_jet:${roll.sourceId}`, 'dicer', insertId];
+        });
+        await connection.query(
+          `INSERT INTO espritjdr_migration (source_table, source_key, target_table, target_id)
+           VALUES ${mappingValues}`,
+          mappingParams
+        );
+      }
+    });
+  }
+
+  /**
    * Supprime intégralement une campagne jdroll issue de la migration :
    * mappings espritjdr_migration (identifiés par les clés sources), posts,
-   * topics, sections, personnages, configuration et campagne.
+   * topics, sections, personnages, jets de dés (dicer), participants,
+   * configuration et campagne.
    * Les clés étrangères sans cascade (topics.last_post_id, read_post.topic_id)
    * sont détachées/vidées avant la suppression.
    */
@@ -294,6 +390,8 @@ export class MysqlJdrollTarget implements IJdrollTarget {
         [targetCampaignId]
       );
       await connection.query('DELETE FROM personnages WHERE campagne_id = ?', [targetCampaignId]);
+      await connection.query('DELETE FROM dicer WHERE campagne_id = ?', [targetCampaignId]);
+      await connection.query('DELETE FROM campagne_participant WHERE campagne_id = ?', [targetCampaignId]);
       await connection.query('DELETE FROM sections WHERE campagne_id = ?', [targetCampaignId]);
       await connection.query('DELETE FROM campagne_config WHERE campagne_id = ?', [targetCampaignId]);
       await connection.query('DELETE FROM campagne WHERE id = ?', [targetCampaignId]);

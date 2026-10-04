@@ -25,16 +25,21 @@ export function mapCampaignStatut(statutCampagneId: number): number {
   }
 }
 
-export function buildSectionTitle(espaceLibelle: string, sectionLibelle: string | null): string {
-  const espace = decodeHtmlEntities(espaceLibelle);
-  if (!sectionLibelle) {
-    return espace;
+export function buildSectionTitle(
+  espaceLibelle: string,
+  sectionLibelle: string | null,
+  groupeTitre: string
+): string {
+  const parts = [decodeHtmlEntities(espaceLibelle)];
+  if (sectionLibelle) {
+    parts.push(decodeHtmlEntities(sectionLibelle));
   }
-  return `${espace} > ${decodeHtmlEntities(sectionLibelle)}`;
+  parts.push(decodeHtmlEntities(groupeTitre));
+  return parts.join(' > ');
 }
 
-export function buildTopicTitle(groupeTitre: string, themeTitre: string): string {
-  return `${decodeHtmlEntities(groupeTitre)} > ${decodeHtmlEntities(themeTitre)}`;
+export function buildTopicTitle(themeTitre: string): string {
+  return decodeHtmlEntities(themeTitre);
 }
 
 export function mapCampaign(source: SourceCampaign, mjId: number): NewCampaignData {

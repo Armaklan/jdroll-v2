@@ -47,6 +47,20 @@ export interface SourceIntervenant {
   descriptionPublique: string | null;
   descriptionPrivee: string | null;
   image: string | null;
+  utilisateurId: number | null;
+  utilisateurPseudo: string | null;
+}
+
+/**
+ * Intervenant non importé comme personnage : CREA (type 1) ou MJ (type 2).
+ * Le pseudo de l'utilisateur espritjdr lié permet le rapprochement avec un
+ * utilisateur jdroll de même pseudo.
+ */
+export interface SourceMjIntervenant {
+  id: number;
+  typeIntervenantId: number;
+  utilisateurId: number | null;
+  utilisateurPseudo: string | null;
 }
 
 export interface SourcePost {
@@ -74,6 +88,30 @@ export interface SourceHjPost {
   contenu: string;
   dateCreation: string;
   reponses: SourceHjPostResponse[];
+}
+
+/**
+ * Demande de jet de dés espritjdr (demande_jet). Les champs Jet1..Jet10
+ * contiennent chacun une ligne de jet au format pipe :
+ * <id fiche>|<secret>|<type de dé>|<compétence>|<valeur>|...
+ * Les jets génériques (id fiche = 0) portent le nombre de dés.
+ * etat : 1 = demandé, 3 = réalisé (resultat rempli avec le rendu historique).
+ * postThemeId : post du thème auquel la demande est rattachée.
+ */
+export interface SourceDiceRequest {
+  id: number;
+  intervenantFromId: number;
+  intervenantToId: number;
+  typeJet: string;
+  jetSecret: boolean;
+  nom: string;
+  jets: string[];
+  etat: number;
+  nbjet: number;
+  title: string;
+  resultat: string | null;
+  campagneId: number | null;
+  postThemeId: number | null;
 }
 
 export interface NewCampaignData {
@@ -109,22 +147,44 @@ export interface NewPnjData {
 }
 
 export interface NewPostData {
-  sourceId: number;
-  userId: number;
+  /** Clé de mapping espritjdr_migration : 'post:<id>' ou 'demande_jet_post:<id>'. */
+  mappingKey: string;
+  userId: number | null;
   persoId: number | null;
   content: string;
   createDate: string;
 }
 
+/** Ligne de la table dicer issue d'une demande de jet espritjdr. */
+export interface NewDiceRollData {
+  sourceId: number;
+  userId: number;
+  campagneId: number;
+  createDate: string | null;
+  result: string;
+  description: string;
+}
+
 export interface MigrationReport {
   sourceCampaignId: number;
   targetCampaignId: number;
+  /** Utilisateur technique auteur des posts et MJ par défaut de la campagne. */
   ownerUserId: number;
+  /** MJ final de la campagne : utilisateur jdroll rattaché au CREA, sinon ownerUserId. */
+  mjUserId: number;
   sections: number;
   topics: number;
   pnjs: number;
   images: number;
   posts: number;
+  /** Lignes dicer créées depuis les demandes de jet espritjdr. */
+  diceRolls: number;
+  /** Posts de jet de dés créés (intercalés après le post lié). */
+  dicePosts: number;
   hjPosts: number;
   skippedPosts: number;
+  /** Utilisateurs jdroll rattachés à un intervenant importé (participant validé + perso). */
+  participants: number;
+  /** Utilisateurs jdroll rattachés à un intervenant MJ (type 2) ajoutés MJ assistants. */
+  assistants: number;
 }

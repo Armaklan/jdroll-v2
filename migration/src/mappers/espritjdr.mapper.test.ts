@@ -33,16 +33,19 @@ test('decodeHtmlEntities trim le résultat', () => {
   assert.equal(decodeHtmlEntities('  Espaced  '), 'Espaced');
 });
 
-test('buildSectionTitle retourne le libellé de l\'espace seul sans intercalaire', () => {
-  assert.equal(buildSectionTitle('Discussions libres', null), 'Discussions libres');
+test('buildSectionTitle joint espace et groupe sans intercalaire', () => {
+  assert.equal(buildSectionTitle('Discussions libres', null, 'Accueil'), 'Discussions libres > Accueil');
 });
 
-test('buildSectionTitle joint espace et intercalaire avec " > "', () => {
-  assert.equal(buildSectionTitle('Contexte et Règles', 'Secondaire'), 'Contexte et Règles > Secondaire');
+test('buildSectionTitle joint espace, intercalaire et groupe avec " > "', () => {
+  assert.equal(
+    buildSectionTitle('Contexte et Règles', 'Secondaire', 'Principale'),
+    'Contexte et Règles > Secondaire > Principale'
+  );
 });
 
-test('buildTopicTitle joint groupe et thème avec " > "', () => {
-  assert.equal(buildTopicTitle('Principale', 'Guerrier'), 'Principale > Guerrier');
+test('buildTopicTitle retourne le libellé décodé du thème seul', () => {
+  assert.equal(buildTopicTitle('R&egrave;gles du post'), 'Règles du post');
 });
 
 test('mapCampaignStatut convertit les statuts espritjdr vers jdroll', () => {
@@ -116,6 +119,8 @@ test('mapIntervenant produit les données de PNJ jdroll depuis un intervenant', 
     descriptionPublique: '<p>Description publique</p>',
     descriptionPrivee: '<p>Description priv&eacute;e</p>',
     image: 'http://www.espritjdr.net/Upload/campagnes/35/intervenant/50/sanstitrego.png',
+    utilisateurId: 52,
+    utilisateurPseudo: 'Armaklan',
   };
 
   const result = mapIntervenant(source, 42, '/files/42/pnj-50.png');
@@ -136,6 +141,8 @@ test('mapIntervenant gère les descriptions absentes et limite le nom à 100 car
     descriptionPublique: null,
     descriptionPrivee: null,
     image: null,
+    utilisateurId: null,
+    utilisateurPseudo: null,
   };
 
   const result = mapIntervenant(source, 1, '');
