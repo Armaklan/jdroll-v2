@@ -8,6 +8,7 @@ import {
   SheetMode,
   validateSheetDefinition,
 } from '../../schemas/sheet-definition.schema.js';
+import { validateSheetPages } from '../../schemas/sheet-pages.schema.js';
 
 export interface UpdateCampaignDTO {
   campaignId: number;
@@ -47,6 +48,7 @@ export interface UpdateCampaignDTO {
   sidebarText?: string | null;
   sheetMode?: string | null;
   sheetDefinition?: string | null;
+  sheetPages?: string | null;
 }
 
 export class UpdateCampaignUseCase {
@@ -142,6 +144,29 @@ export class UpdateCampaignUseCase {
       }
     }
 
+    let sheetPages: string | null | undefined = undefined;
+    if (dto.sheetPages !== undefined) {
+      if (dto.sheetPages === null || dto.sheetPages === '') {
+        sheetPages = null;
+      } else {
+        let parsedPages: unknown;
+        try {
+          parsedPages = JSON.parse(dto.sheetPages);
+        } catch {
+          throw new ValidationError('Les pages de la fiche graphique doivent être un JSON valide');
+        }
+        const validatedPages = validateSheetPages(parsedPages);
+        if (!validatedPages.success) {
+          throw new ValidationError(
+            `Pages de fiche graphique invalides : ${validatedPages.error.issues
+              .map((issue) => `${issue.path.join('.') || 'fiche'} ${issue.message}`)
+              .join('; ')}`
+          );
+        }
+        sheetPages = JSON.stringify(validatedPages.data);
+      }
+    }
+
     await this.campaignRepo.updateCampaign(dto.campaignId, {
       name: dto.name !== undefined ? dto.name.trim() : undefined,
       systeme: dto.systeme !== undefined ? dto.systeme.trim() : undefined,
@@ -178,6 +203,7 @@ export class UpdateCampaignUseCase {
       sidebarText: dto.sidebarText,
       sheetMode,
       sheetDefinition,
+      sheetPages,
     });
 
     if (dto.widgets !== undefined) {

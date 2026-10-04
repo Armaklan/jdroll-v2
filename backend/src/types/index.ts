@@ -156,6 +156,7 @@ export interface CampaignSummary {
   sidebarText?: string | null;
   sheetMode?: string | null;
   sheetDefinition?: string | null;
+  sheetPages?: string | null;
   hasUnread?: boolean;
   hasAlert?: boolean;
 }
@@ -316,6 +317,7 @@ export interface CampaignCharacter {
   templateHtml?: string | null;
   templateImg?: string | null;
   templateFields?: string | null;
+  sheetPages?: string | null;
 }
 
 export interface CampaignCharacterCategory {

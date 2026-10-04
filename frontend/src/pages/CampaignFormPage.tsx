@@ -20,6 +20,7 @@ import {
   Link as LinkIcon,
   Loader2,
   Palette,
+  Plus,
   RefreshCw,
   Save,
   Shield,
@@ -36,10 +37,52 @@ import {ProgrammedSheetBuilder} from '../components/ProgrammedSheetBuilder';
 import {CampaignWidgetsConfig} from '../components/CampaignWidgetsConfig';
 import {parseWidgets, serializeWidgets} from '../utils/widgets';
 import {parseTemplateFields, serializeTemplateFields, TemplateField,} from '../utils/character-sheet';
+import {
+  GraphicSheetPage,
+  createGraphicPage,
+  parseGraphicSheetPages,
+  serializeGraphicSheetPages,
+} from '../utils/graphic-sheet-pages';
 import {createEmptyDefinition, parseSheetDefinition, resolveSheetMode} from '../utils/programmed-sheet';
 
 interface CampaignFormPageProps {
   mode?: 'create' | 'edit';
+}
+
+// Page de fiche graphique en cours d'édition (fond + champs propres à la page)
+interface EditableGraphicPage extends GraphicSheetPage {
+  imagePreview: string | null;
+  imageMode: 'upload' | 'url';
+  imageFile: File | null;
+  fields: TemplateField[];
+}
+
+function toEditableGraphicPage(page: GraphicSheetPage): EditableGraphicPage {
+  return {
+    ...page,
+    imagePreview: page.image || null,
+    imageMode: page.image.startsWith('/files/') ? 'upload' : 'url',
+    imageFile: null,
+    fields: parseTemplateFields(page.templateFields).fields,
+  };
+}
+
+// Les colonnes historiques (template_img / template_html / template_fields)
+// restent synchronisées sur la première page pour compatibilité mono-page.
+function buildLegacySheetColumns(pages: GraphicSheetPage[]): {
+  templateImg: string;
+  templateHtml: string;
+  templateFields: string;
+} {
+  const first = pages[0];
+  const templateImg = first && first.bgType === 'image' ? first.image : '';
+  const templateHtml =
+    first && first.bgType === 'image'
+      ? first.image
+        ? `<img id="zoneImg" src="${first.image}" style="width: 800px">`
+        : ''
+      : first?.html || '';
+  return { templateImg, templateHtml, templateFields: first?.templateFields ?? '' };
 }
 
 const DEFAULT_DIALOGUE_COLOR = '#4488CC';
@@ -158,16 +201,15 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
   // Character Sheet Configuration
   const [template, setTemplate] = useState<string>('');
   const [sheetMode, setSheetMode] = useState<SheetMode>('technical');
+
   const [sheetDefinition, setSheetDefinition] = useState<SheetDefinition>(createEmptyDefinition());
-  const [sheetBgType, setSheetBgType] = useState<'image' | 'html'>('image');
-  const [sheetImgMode, setSheetImgMode] = useState<'upload' | 'url'>('url');
-  const [sheetImgUrl, setSheetImgUrl] = useState<string>('');
-  const [sheetImgFile, setSheetImgFile] = useState<File | null>(null);
-  const [sheetImgPreview, setSheetImgPreview] = useState<string | null>(null);
   const [isDraggingSheetImg, setIsDraggingSheetImg] = useState<boolean>(false);
   const sheetImgInputRef = useRef<HTMLInputElement>(null);
-  const [sheetHtml, setSheetHtml] = useState<string>('');
-  const [sheetFields, setSheetFields] = useState<TemplateField[]>([]);
+  // Fiche graphique multi-pages : chaque page a son fond et ses champs
+  const [graphicPages, setGraphicPages] = useState<EditableGraphicPage[]>(() => [
+    toEditableGraphicPage(createGraphicPage(0)),
+  ]);
+  const [activeGraphicPage, setActiveGraphicPage] = useState<number>(0);
   const [sheetMaxCount, setSheetMaxCount] = useState<number>(0);
 
   // Campaign Widgets Configuration
@@ -299,15 +341,14 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         setTemplate(campaign.template || '');
         setSheetMode(resolveSheetMode(campaign));
         setSheetDefinition(parseSheetDefinition(campaign.sheetDefinition) ?? createEmptyDefinition());
-        const hasImgBg = Boolean(campaign.templateImg && campaign.templateImg.trim());
-        setSheetBgType(hasImgBg ? 'image' : campaign.templateHtml ? 'html' : 'image');
-        setSheetImgUrl(campaign.templateImg || '');
-        setSheetImgPreview(campaign.templateImg || null);
-        setSheetImgMode(campaign.templateImg?.startsWith('/files/') ? 'upload' : 'url');
-        setSheetHtml(campaign.templateHtml || '');
-        const parsedFields = parseTemplateFields(campaign.templateFields);
-        setSheetFields(parsedFields.fields);
-        setSheetMaxCount(parsedFields.maxCount);
+        const parsedPages = parseGraphicSheetPages(campaign.sheetPages, campaign).map(
+          toEditableGraphicPage
+        );
+        setGraphicPages(parsedPages);
+        setActiveGraphicPage(0);
+        setSheetMaxCount(
+          parsedPages.reduce((max, page) => Math.max(max, parseTemplateFields(page.templateFields).maxCount), 0)
+        );
 
         // Widgets
         if (campaign.widgets) {
@@ -487,17 +528,42 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
     }
   };
 
-  // Handlers for Character Sheet Background Image
-  const handleSheetImgFileSelect = (file: File) => {
+  // Handlers for Character Sheet pages (graphic mode)
+  const updateGraphicPage = (index: number, patch: Partial<EditableGraphicPage>) => {
+    setGraphicPages((prev) =>
+      prev.map((page, i) => (i === index ? { ...page, ...patch } : page))
+    );
+  };
+
+  const handleAddGraphicPage = () => {
+    setGraphicPages((prev) => {
+      if (prev.length >= 20) return prev;
+      return [...prev, toEditableGraphicPage(createGraphicPage(prev.length))];
+    });
+    setActiveGraphicPage((prev) => Math.min(prev + 1, 19));
+  };
+
+  const handleRemoveGraphicPage = (index: number) => {
+    setGraphicPages((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((_, i) => i !== index);
+      setActiveGraphicPage((active) => Math.min(active, next.length - 1));
+      return next;
+    });
+  };
+
+  const handleGraphicPageFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) {
       setFormError("Le fichier de l'image de fond doit être une image (PNG, JPG, WebP, GIF, SVG, AVIF).");
       return;
     }
     setFormError(null);
-    setSheetImgFile(file);
     const objectUrl = URL.createObjectURL(file);
-    setSheetImgPreview(objectUrl);
-    setSheetImgMode('upload');
+    updateGraphicPage(activeGraphicPage, {
+      imageFile: file,
+      imagePreview: objectUrl,
+      imageMode: 'upload',
+    });
   };
 
   const handleSheetImgDragOver = (e: React.DragEvent) => {
@@ -517,9 +583,42 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
     e.stopPropagation();
     setIsDraggingSheetImg(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleSheetImgFileSelect(e.dataTransfer.files[0]);
+      handleGraphicPageFileSelect(e.dataTransfer.files[0]);
     }
   };
+
+  // Construit les pages de la fiche graphique pour la sauvegarde,
+  // avec téléversement optionnel des images de fond sélectionnées.
+  const buildSheetPagesForSave = async (
+    campaignIdForUpload: number,
+    uploadFiles: boolean
+  ): Promise<GraphicSheetPage[]> => {
+    const pages: GraphicSheetPage[] = [];
+    for (let index = 0; index < graphicPages.length; index++) {
+      const page = graphicPages[index];
+      let image = page.imageMode === 'url' ? page.image.trim() : page.image;
+      if (uploadFiles && page.imageFile && page.bgType === 'image') {
+        try {
+          const sheetRes = await campaignsApi.uploadCampaignImage(campaignIdForUpload, page.imageFile);
+          image = sheetRes.url;
+        } catch (uploadErr) {
+          console.error(`Erreur lors du téléversement de l'image de fond de la page ${index + 1}:`, uploadErr);
+        }
+      }
+      pages.push({
+        id: page.id,
+        title: page.title.trim() || `Page ${index + 1}`,
+        bgType: page.bgType,
+        image: page.bgType === 'image' ? image : '',
+        html: page.html,
+        templateFields: serializeTemplateFields(sheetMaxCount, page.fields),
+      });
+    }
+    return pages;
+  };
+
+  // Page de fiche graphique active dans l'éditeur
+  const activeGraphicPageData = graphicPages[activeGraphicPage] ?? graphicPages[0];
 
   // Handlers for Separator Image
   const handleHrFileSelect = (file: File) => {
@@ -658,9 +757,13 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           ? forumBannerUrl || null
           : null;
 
-      const serializedSheetFields = serializeTemplateFields(sheetMaxCount, sheetFields);
-
       if (isEditMode) {
+        // Pages de la fiche graphique : téléversement des images de fond par page
+        const finalSheetPages = await buildSheetPagesForSave(campaignId!, true);
+        const { templateImg: finalSheetImgValue, templateHtml: finalTemplateHtml, templateFields: finalSheetFields } =
+          buildLegacySheetColumns(finalSheetPages);
+        const finalSheetPagesJson =
+          sheetMode === 'graphic' ? serializeGraphicSheetPages(finalSheetPages) : null;
         let finalBanniere =
           vignetteMode === 'url'
             ? vignetteUrl.trim()
@@ -692,28 +795,6 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
             console.error('Erreur lors du téléversement de la bannière de forum:', uploadErr);
           }
         }
-
-        let finalSheetImg =
-          sheetImgMode === 'url'
-            ? sheetImgUrl.trim()
-            : !sheetImgFile
-            ? sheetImgUrl
-            : '';
-
-        if (sheetImgFile && sheetBgType === 'image') {
-          try {
-            const sheetRes = await campaignsApi.uploadCampaignImage(campaignId, sheetImgFile);
-            finalSheetImg = sheetRes.url;
-          } catch (uploadErr) {
-            console.error("Erreur lors du téléversement de l'image de fond de la feuille:", uploadErr);
-          }
-        }
-
-        const finalSheetImgValue = sheetBgType === 'image' ? finalSheetImg : '';
-        const finalTemplateHtml =
-          sheetBgType === 'image'
-            ? (finalSheetImgValue ? `<img id="zoneImg" src="${finalSheetImgValue}" style="width: 800px">` : '')
-            : sheetHtml;
 
         // Handle separator image upload
         let finalHr =
@@ -762,9 +843,14 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           hr: finalHr || null,
           width: width || '800px',
           template: template || '',
-          templateImg: finalSheetImgValue,
-          templateHtml: finalTemplateHtml,
-          templateFields: serializedSheetFields,
+          ...(sheetMode === 'graphic'
+            ? {
+                templateImg: finalSheetImgValue,
+                templateHtml: finalTemplateHtml,
+                templateFields: finalSheetFields,
+                sheetPages: finalSheetPagesJson,
+              }
+            : {}),
           sheetMode,
           sheetDefinition: JSON.stringify(sheetDefinition),
           widgets: serializeWidgets(widgetsList),
@@ -774,13 +860,14 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
         const updated = await campaignsApi.updateCampaign(campaignId, payload);
         navigate(`/forum/${updated.id}`);
       } else {
-        let initialSheetImg =
-          sheetBgType === 'image' && sheetImgMode === 'url' ? sheetImgUrl.trim() : '';
-
-        const initialTemplateHtml =
-          sheetBgType === 'image'
-            ? (initialSheetImg ? `<img id="zoneImg" src="${initialSheetImg}" style="width: 800px">` : '')
-            : sheetHtml;
+        // Pages de la fiche graphique au moment de la création (URL uniquement,
+        // les fichiers seront téléversés après création de la campagne)
+        const initialSheetPages = await buildSheetPagesForSave(0, false);
+        const {
+          templateImg: initialSheetImg,
+          templateHtml: initialTemplateHtml,
+          templateFields: initialSheetFields,
+        } = buildLegacySheetColumns(initialSheetPages);
 
         // Create payload
         const payload: CreateCampaignPayload = {
@@ -811,9 +898,10 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           linkSidebarColor: linkSidebarColor || null,
           hr: hrMode === 'url' ? hrUrl.trim() || null : !hrFile ? hrUrl || null : null,
           template: template || '',
-          templateImg: sheetBgType === 'image' ? initialSheetImg : '',
+          templateImg: initialSheetImg,
           templateHtml: initialTemplateHtml,
-          templateFields: serializedSheetFields,
+          templateFields: initialSheetFields,
+          sheetPages: sheetMode === 'graphic' ? serializeGraphicSheetPages(initialSheetPages) : null,
           sheetMode,
           sheetDefinition: JSON.stringify(sheetDefinition),
           widgets: serializeWidgets(widgetsList),
@@ -841,13 +929,20 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
           }
         }
 
-        // Upload sheet image file if provided
-        if (sheetImgFile && sheetBgType === 'image') {
+        // Upload sheet background images if provided
+        if (sheetMode === 'graphic' && graphicPages.some((page) => page.imageFile && page.bgType === 'image')) {
           try {
-            const sheetRes = await campaignsApi.uploadCampaignImage(created.id, sheetImgFile);
+            const uploadedSheetPages = await buildSheetPagesForSave(created.id, true);
+            const {
+              templateImg: uploadedSheetImg,
+              templateHtml: uploadedTemplateHtml,
+              templateFields: uploadedSheetFields,
+            } = buildLegacySheetColumns(uploadedSheetPages);
             await campaignsApi.updateCampaign(created.id, {
-              templateImg: sheetRes.url,
-              templateHtml: `<img id="zoneImg" src="${sheetRes.url}" style="width: 800px">`,
+              templateImg: uploadedSheetImg,
+              templateHtml: uploadedTemplateHtml,
+              templateFields: uploadedSheetFields,
+              sheetPages: serializeGraphicSheetPages(uploadedSheetPages),
             });
           } catch (uploadErr) {
             console.error("Erreur lors du téléversement de l'image de fond de la feuille:", uploadErr);
@@ -2636,20 +2731,76 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   <span>Feuille de Personnage Graphique Interactive</span>
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Configurez le fond de la fiche (image ou code HTML WYSIWYG) et positionnez les champs interactifs qui seront remplis par les joueurs.
+                  Composez votre fiche en pages : chaque page possède son propre fond (image ou code HTML WYSIWYG) et ses propres champs interactifs remplis par les joueurs.
                 </p>
               </div>
 
-              {/* 1. Choix du mode de fond */}
+              {/* 0. Gestion des pages */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                    0. Pages de la fiche ({graphicPages.length})
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleAddGraphicPage}
+                    disabled={graphicPages.length >= 20}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-xs font-semibold text-white transition shadow-xs cursor-pointer"
+                    title="Ajouter une page à la fiche graphique"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Ajouter une page</span>
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {graphicPages.map((page, index) => (
+                    <div key={page.id} className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => setActiveGraphicPage(index)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border ${
+                          index === activeGraphicPage
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        {page.title.trim() || `Page ${index + 1}`}
+                      </button>
+                      {graphicPages.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveGraphicPage(index)}
+                          className="ml-1 p-0.5 text-slate-400 hover:text-red-600 transition cursor-pointer"
+                          title="Supprimer cette page"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-xs font-semibold text-slate-600">Titre de la page active :</label>
+                  <input
+                    type="text"
+                    value={activeGraphicPageData.title}
+                    onChange={(e) => updateGraphicPage(activeGraphicPage, { title: e.target.value })}
+                    placeholder={`Page ${activeGraphicPage + 1}`}
+                    className="px-3 py-1.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
+                  />
+                </div>
+              </div>
+
+              {/* 1. Choix du mode de fond de la page active */}
               <div className="space-y-4">
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                  1. Fond de la fiche de personnage
+                  1. Fond de la page « {activeGraphicPageData.title.trim() || `Page ${activeGraphicPage + 1}`} »
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label
-                    onClick={() => setSheetBgType('image')}
+                    onClick={() => updateGraphicPage(activeGraphicPage, { bgType: 'image' })}
                     className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition cursor-pointer ${
-                      sheetBgType === 'image'
+                      activeGraphicPageData.bgType === 'image'
                         ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-200'
                         : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
                     }`}
@@ -2657,8 +2808,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     <input
                       type="radio"
                       name="sheetBgType"
-                      checked={sheetBgType === 'image'}
-                      onChange={() => setSheetBgType('image')}
+                      checked={activeGraphicPageData.bgType === 'image'}
+                      onChange={() => updateGraphicPage(activeGraphicPage, { bgType: 'image' })}
                       className="mt-1 text-indigo-600 focus:ring-indigo-500"
                     />
                     <div>
@@ -2672,9 +2823,9 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </label>
 
                   <label
-                    onClick={() => setSheetBgType('html')}
+                    onClick={() => updateGraphicPage(activeGraphicPage, { bgType: 'html' })}
                     className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition cursor-pointer ${
-                      sheetBgType === 'html'
+                      activeGraphicPageData.bgType === 'html'
                         ? 'border-indigo-600 bg-indigo-50/40 ring-2 ring-indigo-200'
                         : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
                     }`}
@@ -2682,8 +2833,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     <input
                       type="radio"
                       name="sheetBgType"
-                      checked={sheetBgType === 'html'}
-                      onChange={() => setSheetBgType('html')}
+                      checked={activeGraphicPageData.bgType === 'html'}
+                      onChange={() => updateGraphicPage(activeGraphicPage, { bgType: 'html' })}
                       className="mt-1 text-indigo-600 focus:ring-indigo-500"
                     />
                     <div>
@@ -2698,8 +2849,8 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                 </div>
               </div>
 
-              {/* Paramètres selon le mode de fond */}
-              {sheetBgType === 'image' ? (
+              {/* Paramètres selon le mode de fond de la page active */}
+              {activeGraphicPageData.bgType === 'image' ? (
                 <div className="space-y-4 pt-2 border-t border-slate-100">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
@@ -2708,9 +2859,9 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
                       <button
                         type="button"
-                        onClick={() => setSheetImgMode('upload')}
+                        onClick={() => updateGraphicPage(activeGraphicPage, { imageMode: 'upload' })}
                         className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition cursor-pointer ${
-                          sheetImgMode === 'upload'
+                          activeGraphicPageData.imageMode === 'upload'
                             ? 'bg-white text-indigo-600 shadow-xs'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
@@ -2720,9 +2871,9 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                       </button>
                       <button
                         type="button"
-                        onClick={() => setSheetImgMode('url')}
+                        onClick={() => updateGraphicPage(activeGraphicPage, { imageMode: 'url' })}
                         className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition cursor-pointer ${
-                          sheetImgMode === 'url'
+                          activeGraphicPageData.imageMode === 'url'
                             ? 'bg-white text-indigo-600 shadow-xs'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
@@ -2733,7 +2884,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     </div>
                   </div>
 
-                  {sheetImgMode === 'upload' ? (
+                  {activeGraphicPageData.imageMode === 'upload' ? (
                     <div>
                       <input
                         ref={sheetImgInputRef}
@@ -2741,7 +2892,7 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                         accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif"
                         onChange={(e) => {
                           if (e.target.files && e.target.files[0]) {
-                            handleSheetImgFileSelect(e.target.files[0]);
+                            handleGraphicPageFileSelect(e.target.files[0]);
                           }
                         }}
                         className="hidden"
@@ -2759,7 +2910,11 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                       >
                         <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                         <p className="text-sm font-semibold text-slate-700">
-                          {sheetImgFile ? sheetImgFile.name : 'Cliquez ou glissez une image ici'}
+                          {activeGraphicPageData.imageFile
+                            ? activeGraphicPageData.imageFile.name
+                            : activeGraphicPageData.image
+                            ? 'Image déjà téléversée — cliquez pour la remplacer'
+                            : 'Cliquez ou glissez une image ici'}
                         </p>
                         <p className="text-xs text-slate-400 mt-1">
                           PNG, JPG, WebP jusqu'à 10 Mo
@@ -2770,10 +2925,12 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     <div>
                       <input
                         type="url"
-                        value={sheetImgUrl}
+                        value={activeGraphicPageData.image}
                         onChange={(e) => {
-                          setSheetImgUrl(e.target.value);
-                          setSheetImgPreview(e.target.value);
+                          updateGraphicPage(activeGraphicPage, {
+                            image: e.target.value,
+                            imagePreview: e.target.value,
+                          });
                         }}
                         placeholder="https://exemple.com/ma-feuille-de-perso.jpg"
                         className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 text-sm font-medium text-slate-900 placeholder:text-slate-400 outline-hidden transition"
@@ -2787,20 +2944,20 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                     Contenu HTML du gabarit
                   </label>
                   <WysiwygEditor
-                    value={sheetHtml}
-                    onChange={setSheetHtml}
+                    value={activeGraphicPageData.html}
+                    onChange={(html) => updateGraphicPage(activeGraphicPage, { html })}
                     placeholder="Créez la structure de votre fiche (tableaux, rubriques, encarts)..."
                     minHeight="250px"
                   />
                 </div>
               )}
 
-              {/* 2. Éditeur visuel interactif */}
+              {/* 2. Éditeur visuel interactif de la page active */}
               <div className="space-y-4 pt-4 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                      2. Positionner les champs interactifs
+                      2. Positionner les champs interactifs de la page
                     </label>
                     <p className="text-xs text-slate-500 mt-0.5">
                       Glissez des champs depuis la barre d'outils sur la feuille, ajustez leur taille et leur valeur par défaut.
@@ -2811,13 +2968,17 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                 <CharacterSheetRenderer
                   mode="edit-sheet"
                   canvasWidth={width || '800px'}
-                  bgType={sheetBgType}
-                  templateImg={sheetBgType === 'image' ? (sheetImgPreview || sheetImgUrl) : undefined}
-                  templateHtml={sheetBgType === 'html' ? sheetHtml : undefined}
-                  fields={sheetFields}
+                  bgType={activeGraphicPageData.bgType}
+                  templateImg={
+                    activeGraphicPageData.bgType === 'image'
+                      ? activeGraphicPageData.imagePreview || activeGraphicPageData.image
+                      : undefined
+                  }
+                  templateHtml={activeGraphicPageData.bgType === 'html' ? activeGraphicPageData.html : undefined}
+                  fields={activeGraphicPageData.fields}
                   maxCount={sheetMaxCount}
                   onFieldsChange={(newFields, newMax) => {
-                    setSheetFields(newFields);
+                    updateGraphicPage(activeGraphicPage, { fields: newFields });
                     setSheetMaxCount(newMax);
                   }}
                 />

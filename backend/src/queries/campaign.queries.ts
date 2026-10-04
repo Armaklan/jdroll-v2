@@ -307,6 +307,7 @@ export class CampaignQueries {
       templateHtml: campaign.templateHtml,
       templateImg: campaign.templateImg,
       templateFields: campaign.templateFields,
+      sheetPages: campaign.sheetPages,
       widgets: canSeePrivate ? (raw.widgets || '') : undefined,
     };
 

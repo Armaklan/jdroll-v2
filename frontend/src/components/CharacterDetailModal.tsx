@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { campaignsApi } from '../api/campaigns';
 import { CampaignCharacter, CampaignSummary } from '../types/campaign';
 import { CharacterWidgetsRenderer } from './CharacterWidgetsRenderer';
-import { CharacterSheetRenderer } from './CharacterSheetRenderer';
+import { GraphicSheetPages } from './GraphicSheetPages';
 import { ProgrammedSheetRenderer } from './ProgrammedSheetRenderer';
 import { parseSheetDefinition, parseSheetValues, resolveSheetMode } from '../utils/programmed-sheet';
 import { mergeCharacterWidgets, changeWidgetValue, serializeWidgets } from '../utils/widgets';
@@ -366,6 +366,7 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
                   !Boolean(
                     character.templateImg ||
                     character.templateHtml ||
+                    campaign?.sheetPages ||
                     campaign?.templateImg ||
                     campaign?.templateHtml ||
                     campaign?.templateFields ||
@@ -373,21 +374,25 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
                   )
                 ) return null;
 
+                const hasCharacterTemplate = Boolean(
+                  character.templateImg ||
+                  character.templateHtml ||
+                  character.templateFields
+                );
+
                 return (
                   <div className="space-y-2 pt-2 border-t border-slate-100">
                     <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                       <LayoutTemplate className="w-4 h-4 text-indigo-600" />
                       <span>Feuille de personnage</span>
                     </h3>
-                    <CharacterSheetRenderer
+                    <GraphicSheetPages
                       mode="read-only"
+                      sheetPages={hasCharacterTemplate ? null : campaign?.sheetPages}
+                      legacyImg={character.templateImg || campaign?.templateImg}
+                      legacyHtml={character.templateHtml || campaign?.templateHtml}
+                      legacyFields={character.templateFields || campaign?.templateFields}
                       canvasWidth={campaign?.width || '800px'}
-                      bgType={
-                        (character.templateImg || campaign?.templateImg) ? 'image' : 'html'
-                      }
-                      templateImg={character.templateImg || campaign?.templateImg}
-                      templateHtml={character.templateHtml || campaign?.templateHtml}
-                      templateFields={character.templateFields || campaign?.templateFields}
                       persoFields={character.persoFields}
                       textColor={campaign?.textColor}
                     />

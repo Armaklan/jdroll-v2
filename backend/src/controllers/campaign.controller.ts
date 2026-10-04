@@ -140,6 +140,7 @@ const createCampaignBodySchema = z.object({
   sidebarText: z.string().nullable().optional(),
   sheetMode: z.enum(['technical', 'graphic', 'programmed']).nullable().optional(),
   sheetDefinition: z.string().nullable().optional(),
+  sheetPages: z.string().nullable().optional(),
 });
 
 const updateCampaignBodySchema = createCampaignBodySchema.partial();

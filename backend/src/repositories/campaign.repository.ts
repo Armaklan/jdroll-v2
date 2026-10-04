@@ -37,6 +37,7 @@ export interface CreateCampaignData {
   widgets?: string | null;
   sheetMode?: string | null;
   sheetDefinition?: string | null;
+  sheetPages?: string | null;
 }
 
 export interface UpdateCampaignData {
@@ -75,6 +76,7 @@ export interface UpdateCampaignData {
   sidebarText?: string | null;
   sheetMode?: string | null;
   sheetDefinition?: string | null;
+  sheetPages?: string | null;
 }
 
 export interface ICampaignRepository {
@@ -735,7 +737,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         cc.sidebar_text AS sidebarText,
         cc.banniere AS banniereForum,
         cc.sheet_mode AS sheetMode,
-        cc.sheet_definition AS sheetDefinition
+        cc.sheet_definition AS sheetDefinition,
+        cc.sheet_pages AS sheetPages
       FROM campagne c
       JOIN user u ON c.mj_id = u.id
       LEFT JOIN campagne_config cc ON cc.campagne_id = c.id
@@ -785,6 +788,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       sidebarText: string | null;
       sheetMode: string | null;
       sheetDefinition: string | null;
+      sheetPages: string | null;
     }
 
     const rows = await query<RawCampaignRow>(sql, [id]);
@@ -836,6 +840,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       sidebarText: row.sidebarText || null,
       sheetMode: row.sheetMode || null,
       sheetDefinition: row.sheetDefinition || null,
+      sheetPages: row.sheetPages || null,
     };
   }
 
@@ -872,8 +877,8 @@ export class MysqlCampaignRepository implements ICampaignRepository {
         text_color, dialogue_color, pensee_color, rp1_color, rp2_color,
         quote_color, width, widgets, default_dice, default_perso_id,
         template_html, template_img, template_fields,
-        sheet_mode, sheet_definition
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        sheet_mode, sheet_definition, sheet_pages
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     await execute(configSql, [
@@ -901,6 +906,7 @@ export class MysqlCampaignRepository implements ICampaignRepository {
       data.templateFields || null,
       data.sheetMode || null,
       data.sheetDefinition || null,
+      data.sheetPages || null,
     ]);
 
     return campaignId;
@@ -1058,6 +1064,10 @@ export class MysqlCampaignRepository implements ICampaignRepository {
     if (data.sheetDefinition !== undefined) {
       configFields.push('sheet_definition = ?');
       configParams.push(data.sheetDefinition ?? null);
+    }
+    if (data.sheetPages !== undefined) {
+      configFields.push('sheet_pages = ?');
+      configParams.push(data.sheetPages ?? null);
     }
 
     if (configFields.length > 0) {

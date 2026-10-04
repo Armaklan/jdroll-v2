@@ -99,6 +99,15 @@ describe('dossier des migrations du projet', () => {
     assert.match(statements, /DROP TABLE IF EXISTS `campagne_assistant_mj`/);
   });
 
+  it('définit la migration 14 (graphic_sheet_pages) : colonne sheet_pages sur campagne_config', () => {
+    const migration = loadMigrations().find((m: Migration) => m.id === 14);
+
+    assert.ok(migration, 'la migration 14 doit exister');
+    assert.equal(migration!.name, 'graphic_sheet_pages');
+    const statements = migration!.statements.join('\n');
+    assert.match(statements, /ALTER TABLE `campagne_config`\s+ADD COLUMN `sheet_pages` longtext AFTER `sheet_definition`/);
+  });
+
   it('définit la migration 12 (chat_notification_settings) avec les réglages de notification dédiés au tchat privé', () => {
     const migration = loadMigrations().find((m: Migration) => m.id === 12);
 

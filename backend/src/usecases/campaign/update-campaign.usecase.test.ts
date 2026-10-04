@@ -88,6 +88,7 @@ describe('UpdateCampaignUseCase', () => {
           if (data.templateFields !== undefined) c.templateFields = data.templateFields;
           if (data.sheetMode !== undefined) c.sheetMode = data.sheetMode;
           if (data.sheetDefinition !== undefined) c.sheetDefinition = data.sheetDefinition;
+          if (data.sheetPages !== undefined) c.sheetPages = data.sheetPages;
         }
       },
       findCampaignCharacters: async () => characters.map((c) => ({ ...c })),
@@ -390,6 +391,109 @@ describe('UpdateCampaignUseCase', () => {
       assert.equal(characterUpdates.length, 0);
     });
   });
+  describe('UpdateCampaignUseCase - fiche graphique multi-pages', () => {
+    const validSheetPages = {
+      version: 1,
+      pages: [
+        {
+          id: 'graphic-page-1',
+          title: 'Identité',
+          bgType: 'image',
+          image: '/files/campagnes/1/feuille.png',
+          html: '',
+          templateFields: '<div id="JDRollUserControl_1"></div>',
+        },
+        {
+          id: 'graphic-page-2',
+          title: 'Inventaire',
+          bgType: 'html',
+          html: '<p>Inventaire</p>',
+          templateFields: '',
+        },
+      ],
+    };
+
+    const createFeatureRepo = (enabled: boolean) => ({
+      findAll: async () => [],
+      findByName: async () => ({ id: 1, name: 'programmed-sheet', description: '', enabled }),
+      setEnabled: async () => {},
+    });
+
+    it('accepte et normalise un document multi-pages valide', async () => {
+      const { repo } = createMockCampaignRepo();
+      const useCase = new UpdateCampaignUseCase(
+        repo,
+        createMockForumRepo(),
+        new FeatureFlipService(createFeatureRepo(false) as any)
+      );
+
+      const result = await useCase.execute({
+        campaignId: 1,
+        userId: 10,
+        sheetMode: 'graphic',
+        sheetPages: JSON.stringify(validSheetPages),
+      });
+
+      assert.equal(result.sheetPages, JSON.stringify(validSheetPages));
+    });
+
+    it('efface les pages quand sheetPages est null', async () => {
+      const { repo, campaigns } = createMockCampaignRepo([
+        { ...initialCampaign, sheetPages: JSON.stringify(validSheetPages) },
+      ]);
+      const useCase = new UpdateCampaignUseCase(
+        repo,
+        createMockForumRepo(),
+        new FeatureFlipService(createFeatureRepo(false) as any)
+      );
+
+      const result = await useCase.execute({ campaignId: 1, userId: 10, sheetPages: null });
+
+      assert.equal(result.sheetPages, null);
+      assert.equal(campaigns[0].sheetPages, null);
+    });
+
+    it('lève ValidationError pour un JSON invalide ou une structure invalide', async () => {
+      const { repo } = createMockCampaignRepo();
+      const useCase = new UpdateCampaignUseCase(
+        repo,
+        createMockForumRepo(),
+        new FeatureFlipService(createFeatureRepo(false) as any)
+      );
+
+      await assert.rejects(
+        () => useCase.execute({ campaignId: 1, userId: 10, sheetPages: 'pas du json' }),
+        ValidationError
+      );
+
+      await assert.rejects(
+        () =>
+          useCase.execute({
+            campaignId: 1,
+            userId: 10,
+            sheetPages: JSON.stringify({ version: 1, pages: [] }),
+          }),
+        ValidationError
+      );
+
+      await assert.rejects(
+        () =>
+          useCase.execute({
+            campaignId: 1,
+            userId: 10,
+            sheetPages: JSON.stringify({
+              version: 1,
+              pages: [
+                validSheetPages.pages[0],
+                { ...validSheetPages.pages[0], title: 'Doublon' },
+              ],
+            }),
+          }),
+        ValidationError
+      );
+    });
+  });
+
   describe('UpdateCampaignUseCase - mode de feuille de personnage', () => {
   const validDefinition = {
     version: 1,

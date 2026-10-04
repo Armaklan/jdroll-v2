@@ -115,7 +115,8 @@ CREATE TABLE `campagne_config` (
                                    `widgets` mediumtext NOT NULL,
                                    `default_dice` varchar(50) DEFAULT NULL,
                                    `sheet_mode` varchar(20) DEFAULT NULL,
-                                   `sheet_definition` longtext
+                                   `sheet_definition` longtext,
+                                   `sheet_pages` longtext
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------

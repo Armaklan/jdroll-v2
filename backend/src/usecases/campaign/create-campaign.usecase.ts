@@ -38,6 +38,7 @@ export interface CreateCampaignDTO {
   widgets?: string | null;
   sheetMode?: string | null;
   sheetDefinition?: string | null;
+  sheetPages?: string | null;
 }
 
 export class CreateCampaignUseCase {
@@ -111,6 +112,7 @@ export class CreateCampaignUseCase {
       widgets: dto.widgets || null,
       sheetMode: dto.sheetMode || null,
       sheetDefinition: dto.sheetDefinition || null,
+      sheetPages: dto.sheetPages || null,
     });
 
     const createdCampaign = await this.campaignRepo.findById(campaignId);

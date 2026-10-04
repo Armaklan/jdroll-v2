@@ -5,7 +5,7 @@ import {campaignsApi} from '../api/campaigns';
 import {WysiwygEditor} from '../components/WysiwygEditor';
 import {DiceTowerModal} from '../components/DiceTowerModal';
 import {CampaignHeader} from '../components/CampaignHeader';
-import {CharacterSheetRenderer} from '../components/CharacterSheetRenderer';
+import {GraphicSheetPages} from '../components/GraphicSheetPages';
 import {ProgrammedSheetRenderer} from '../components/ProgrammedSheetRenderer';
 import {CharacterWidgetsRenderer} from '../components/CharacterWidgetsRenderer';
 import {CharacterWidgetsEditor} from '../components/CharacterWidgetsEditor';
@@ -1310,11 +1310,18 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                 if (!Boolean(
                   selectedCharacter.templateImg ||
                   selectedCharacter.templateHtml ||
+                  data?.campaign?.sheetPages ||
                   data?.campaign?.templateImg ||
                   data?.campaign?.templateHtml ||
                   data?.campaign?.templateFields ||
                   selectedCharacter.templateFields
                 )) return null;
+
+                const hasCharacterTemplate = Boolean(
+                  selectedCharacter.templateImg ||
+                  selectedCharacter.templateHtml ||
+                  selectedCharacter.templateFields
+                );
 
                 return (
                   <div className="space-y-2 pt-2 border-t border-slate-100">
@@ -1322,15 +1329,13 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                       <LayoutTemplate className="w-4 h-4 text-indigo-600" />
                       <span>Feuille de personnage</span>
                     </h3>
-                    <CharacterSheetRenderer
+                    <GraphicSheetPages
                       mode="read-only"
+                      sheetPages={hasCharacterTemplate ? null : data?.campaign?.sheetPages}
+                      legacyImg={selectedCharacter.templateImg || data?.campaign?.templateImg}
+                      legacyHtml={selectedCharacter.templateHtml || data?.campaign?.templateHtml}
+                      legacyFields={selectedCharacter.templateFields || data?.campaign?.templateFields}
                       canvasWidth={data?.campaign?.width || '800px'}
-                      bgType={
-                        (selectedCharacter.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
-                      }
-                      templateImg={selectedCharacter.templateImg || data?.campaign?.templateImg}
-                      templateHtml={selectedCharacter.templateHtml || data?.campaign?.templateHtml}
-                      templateFields={selectedCharacter.templateFields || data?.campaign?.templateFields}
                       persoFields={selectedCharacter.persoFields}
                       textColor={data?.campaign?.textColor}
                     />
@@ -1802,11 +1807,18 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                   if (!Boolean(
                     data?.campaign?.templateImg ||
                     data?.campaign?.templateHtml ||
+                    data?.campaign?.sheetPages ||
                     data?.campaign?.templateFields ||
                     editingCharacter?.templateImg ||
                     editingCharacter?.templateHtml ||
                     editingCharacter?.templateFields
                   )) return null;
+
+                  const hasCharacterTemplate = Boolean(
+                    editingCharacter?.templateImg ||
+                    editingCharacter?.templateHtml ||
+                    editingCharacter?.templateFields
+                  );
 
                   return (
                     <div className="space-y-2 pt-4 border-t border-slate-100">
@@ -1817,15 +1829,13 @@ export const CampaignCharactersPage: React.FC<CampaignCharactersPageProps> = ({
                       <p className="text-xs text-slate-500">
                         Remplissez les valeurs des champs superposés sur le fond de la fiche.
                       </p>
-                      <CharacterSheetRenderer
+                      <GraphicSheetPages
                         mode="fill"
+                        sheetPages={hasCharacterTemplate ? null : data?.campaign?.sheetPages}
+                        legacyImg={editingCharacter?.templateImg || data?.campaign?.templateImg}
+                        legacyHtml={editingCharacter?.templateHtml || data?.campaign?.templateHtml}
+                        legacyFields={editingCharacter?.templateFields || data?.campaign?.templateFields}
                         canvasWidth={data?.campaign?.width || '800px'}
-                        bgType={
-                          (editingCharacter?.templateImg || data?.campaign?.templateImg) ? 'image' : 'html'
-                        }
-                        templateImg={editingCharacter?.templateImg || data?.campaign?.templateImg}
-                        templateHtml={editingCharacter?.templateHtml || data?.campaign?.templateHtml}
-                        templateFields={editingCharacter?.templateFields || data?.campaign?.templateFields}
                         values={formData.persoFields}
                         onValuesChange={(newValues) =>
                           setFormData((prev) => ({ ...prev, persoFields: newValues }))
