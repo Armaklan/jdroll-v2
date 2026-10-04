@@ -15,6 +15,7 @@ Pour une campagne espritjdr donnée (argument `--campaign-id`) :
 | `post_theme`                    | `posts`                                       |
 | `hj_post` (+ `hj_post_reponse`) | bloc `[private=...]` ajouté au contenu du post principal |
 | `demande_jet`                   | `dicer` + post de jet de dés (carte du site)   |
+| `generateur_fiche` (option `--fiche-id`) | fiche codée jdroll : `campagne_config.template_img` + `template_fields` + `text_color` |
 
 - Un compte technique jdroll (par défaut `EspritJDR`) est créé s'il n'existe pas :
   il devient MJ de toutes les campagnes migrées et auteur par défaut des posts.
@@ -50,6 +51,19 @@ Pour une campagne espritjdr donnée (argument `--campaign-id`) :
   auteur), inséré juste après le post lié ; si le post lié était déjà migré, le
   post de jet est ajouté en fin du topic du post lié.
 - Les topics issus de groupes fermés ou archivés sont créés fermés (`is_closed`).
+- **Fiches du générateur** (`generateur_fiche`, option `--fiche-id`) : la fiche
+  XML choisie est convertie en fiche codée jdroll et appliquée à la campagne
+  migrée (`template_img` = image de fond de la fiche, téléchargée dans `files/`
+  sauf `--noimg` ; `text_color` = `txtcouleur` racine ; `template_fields` =
+  un champ par `text`/`total`/`titre` et une zone de texte par `area`, positions
+  et tailles conservées). La fiche est une configuration de campagne côté
+  jdroll, pas de personnage. Le lien campagne -> fiche n'existe pas en base
+  espritjdr : il passe par le système de jeu (`campagne.jeu_ID` ->
+  `jeu.ficheXML`), les fiches de `generateur_fiche` étant personnelles à un
+  utilisateur. Les fonctionnalités espritjdr sans équivalent jdroll (onglets,
+  cases à cocher, boutons radio, jets liés aux champs, mise en forme par
+  champ...) sont listées dans [FONCTIONNALITES_NON_MIGREES.md](./FONCTIONNALITES_NON_MIGREES.md)
+  et recensées dans le rapport de migration.
 
 ## Idempotence
 
@@ -61,8 +75,12 @@ et une migration interrompue peut être relancée : les éléments déjà migré
 
 ```bash
 cp .env.example .env   # adapter la connexion MySQL
-npm run migrate -- --campaign-id 1356 [--force] [--noimg]
+npm run migrate -- --campaign-id 1356 [--fiche-id 8] [--force] [--noimg]
 ```
+
+- `--fiche-id` : convertit la fiche du générateur espritjdr (identifiant
+  `generateur_fiche.ID`) en fiche codée jdroll et l'applique à la campagne
+  migrée.
 
 - `--force` : supprime la campagne jdroll déjà migrée puis la réimporte intégralement.
 - `--noimg` : ne télécharge pas les images (avatars et images inline) ; les liens

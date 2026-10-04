@@ -7,8 +7,10 @@ import {
 import { mapCampaign, mapIntervenant } from '../mappers/espritjdr.mapper.js';
 import { buildHjPrivateBlock } from '../mappers/hj.mapper.js';
 import { buildDicePostContent, mapDiceRequest } from '../mappers/dice.mapper.js';
+import { mapFicheToSheetTemplate, serializeSheetFields } from '../mappers/sheet.mapper.js';
 import {
   MigrationReport,
+  SheetMigrationReport,
   SourceIntervenant,
   SourceMjIntervenant,
   SourceHjPost,
@@ -20,6 +22,7 @@ import type { SectionPlan, TopicPlan } from '../mappers/forum-structure.mapper.j
 import {
   CampaignNotFoundError,
   CampaignAlreadyMigratedError,
+  FicheNotFoundError,
 } from '../errors/migration.errors.js';
 import {
   IImageDownloader,
@@ -38,6 +41,11 @@ export interface MigrateCampaignOptions {
   force: boolean;
   /** Ne télécharge pas les images : les liens d'origine sont conservés. */
   noImages: boolean;
+  /**
+   * Fiche du générateur espritjdr (generateur_fiche.ID) convertie en fiche
+   * codée jdroll et appliquée à la campagne migrée. Null : pas de fiche.
+   */
+  ficheId: number | null;
 }
 
 export class MigrateCampaignUseCase {
@@ -283,6 +291,8 @@ export class MigrateCampaignUseCase {
       );
     await this.target.createDiceRollsWithMapping(diceRolls);
 
+    const sheet = await this.applySheet(targetCampaignId);
+
     return {
       sourceCampaignId: campaignId,
       targetCampaignId,
@@ -299,7 +309,63 @@ export class MigrateCampaignUseCase {
       skippedPosts,
       participants,
       assistants,
+      sheet,
     };
+  }
+
+  /**
+   * Convertit la fiche du générateur demandée (--fiche-id) en fiche codée
+   * jdroll et l'applique à campagne_config de la campagne migrée (fond,
+   * champs, couleur du texte). Idempotent : une fiche déjà appliquée
+   * (mapping `fiche:<id>`) n'est pas reappliquée.
+   */
+  private async applySheet(targetCampaignId: number): Promise<SheetMigrationReport | null> {
+    const ficheId = this.options.ficheId;
+    if (ficheId === null) {
+      return null;
+    }
+
+    const key = `fiche:${ficheId}`;
+    if ((await this.target.getMigrationTargetId('generateur_fiche', key)) !== null) {
+      return null;
+    }
+
+    const fiche = await this.source.getFiche(ficheId);
+    if (!fiche) {
+      throw new FicheNotFoundError(ficheId);
+    }
+
+    const plan = mapFicheToSheetTemplate(fiche.contenuXml);
+    const background = await this.downloadSheetBackground(targetCampaignId, plan.backgroundImage);
+
+    await this.target.applyCampaignSheet(key, targetCampaignId, {
+      templateImg: background ?? plan.backgroundImage,
+      templateFields: serializeSheetFields(plan.fields),
+      textColor: plan.textColor,
+    });
+
+    return {
+      sourceFicheId: fiche.id,
+      ficheNom: fiche.nom,
+      fields: plan.fields.length,
+      unsupported: plan.unsupported,
+    };
+  }
+
+  /** Télécharge le fond de fiche espritjdr dans files/ ; null si non applicable. */
+  private async downloadSheetBackground(
+    targetCampaignId: number,
+    backgroundImage: string | null
+  ): Promise<string | null> {
+    if (this.options.noImages || !isDownloadableImageUrl(backgroundImage)) {
+      return null;
+    }
+    const sourceUrl = (backgroundImage as string).trim();
+    return this.imageDownloader.downloadToCampaign(
+      targetCampaignId,
+      buildInlineImageFilename(sourceUrl),
+      sourceUrl
+    );
   }
 
   /**
@@ -327,6 +393,7 @@ export class MigrateCampaignUseCase {
         }
         return keys;
       }),
+      ...(this.options.ficheId !== null ? [`fiche:${this.options.ficheId}`] : []),
     ];
   }
 

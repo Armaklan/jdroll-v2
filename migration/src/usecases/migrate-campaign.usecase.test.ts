@@ -29,7 +29,9 @@ import {
   SourceMjIntervenant,
   SourceHjPost,
   SourceDiceRequest,
+  SourceFiche,
 } from '../types.js';
+import { FicheNotFoundError } from '../errors/migration.errors.js';
 
 const CAMPAIGN: SourceCampaign = {
   id: 1356,
@@ -195,6 +197,11 @@ class InMemorySource implements IEspritJdrSource {
   intervenants: SourceIntervenant[] = INTERVENANTS;
   mjIntervenants: SourceMjIntervenant[] = MJ_INTERVENANTS;
   diceRequests: SourceDiceRequest[] = DICE_REQUESTS;
+  fiche: SourceFiche | null = null;
+
+  async getFiche(ficheId: number): Promise<SourceFiche | null> {
+    return this.fiche && this.fiche.id === ficheId ? this.fiche : null;
+  }
 
   async getCampaign(campaignId: number): Promise<SourceCampaign | null> {
     return this.campaign && this.campaign.id === campaignId ? this.campaign : null;
@@ -251,6 +258,7 @@ class InMemoryTarget implements IJdrollTarget {
   pnjMappings: Map<string, number> = new Map();
   diceRollMappings: Map<string, number> = new Map();
   dicePostMappings: Map<string, number> = new Map();
+  ficheMappings: Map<string, number> = new Map();
 
   createdUsernames: string[] = [];
   createdCampaigns: any[] = [];
@@ -259,6 +267,7 @@ class InMemoryTarget implements IJdrollTarget {
   createdPnjs: any[] = [];
   createdPosts: any[] = [];
   createdDiceRolls: any[] = [];
+  appliedSheets: { sourceKey: string; campagneId: number; data: any }[] = [];
   deletedMigrations: { targetCampaignId: number; sourceKeys: string[] }[] = [];
 
   // Utilisateurs jdroll préexistants (pseudo -> id)
@@ -306,6 +315,7 @@ class InMemoryTarget implements IJdrollTarget {
       : sourceTable === 'section' ? this.sectionMappings
       : sourceTable === 'topic' ? this.topicMappings
       : sourceTable === 'intervenant' ? this.pnjMappings
+      : sourceTable === 'generateur_fiche' ? this.ficheMappings
       : sourceTable === 'demande_jet'
         ? sourceKey.startsWith('demande_jet_post:')
           ? this.dicePostMappings
@@ -363,7 +373,13 @@ class InMemoryTarget implements IJdrollTarget {
       this.pnjMappings.delete(key);
       this.diceRollMappings.delete(key);
       this.dicePostMappings.delete(key);
+      this.ficheMappings.delete(key);
     }
+  }
+
+  async applyCampaignSheet(sourceKey: string, campagneId: number, data: any): Promise<void> {
+    this.appliedSheets.push({ sourceKey, campagneId, data });
+    this.ficheMappings.set(sourceKey, campagneId);
   }
 
   async createPostsWithMapping(topicId: number, items: any[]): Promise<void> {
@@ -411,13 +427,15 @@ function buildUseCase(
   target: IJdrollTarget,
   downloader: IImageDownloader = new FakeImageDownloader(),
   force: boolean = false,
-  noImages: boolean = false
+  noImages: boolean = false,
+  ficheId: number | null = null
 ): MigrateCampaignUseCase {
   return new MigrateCampaignUseCase(source, target, {
     userName: 'EspritJDR',
     userMail: 'espritjdr@migration.local',
     force,
     noImages,
+    ficheId,
   }, downloader);
 }
 
@@ -595,6 +613,7 @@ test('migrate une campagne complète : utilisateur technique, campagne, sections
     skippedPosts: 0,
     participants: 0,
     assistants: 0,
+    sheet: null,
   });
 });
 
@@ -992,4 +1011,84 @@ test('la ligne dicer d\'un jet est attribuée au joueur jdroll de l\'intervenant
     target.createdDiceRolls.map((r: any) => r.userId),
     [500, 1001, 500]
   );
+});
+
+const FICHE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<fiche id="fiche_generateur" generateur="1" image="http://www.espritjdr.net/Upload/generateur/8/fond.png" txtcouleur="#ffa93d" largeur="850" hauteur="762"><system_jet id="70"/>
+<text id="nom_perso" position_haut="14" position_gauche="122" valeur="Nom du personnage" largeur="195" hauteur="10"/>
+<area id="notes" position_haut="40" position_gauche="17" largeur="62" hauteur="62"/>
+<balise_jet des="0D10" titre="Initiative" balise_jet="balise_jet" balise_jet_code="0D10" balise_jet_param="titre=Initiative"><total id="initiative" position_haut="20" position_gauche="300" valeur="" largeur="33" hauteur="31"/></balise_jet>
+</fiche>`;
+
+test('--fiche-id : la fiche du générateur est convertie en fiche codée et appliquée à la campagne', async () => {
+  const source = new InMemorySource();
+  source.fiche = { id: 8, nom: 'Fiche générique', contenuXml: FICHE_XML };
+  const target = new InMemoryTarget();
+  const downloader = new FakeImageDownloader();
+  const useCase = buildUseCase(source, target, downloader, false, false, 8);
+
+  const report = await useCase.execute(1356);
+
+  assert.equal(report.sheet?.sourceFicheId, 8);
+  assert.equal(report.sheet?.ficheNom, 'Fiche générique');
+  assert.equal(report.sheet?.fields, 3);
+  assert.equal(report.sheet?.unsupported['balise_jet'], 1);
+  assert.equal(report.sheet?.unsupported['system_jet'], 1);
+
+  assert.equal(target.appliedSheets.length, 1);
+  const sheet = target.appliedSheets[0];
+  assert.equal(sheet.sourceKey, 'fiche:8');
+  assert.equal(sheet.campagneId, report.targetCampaignId);
+  // fond de fiche téléchargé comme les autres images de campagne
+  assert.equal(
+    sheet.data.templateImg,
+    `/files/${report.targetCampaignId}/${buildInlineImageFilename('http://www.espritjdr.net/Upload/generateur/8/fond.png')}`
+  );
+  assert.equal(sheet.data.textColor, '#ffa93d');
+  assert.match(sheet.data.templateFields, /id="hiddenFieldsCount" value="3"/);
+  assert.match(sheet.data.templateFields, /id="JDRollUserControl_1"[^>]*style="position: absolute; top: 14px; left: 122px; width: 195px; right: auto; height: 10px; bottom: auto;"/);
+  assert.match(sheet.data.templateFields, /<a id="JDRollUserControlLink2_child" data-type="textarea"/);
+  assert.ok(
+    downloader.calls.some(
+      (c) => c.sourceUrl === 'http://www.espritjdr.net/Upload/generateur/8/fond.png'
+    )
+  );
+});
+
+test('--fiche-id --noimg : le lien du fond d\'origine est conservé', async () => {
+  const source = new InMemorySource();
+  source.fiche = { id: 8, nom: 'Fiche générique', contenuXml: FICHE_XML };
+  const target = new InMemoryTarget();
+  const downloader = new FakeImageDownloader();
+  const useCase = buildUseCase(source, target, downloader, false, true, 8);
+
+  await useCase.execute(1356);
+
+  assert.equal(
+    target.appliedSheets[0].data.templateImg,
+    'http://www.espritjdr.net/Upload/generateur/8/fond.png'
+  );
+  assert.ok(downloader.calls.length === 0);
+});
+
+test('--fiche-id : une fiche inconnue échoue avec FicheNotFoundError', async () => {
+  const source = new InMemorySource();
+  source.fiche = null;
+  const target = new InMemoryTarget();
+  const useCase = buildUseCase(source, target, new FakeImageDownloader(), false, false, 99);
+
+  await assert.rejects(() => useCase.execute(1356), FicheNotFoundError);
+});
+
+test('reprise : une fiche déjà appliquée n\'est pas reappliquée', async () => {
+  const source = new InMemorySource();
+  source.fiche = { id: 8, nom: 'Fiche générique', contenuXml: FICHE_XML };
+  const target = new InMemoryTarget();
+  target.ficheMappings.set('fiche:8', 1002);
+  const useCase = buildUseCase(source, target, new FakeImageDownloader(), false, false, 8);
+
+  const report = await useCase.execute(1356);
+
+  assert.equal(target.appliedSheets.length, 0);
+  assert.equal(report.sheet, null);
 });

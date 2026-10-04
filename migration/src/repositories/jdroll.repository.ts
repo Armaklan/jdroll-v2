@@ -6,6 +6,7 @@ import {
   NewPnjData,
   NewPostData,
   NewDiceRollData,
+  NewCampaignSheetData,
 } from '../types.js';
 import {
   targetQuery,
@@ -33,6 +34,16 @@ export interface IJdrollTarget {
   createPnjWithMapping(sourceKey: string, data: NewPnjData): Promise<number>;
   createPostsWithMapping(topicId: number, posts: NewPostData[]): Promise<void>;
   createDiceRollsWithMapping(rolls: NewDiceRollData[]): Promise<void>;
+  /**
+   * Applique une fiche codée à campagne_config d'une campagne migrée
+   * (template_img, template_fields, text_color) et mémorise la correspondance
+   * source `generateur_fiche` -> campagne (clé `fiche:<id>`).
+   */
+  applyCampaignSheet(
+    sourceKey: string,
+    campaignId: number,
+    data: NewCampaignSheetData
+  ): Promise<void>;
   deleteCampaignMigration(targetCampaignId: number, sourceKeys: string[]): Promise<void>;
 }
 
@@ -352,6 +363,31 @@ export class MysqlJdrollTarget implements IJdrollTarget {
    * Les clés étrangères sans cascade (topics.last_post_id, read_post.topic_id)
    * sont détachées/vidées avant la suppression.
    */
+  /**
+   * Applique une fiche codée à campagne_config (upsert : la ligne de config est
+   * créée si absente) et mémorise la correspondance source -> campagne.
+   */
+  async applyCampaignSheet(
+    sourceKey: string,
+    campaignId: number,
+    data: NewCampaignSheetData
+  ): Promise<void> {
+    await withTargetTransaction(async (connection) => {
+      await connection.query(
+        `INSERT INTO campagne_config (
+           campagne_id, template, sidebar_text, link_sidebar_color,
+           widgets, template_img, template_fields, text_color
+         ) VALUES (?, '', '', '', '', ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           template_img = VALUES(template_img),
+           template_fields = VALUES(template_fields),
+           text_color = VALUES(text_color)`,
+        [campaignId, data.templateImg, data.templateFields, data.textColor]
+      );
+      await insertMapping(connection, 'generateur_fiche', sourceKey, 'campagne', campaignId);
+    });
+  }
+
   async deleteCampaignMigration(targetCampaignId: number, sourceKeys: string[]): Promise<void> {
     await withTargetTransaction(async (connection) => {
       if (sourceKeys.length > 0) {

@@ -9,6 +9,7 @@ import {
   SourceMjIntervenant,
   SourceHjPost,
   SourceDiceRequest,
+  SourceFiche,
 } from '../types.js';
 import { queryOne, query } from '../db/mysql.js';
 
@@ -24,6 +25,7 @@ export interface IEspritJdrSource {
   getPostIdsByCampaign(campaignId: number): Promise<number[]>;
   getHjPostsByTheme(themeId: number): Promise<SourceHjPost[]>;
   getDiceRequestsByCampaign(campaignId: number): Promise<SourceDiceRequest[]>;
+  getFiche(ficheId: number): Promise<SourceFiche | null>;
 }
 
 interface CampaignRow {
@@ -396,6 +398,33 @@ export class MysqlEspritJdrSource implements IEspritJdrSource {
       postThemeId: row.post_theme_ID ?? null,
     }));
   }
+
+  /**
+   * Fiche du générateur (table `generateur_fiche`) : fiches personnalisées
+   * conçues par un utilisateur via le module "générateur de fiche" espritjdr.
+   */
+  async getFiche(ficheId: number): Promise<SourceFiche | null> {
+    const row = await queryOne<FicheRow>(
+      `SELECT ID, nom, contenu_xml
+         FROM generateur_fiche
+        WHERE ID = ?`,
+      [ficheId]
+    );
+    if (!row) {
+      return null;
+    }
+    return {
+      id: row.ID,
+      nom: row.nom,
+      contenuXml: row.contenu_xml,
+    };
+  }
+}
+
+interface FicheRow {
+  ID: number;
+  nom: string;
+  contenu_xml: string;
 }
 
 export const espritJdrSource = new MysqlEspritJdrSource();

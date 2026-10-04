@@ -23,3 +23,10 @@ export class CampaignAlreadyMigratedError extends MigrationError {
     this.targetCampaignId = targetCampaignId;
   }
 }
+
+export class FicheNotFoundError extends MigrationError {
+  constructor(ficheId: number) {
+    super(`La fiche du générateur espritjdr avec l'identifiant ${ficheId} n'existe pas`);
+    this.name = 'FicheNotFoundError';
+  }
+}

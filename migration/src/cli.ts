@@ -25,8 +25,22 @@ function parseNoImages(argv: string[]): boolean {
   return argv.includes('--noimg');
 }
 
+function parseFicheId(argv: string[]): number | null {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg.startsWith('--fiche-id=')) {
+      return Number(arg.slice('--fiche-id='.length));
+    }
+    if (arg === '--fiche-id' && i + 1 < argv.length) {
+      return Number(argv[i + 1]);
+    }
+  }
+  return null;
+}
+
 function printUsage(): void {
-  console.error('Usage : npm run migrate -- --campaign-id <id de la campagne espritjdr> [--force] [--noimg]');
+  console.error('Usage : npm run migrate -- --campaign-id <id de la campagne espritjdr> [--fiche-id <id generateur_fiche>] [--force] [--noimg]');
+  console.error('  --fiche-id : convertit la fiche du générateur espritjdr en fiche codée jdroll et l\'applique à la campagne migrée');
   console.error('  --force : supprime la campagne jdroll déjà migrée puis la réimporte intégralement');
   console.error('  --noimg : ne télécharge pas les images, les liens d\'origine sont conservés');
 }
@@ -45,6 +59,7 @@ async function main(): Promise<void> {
     userMail: config.migrationUser.mail,
     force: parseForce(process.argv.slice(2)),
     noImages: parseNoImages(process.argv.slice(2)),
+    ficheId: parseFicheId(process.argv.slice(2)),
   }, new HttpImageDownloader());
 
   try {
@@ -66,6 +81,14 @@ async function main(): Promise<void> {
     console.log(`  Posts déjà migrés (ignorés) : ${report.skippedPosts}`);
     console.log(`  Utilisateurs rattachés (participants + persos) : ${report.participants}`);
     console.log(`  MJ assistants rattachés : ${report.assistants}`);
+    if (report.sheet) {
+      console.log(`  Fiche du générateur convertie (${report.sheet.ficheNom}) : ${report.sheet.fields} champs`);
+      const unsupported = Object.entries(report.sheet.unsupported);
+      if (unsupported.length > 0) {
+        console.log(`  Fonctionnalités sans équivalent jdroll : ${unsupported.map(([k, n]) => `${k} (${n})`).join(', ')}`);
+        console.log('  Détail : migration/FONCTIONNALITES_NON_MIGREES.md');
+      }
+    }
   } catch (error) {
     console.error(`Échec de la migration : ${(error as Error).message}`);
     process.exitCode = 1;

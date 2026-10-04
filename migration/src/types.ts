@@ -165,6 +165,35 @@ export interface NewDiceRollData {
   description: string;
 }
 
+/**
+ * Fiche du générateur espritjdr (table `generateur_fiche`) : contenu XML de la
+ * fiche telle que conçue par l'utilisateur.
+ */
+export interface SourceFiche {
+  id: number;
+  nom: string;
+  contenuXml: string;
+}
+
+/** Fiche codée jdroll appliquée à campagne_config lors d'une migration. */
+export interface NewCampaignSheetData {
+  /** Image de fond (campagne_config.template_img), url locale ou d'origine. */
+  templateImg: string | null;
+  /** HTML des champs (campagne_config.template_fields). */
+  templateFields: string;
+  /** Couleur du texte des champs (campagne_config.text_color). */
+  textColor: string | null;
+}
+
+export interface SheetMigrationReport {
+  sourceFicheId: number;
+  ficheNom: string;
+  /** Nombre de champs convertis dans la fiche codée. */
+  fields: number;
+  /** Fonctionnalités espritjdr sans équivalent jdroll (clé -> occurrences). */
+  unsupported: Record<string, number>;
+}
+
 export interface MigrationReport {
   sourceCampaignId: number;
   targetCampaignId: number;
@@ -187,4 +216,6 @@ export interface MigrationReport {
   participants: number;
   /** Utilisateurs jdroll rattachés à un intervenant MJ (type 2) ajoutés MJ assistants. */
   assistants: number;
+  /** Fiche du générateur convertie en fiche codée, null si non demandé ou déjà appliquée. */
+  sheet: SheetMigrationReport | null;
 }
