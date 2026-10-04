@@ -64,7 +64,7 @@ export const HomeStats: React.FC = () => {
       {/* Currently online users */}
       <div
         data-testid="home-stats-online"
-        className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs"
+        className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs max-h-80 overflow-auto"
       >
         <div className="flex items-center gap-2 mb-3">
           <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center">
@@ -74,7 +74,7 @@ export const HomeStats: React.FC = () => {
         </div>
         {onlineUsers.length > 0 ? (
           <ul>
-            {onlineUsers.slice(0, 8).map((user) => (
+            {onlineUsers.map((user) => (
               <UserListItem key={user.id} user={user} />
             ))}
           </ul>
