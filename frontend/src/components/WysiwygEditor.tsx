@@ -42,6 +42,7 @@ import {
   Users,
 } from 'lucide-react';
 import { campaignsApi } from '../api/campaigns';
+import { cleanFormatting } from '../utils/wysiwyg-format-cleaner';
 import { uploadsApi } from '../api/uploads';
 
 interface WysiwygEditorProps {
@@ -209,6 +210,43 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       editorRef.current.focus();
     }
     document.execCommand(command, false, arg);
+    handleInput();
+  };
+
+  // Efface TOUT le formatage de la sélection (ou de tout le contenu si aucune sélection) :
+  // execCommand('removeFormat') seul ne retire ni les classes RP (dialogue, hrp, ...),
+  // ni les styles/classes issus d'un copier-coller externe.
+  const handleRemoveFormat = () => {
+    if (disabled || isSourceMode) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.focus();
+
+    const selection = window.getSelection();
+    const range =
+      selection && selection.rangeCount > 0 && editor.contains(selection.anchorNode)
+        ? selection.getRangeAt(0)
+        : null;
+
+    if (range && !range.collapsed) {
+      const container = document.createElement('div');
+      container.appendChild(range.extractContents());
+      const template = document.createElement('template');
+      template.innerHTML = cleanFormatting(container.innerHTML);
+      const insertedNodes = Array.from(template.content.childNodes);
+      range.deleteContents();
+      range.insertNode(template.content);
+      if (insertedNodes.length > 0) {
+        const newRange = document.createRange();
+        newRange.setStartBefore(insertedNodes[0]);
+        newRange.setEndAfter(insertedNodes[insertedNodes.length - 1]);
+        selection!.removeAllRanges();
+        selection!.addRange(newRange);
+      }
+    } else {
+      editor.innerHTML = cleanFormatting(editor.innerHTML);
+    }
+
     handleInput();
   };
 
@@ -1320,7 +1358,7 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           </button>
           <button
             type="button"
-            onClick={() => executeCommand('removeFormat')}
+            onClick={handleRemoveFormat}
             disabled={disabled || isSourceMode}
             title="Effacer le style / mise en forme"
             className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 hover:text-slate-800 disabled:opacity-40 transition cursor-pointer"
