@@ -3,6 +3,7 @@ import {useNavigate} from 'react-router-dom';
 import {CampaignRole, CampaignSummary} from '../types/campaign';
 import {useAuth} from '../contexts/AuthContext';
 import {getUserColorClass} from '../utils/user';
+import {stopEvent} from '../utils/stop-event';
 import {
   AlertCircle,
   Archive,
@@ -101,7 +102,7 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   };
 
   const handleForumClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    stopEvent(e);
     if (onSelectCampaign) {
       onSelectCampaign(campaign.id);
     } else {
@@ -110,14 +111,14 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   };
 
   const handleDetailClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    stopEvent(e);
     if (onOpenDetail) {
       onOpenDetail(campaign);
     }
   };
 
   const handleConfigureClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    stopEvent(e);
     if (onConfigure) {
       onConfigure(campaign.id);
     } else {
@@ -126,21 +127,21 @@ export const CampaignCard: React.FC<CampaignCardProps> = ({
   };
 
   const handleJoinClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    stopEvent(e);
     if (onJoin) {
       onJoin(campaign, e);
     }
   };
 
   const handleToggleObserveClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    stopEvent(e);
     if (onToggleObserve) {
       onToggleObserve(campaign, isObserver, e);
     }
   };
 
   const handleLeaveClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    stopEvent(e);
     setShowLeaveModal(true);
   };
 
