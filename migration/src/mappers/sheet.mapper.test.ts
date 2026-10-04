@@ -33,22 +33,23 @@ test('mapFicheToSheetTemplate convertit text/total en champs texte et area en te
 
   assert.equal(plan.fields.length, 4);
 
-  // text : position relative à la section_absolu (100, 50)
+  // text : position relative à la section_absolu (100, 50), mise à l'échelle
+  // 845px espritjdr -> 800px jdroll (facteur 800/845)
   const nom = plan.fields[0];
   assert.equal(nom.sourceId, 'nom_perso');
   assert.equal(nom.type, 'text');
-  assert.equal(nom.top, 114);
-  assert.equal(nom.left, 172);
-  assert.equal(nom.width, 195);
-  assert.equal(nom.height, 10);
+  assert.equal(nom.top, 108);
+  assert.equal(nom.left, 163);
+  assert.equal(nom.width, 185);
+  assert.equal(nom.height, 9);
   assert.equal(nom.defaultValue, 'Nom du personnage');
 
   // area : textarea
   const notes = plan.fields[1];
   assert.equal(notes.sourceId, 'notes');
   assert.equal(notes.type, 'textarea');
-  assert.equal(notes.top, 140);
-  assert.equal(notes.left, 67);
+  assert.equal(notes.top, 133);
+  assert.equal(notes.left, 63);
 
   // titre : label converti en champ texte portant le libellé
   const label = plan.fields[2];
@@ -60,9 +61,21 @@ test('mapFicheToSheetTemplate convertit text/total en champs texte et area en te
   const initiative = plan.fields[3];
   assert.equal(initiative.sourceId, 'initiative');
   assert.equal(initiative.type, 'text');
-  assert.equal(initiative.top, 20);
-  assert.equal(initiative.left, 300);
+  assert.equal(initiative.top, 19);
+  assert.equal(initiative.left, 284);
   assert.equal(initiative.defaultValue, '');
+});
+
+test('mapFicheToSheetTemplate met à l\'échelle les coordonnées du repère espritjdr (845px) vers le canvas jdroll (800px)', () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<fiche id="fiche_generateur" image="" txtcouleur=""><text id="t1" position_haut="845" position_gauche="845" valeur="" largeur="845" hauteur="845"/></fiche>`;
+
+  const plan = mapFicheToSheetTemplate(xml);
+
+  assert.equal(plan.fields[0].top, 800);
+  assert.equal(plan.fields[0].left, 800);
+  assert.equal(plan.fields[0].width, 800);
+  assert.equal(plan.fields[0].height, 800);
 });
 
 test('mapFicheToSheetTemplate recense les fonctionnalités sans équivalent jdroll', () => {
@@ -83,7 +96,7 @@ test('serializeSheetFields produit le HTML fiche codée jdroll', () => {
   const html = serializeSheetFields(plan.fields);
 
   assert.match(html, /<div id="JDRollUserControl_0"><input type="hidden" id="hiddenFieldsCount" value="4"><\/div>/);
-  assert.match(html, /id="JDRollUserControl_1"[^>]*style="position: absolute; top: 114px; left: 172px; width: 195px; right: auto; height: 10px; bottom: auto;"/);
+  assert.match(html, /id="JDRollUserControl_1"[^>]*style="position: absolute; top: 108px; left: 163px; width: 185px; right: auto; height: 9px; bottom: auto;"/);
   assert.match(html, /<a id="JDRollUserControlLink1_child" data-type="text" data-pk="1" class="editable editable-click editable-unsaved" data-original-title="" title="" style="background-color: rgba\(0, 0, 0, 0\);">Nom du personnage<\/a>/);
   assert.match(html, /<a id="JDRollUserControlLink2_child" data-type="textarea" data-pk="1" class="editable editable-pre-wrapped editable-click editable-unsaved editable-empty"/);
   // champ vide : contenu "Empty" et classe editable-empty
@@ -105,11 +118,11 @@ test('mapFicheToSheetTemplate gére une fiche avec section à onglets (multipage
 
   assert.equal(plan.fields.length, 2);
   assert.equal(plan.fields[0].sourceId, 'nom');
-  assert.equal(plan.fields[0].top, 10);
-  assert.equal(plan.fields[0].left, 10);
+  assert.equal(plan.fields[0].top, 9);
+  assert.equal(plan.fields[0].left, 9);
   assert.equal(plan.fields[1].sourceId, 'sac');
-  assert.equal(plan.fields[1].top, 20);
-  assert.equal(plan.fields[1].left, 20);
+  assert.equal(plan.fields[1].top, 19);
+  assert.equal(plan.fields[1].left, 19);
   // les onglets sont recensés comme non gérés
   assert.equal(plan.unsupported['onglet'], 2);
   assert.equal(plan.unsupported['section_image'], 1);

@@ -42,6 +42,12 @@ interface XmlNode {
 const TAG_RE = /<\?[\s\S]*?\?>|<(\/?)([A-Za-z_][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>/g;
 const ATTR_RE = /([A-Za-z_][\w-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g;
 
+/** Largeur d'affichage d'une fiche espritjdr (image de fond affichée en 845px). */
+const SOURCE_SHEET_WIDTH = 845;
+/** Largeur du canvas d'une fiche codée jdroll (campagne_config.width, défaut 800px). */
+const TARGET_SHEET_WIDTH = 800;
+const SHEET_SCALE = TARGET_SHEET_WIDTH / SOURCE_SHEET_WIDTH;
+
 function parseXml(xml: string): XmlNode {
   const root: XmlNode = { tag: '#document', attrs: {}, children: [] };
   const stack: XmlNode[] = [root];
@@ -175,7 +181,9 @@ function walk(
  * fiche codée jdroll. Les éléments `text`/`total` deviennent des champs texte,
  * `area` des zones de texte, `titre` des champs texte portant le libellé
  * (jdroll n'a pas de label statique). Les positions sont absolues par rapport
- * à la fiche (les offsets de sections imbriquées s'additionnent).
+ * à la fiche (les offsets de sections imbriquées s'additionnent), puis mises
+ * à l'échelle du canvas jdroll : les fiches espritjdr sont affichées en
+ * 845px de large, le canvas jdroll en 800px.
  */
 export function mapFicheToSheetTemplate(contenuXml: string): SheetTemplatePlan {
   const root = parseXml(contenuXml);
@@ -184,6 +192,13 @@ export function mapFicheToSheetTemplate(contenuXml: string): SheetTemplatePlan {
   const fields: SheetFieldPlan[] = [];
   const unsupported: Record<string, number> = {};
   walk(fiche, 0, 0, fields, unsupported);
+
+  for (const field of fields) {
+    field.top = Math.round(field.top * SHEET_SCALE);
+    field.left = Math.round(field.left * SHEET_SCALE);
+    field.width = Math.round(field.width * SHEET_SCALE);
+    field.height = Math.round(field.height * SHEET_SCALE);
+  }
 
   const textColor = fiche.attrs['txtcouleur']?.trim() ?? '';
 

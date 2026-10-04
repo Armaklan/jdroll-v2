@@ -30,6 +30,7 @@ import {
   SourceHjPost,
   SourceDiceRequest,
   SourceFiche,
+  SourceHabillage,
 } from '../types.js';
 import { FicheNotFoundError } from '../errors/migration.errors.js';
 
@@ -82,6 +83,13 @@ const INTERVENANTS: SourceIntervenant[] = [
     utilisateurPseudo: 'Quincey',
   },
 ];
+
+const BANDEAU_URL = 'http://www.espritjdr.net/Upload/campagnes/1356/habillage/bandeau.png';
+
+const HABILLAGE: SourceHabillage = {
+  campagneId: 1356,
+  bandeau: BANDEAU_URL,
+};
 
 // Intervenants non importés comme personnages : CREA (type 1) et MJ (type 2)
 const MJ_INTERVENANTS: SourceMjIntervenant[] = [
@@ -198,9 +206,14 @@ class InMemorySource implements IEspritJdrSource {
   mjIntervenants: SourceMjIntervenant[] = MJ_INTERVENANTS;
   diceRequests: SourceDiceRequest[] = DICE_REQUESTS;
   fiche: SourceFiche | null = null;
+  habillage: SourceHabillage | null = HABILLAGE;
 
   async getFiche(ficheId: number): Promise<SourceFiche | null> {
     return this.fiche && this.fiche.id === ficheId ? this.fiche : null;
+  }
+
+  async getHabillageByCampaign(): Promise<SourceHabillage | null> {
+    return this.habillage;
   }
 
   async getCampaign(campaignId: number): Promise<SourceCampaign | null> {
@@ -268,6 +281,7 @@ class InMemoryTarget implements IJdrollTarget {
   createdPosts: any[] = [];
   createdDiceRolls: any[] = [];
   appliedSheets: { sourceKey: string; campagneId: number; data: any }[] = [];
+  appliedBanners: { campaignId: number; bannerUrl: string }[] = [];
   deletedMigrations: { targetCampaignId: number; sourceKeys: string[] }[] = [];
 
   // Utilisateurs jdroll préexistants (pseudo -> id)
@@ -382,6 +396,10 @@ class InMemoryTarget implements IJdrollTarget {
     this.ficheMappings.set(sourceKey, campagneId);
   }
 
+  async setCampaignBanner(campaignId: number, bannerUrl: string): Promise<void> {
+    this.appliedBanners.push({ campaignId, bannerUrl });
+  }
+
   async createPostsWithMapping(topicId: number, items: any[]): Promise<void> {
     for (const item of items) {
       const id = this.id();
@@ -493,7 +511,21 @@ test('migrate une campagne complète : utilisateur technique, campagne, sections
   assert.equal(target.createdPnjs[0].data.privateDescription, '<p>Description priv&eacute;e</p>');
   assert.equal(target.createdPnjs[1].data.publicDescription, '');
   assert.equal(target.createdPnjs[1].data.privateDescription, '');
+
+  // Bannière habillage : téléchargée une seule fois puis appliquée à la
+  // campagne (campagne.banniere et campagne_config.banniere)
+  assert.deepEqual(target.appliedBanners, [
+    {
+      campaignId: 1002,
+      bannerUrl: `/files/1002/${buildInlineImageFilename(BANDEAU_URL)}`,
+    },
+  ]);
   assert.deepEqual(downloader.calls, [
+    {
+      campaignId: 1002,
+      filename: buildInlineImageFilename(BANDEAU_URL),
+      sourceUrl: BANDEAU_URL,
+    },
     {
       campaignId: 1002,
       filename: 'pnj-50.png',
@@ -605,7 +637,7 @@ test('migrate une campagne complète : utilisateur technique, campagne, sections
     sections: 2,
     topics: 2,
     pnjs: 2,
-    images: 3,
+    images: 4,
     posts: 3,
     diceRolls: 3,
     dicePosts: 2,
@@ -737,7 +769,7 @@ test('force : supprime puis réimporte intégralement une campagne déjà migré
   // Réimport complet : plus rien n'est considéré comme déjà migré
   assert.equal(report.targetCampaignId, 1002);
   assert.equal(report.pnjs, 2);
-  assert.equal(report.images, 3);
+  assert.equal(report.images, 4);
   assert.equal(report.posts, 3);
   assert.equal(report.diceRolls, 3);
   assert.equal(report.dicePosts, 2);
@@ -784,6 +816,10 @@ test('laisse les liens d\'origine si le téléchargement des images échoue', as
   );
   assert.equal(report.pnjs, 2);
   assert.equal(report.images, 0);
+  // Bannière : échec du téléchargement, le lien d'origine est conservé
+  assert.deepEqual(target.appliedBanners, [
+    { campaignId: 1002, bannerUrl: BANDEAU_URL },
+  ]);
 });
 
 test('rattache un intervenant lié à un utilisateur jdroll connu : participant validé et perso associé', async () => {
@@ -959,6 +995,34 @@ test('--noimg : aucun téléchargement, les liens d\'origine des images sont con
   assert.equal(report.images, 0);
   assert.equal(report.pnjs, 2);
   assert.equal(report.posts, 3);
+  // Bannière : pas de téléchargement, le lien d'origine est conservé
+  assert.deepEqual(target.appliedBanners, [
+    { campaignId: 1002, bannerUrl: BANDEAU_URL },
+  ]);
+});
+
+test('sans habillage : aucune bannière n\'est appliquée', async () => {
+  const source = new InMemorySource();
+  source.habillage = null;
+  const target = new InMemoryTarget();
+  const downloader = new FakeImageDownloader();
+
+  const report = await buildUseCase(source, target, downloader).execute(1356);
+
+  assert.deepEqual(target.appliedBanners, []);
+  assert.equal(report.images, 3);
+});
+
+test('habillage avec un bandeau vide : aucune bannière n\'est appliquée', async () => {
+  const source = new InMemorySource();
+  source.habillage = { campagneId: 1356, bandeau: '' };
+  const target = new InMemoryTarget();
+  const downloader = new FakeImageDownloader();
+
+  const report = await buildUseCase(source, target, downloader).execute(1356);
+
+  assert.deepEqual(target.appliedBanners, []);
+  assert.equal(report.images, 3);
 });
 
 test('reprise : un jet lié à un post déjà migré est posté en fin de topic', async () => {
@@ -1046,7 +1110,7 @@ test('--fiche-id : la fiche du générateur est convertie en fiche codée et app
   );
   assert.equal(sheet.data.textColor, '#ffa93d');
   assert.match(sheet.data.templateFields, /id="hiddenFieldsCount" value="3"/);
-  assert.match(sheet.data.templateFields, /id="JDRollUserControl_1"[^>]*style="position: absolute; top: 14px; left: 122px; width: 195px; right: auto; height: 10px; bottom: auto;"/);
+  assert.match(sheet.data.templateFields, /id="JDRollUserControl_1"[^>]*style="position: absolute; top: 13px; left: 116px; width: 185px; right: auto; height: 9px; bottom: auto;"/);
   assert.match(sheet.data.templateFields, /<a id="JDRollUserControlLink2_child" data-type="textarea"/);
   assert.ok(
     downloader.calls.some(

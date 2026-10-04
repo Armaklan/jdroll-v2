@@ -15,6 +15,7 @@ import {
   SourceMjIntervenant,
   SourceHjPost,
   SourceDiceRequest,
+  SourceHabillage,
   NewPostData,
   NewDiceRollData,
 } from '../types.js';
@@ -71,7 +72,7 @@ export class MigrateCampaignUseCase {
 
     const ownerUserId = await this.ensureOwnerUser();
 
-    const [espaces, sections, groupes, themes, intervenants, mjIntervenants, diceRequests] =
+    const [espaces, sections, groupes, themes, intervenants, mjIntervenants, diceRequests, habillage] =
       await Promise.all([
         this.source.getEspaces(campaignId),
         this.source.getSections(campaignId),
@@ -80,6 +81,7 @@ export class MigrateCampaignUseCase {
         this.source.getIntervenantsByCampaign(campaignId),
         this.source.getMjIntervenantsByCampaign(campaignId),
         this.source.getDiceRequestsByCampaign(campaignId),
+        this.source.getHabillageByCampaign(campaignId),
       ]);
 
     const sectionPlans = buildSectionPlans(espaces, sections, groupes, themes);
@@ -102,6 +104,10 @@ export class MigrateCampaignUseCase {
       `campagne:${campaignId}`,
       mapCampaign(campaign, ownerUserId)
     );
+
+    // Bandeau de l'habillage espritjdr : bannière de la campagne, appliquée
+    // à la fois à campagne.banniere et campagne_config.banniere.
+    const bannerImages = await this.applyCampaignBanner(targetCampaignId, habillage);
 
     // Un CREA (type 1) unique rattaché à un utilisateur jdroll connu prend
     // la campagne à la place de l'utilisateur technique.
@@ -301,7 +307,7 @@ export class MigrateCampaignUseCase {
       sections: sectionPlans.length,
       topics: topicPlans.length,
       pnjs: createdPnjs,
-      images: pnjImages + postImages,
+      images: pnjImages + postImages + bannerImages,
       posts,
       diceRolls: diceRolls.length,
       dicePosts,
@@ -366,6 +372,41 @@ export class MigrateCampaignUseCase {
       buildInlineImageFilename(sourceUrl),
       sourceUrl
     );
+  }
+
+  /**
+   * Applique le bandeau de l'habillage espritjdr comme bannière de la
+   * campagne : l'image est téléchargée une seule fois dans files/, et son
+   * url jdroll est appliquée à la fois à campagne.banniere et
+   * campagne_config.banniere. Sans habillage ou bandeau vide : rien.
+   * En mode --noimg ou en cas d'échec, le lien d'origine est conservé.
+   * Retourne le nombre d'images téléchargées (0 ou 1).
+   */
+  private async applyCampaignBanner(
+    targetCampaignId: number,
+    habillage: SourceHabillage | null
+  ): Promise<number> {
+    const sourceUrl = habillage?.bandeau?.trim() ?? '';
+    if (sourceUrl === '') {
+      return 0;
+    }
+
+    let bannerUrl = sourceUrl;
+    let images = 0;
+    if (!this.options.noImages && isDownloadableImageUrl(sourceUrl)) {
+      const downloaded = await this.imageDownloader.downloadToCampaign(
+        targetCampaignId,
+        buildInlineImageFilename(sourceUrl),
+        sourceUrl
+      );
+      if (downloaded !== null) {
+        bannerUrl = downloaded;
+        images = 1;
+      }
+    }
+
+    await this.target.setCampaignBanner(targetCampaignId, bannerUrl);
+    return images;
   }
 
   /**

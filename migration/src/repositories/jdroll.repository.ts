@@ -44,6 +44,11 @@ export interface IJdrollTarget {
     campaignId: number,
     data: NewCampaignSheetData
   ): Promise<void>;
+  /**
+   * Applique une bannière à une campagne migrée : le même lien est écrit
+   * dans campagne.banniere et campagne_config.banniere (upsert).
+   */
+  setCampaignBanner(campaignId: number, bannerUrl: string): Promise<void>;
   deleteCampaignMigration(targetCampaignId: number, sourceKeys: string[]): Promise<void>;
 }
 
@@ -385,6 +390,26 @@ export class MysqlJdrollTarget implements IJdrollTarget {
         [campaignId, data.templateImg, data.templateFields, data.textColor]
       );
       await insertMapping(connection, 'generateur_fiche', sourceKey, 'campagne', campaignId);
+    });
+  }
+
+  /**
+   * Applique une bannière à une campagne migrée : le même lien est écrit
+   * dans campagne_config.banniere (upsert : la ligne de config est créée si
+   * absente) et campagne.banniere.
+   */
+  async setCampaignBanner(campaignId: number, bannerUrl: string): Promise<void> {
+    await withTargetTransaction(async (connection) => {
+      await connection.query(
+        `INSERT INTO campagne_config (campagne_id, banniere, template, sidebar_text, link_sidebar_color, widgets)
+         VALUES (?, ?, '', '', '', '')
+         ON DUPLICATE KEY UPDATE banniere = VALUES(banniere)`,
+        [campaignId, bannerUrl]
+      );
+      await connection.query('UPDATE campagne SET banniere = ? WHERE id = ?', [
+        bannerUrl,
+        campaignId,
+      ]);
     });
   }
 

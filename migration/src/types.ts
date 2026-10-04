@@ -8,6 +8,16 @@ export interface SourceCampaign {
   nbMaxJoueur: number;
 }
 
+/**
+ * Habillage espritjdr (table `habillage`) d'une campagne : le bandeau est
+ * importé comme bannière de la campagne jdroll (campagne.banniere et
+ * campagne_config.banniere).
+ */
+export interface SourceHabillage {
+  campagneId: number;
+  bandeau: string | null;
+}
+
 export interface SourceEspace {
   id: number;
   campagneId: number;

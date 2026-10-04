@@ -10,6 +10,7 @@ import {
   SourceHjPost,
   SourceDiceRequest,
   SourceFiche,
+  SourceHabillage,
 } from '../types.js';
 import { queryOne, query } from '../db/mysql.js';
 
@@ -26,6 +27,7 @@ export interface IEspritJdrSource {
   getHjPostsByTheme(themeId: number): Promise<SourceHjPost[]>;
   getDiceRequestsByCampaign(campaignId: number): Promise<SourceDiceRequest[]>;
   getFiche(ficheId: number): Promise<SourceFiche | null>;
+  getHabillageByCampaign(campaignId: number): Promise<SourceHabillage | null>;
 }
 
 interface CampaignRow {
@@ -419,12 +421,39 @@ export class MysqlEspritJdrSource implements IEspritJdrSource {
       contenuXml: row.contenu_xml,
     };
   }
+
+  /**
+   * Habillage (table `habillage`) d'une campagne : bandeau de titre importé
+   * comme bannière de la campagne jdroll.
+   */
+  async getHabillageByCampaign(campaignId: number): Promise<SourceHabillage | null> {
+    const row = await queryOne<HabillageRow>(
+      `SELECT campagne_ID, bandeau
+         FROM habillage
+        WHERE campagne_ID = ?
+        ORDER BY ID
+        LIMIT 1`,
+      [campaignId]
+    );
+    if (!row) {
+      return null;
+    }
+    return {
+      campagneId: row.campagne_ID,
+      bandeau: row.bandeau ?? null,
+    };
+  }
 }
 
 interface FicheRow {
   ID: number;
   nom: string;
   contenu_xml: string;
+}
+
+interface HabillageRow {
+  campagne_ID: number;
+  bandeau: string | null;
 }
 
 export const espritJdrSource = new MysqlEspritJdrSource();

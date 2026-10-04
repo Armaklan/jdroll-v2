@@ -51,7 +51,7 @@ le dump ne contient pas les valeurs saisies par personnage.
 | Longueur maximale de saisie | `size` (text/total) | Ignorée | Pas de limite de saisie |
 | Dimensions implicites de zone de texte | `nbrows`, `nbcols` (area) | Ignorées | La zone garde `largeur`/`hauteur` |
 | Totaux calculés / renvois entre champs | `total`, `ref`, `ref2`, `attribut` | Les `total` deviennent de simples champs texte | Pas de champ calculé en fiche codée |
-| Dimensions de la fiche | `largeur`/`hauteur` racine | Non appliquées | Canvas jdroll fixé par campagne (`campagne_config.width`, défaut 800px vs fiche espritjdr souvent 850px) |
+| Dimensions de la fiche | `largeur`/`hauteur` racine | Non appliquées | Canvas jdroll fixé par campagne (`campagne_config.width`, défaut 800px vs fiche espritjdr affichée en 845px) ; les coordonnées et tailles des champs sont mises à l'échelle 845 -> 800 px |
 | Fond de couleur de la fiche / des sections | `bgcouleur` racine et des sections | Ignoré | Fond = image (`template_img`) uniquement |
 | Répétition du fond | `norepeat` | Ignoré | Non applicable |
 

@@ -56,7 +56,8 @@ Pour une campagne espritjdr donnée (argument `--campaign-id`) :
   migrée (`template_img` = image de fond de la fiche, téléchargée dans `files/`
   sauf `--noimg` ; `text_color` = `txtcouleur` racine ; `template_fields` =
   un champ par `text`/`total`/`titre` et une zone de texte par `area`, positions
-  et tailles conservées). La fiche est une configuration de campagne côté
+  et tailles mises à l'échelle du canvas jdroll : les fiches espritjdr sont
+  affichées en 845px de large, le canvas jdroll en 800px). La fiche est une configuration de campagne côté
   jdroll, pas de personnage. Le lien campagne -> fiche n'existe pas en base
   espritjdr : il passe par le système de jeu (`campagne.jeu_ID` ->
   `jeu.ficheXML`), les fiches de `generateur_fiche` étant personnelles à un
