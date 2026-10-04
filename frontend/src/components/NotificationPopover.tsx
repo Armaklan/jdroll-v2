@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NotificationItem } from '../types/notification';
-import { Bell, Trash2, X, ExternalLink, MessageSquare, Dices, UserCheck, MessagesSquare } from 'lucide-react';
+import { Bell, Trash2, X, ExternalLink, MessageSquare, Dices, UserCheck, MessagesSquare, BellRing, BellOff } from 'lucide-react';
 import { formatNotificationDate } from '../utils/date';
+import {
+  getSystemNotificationPermission,
+  isSystemNotificationEnabled,
+  requestSystemNotificationPermission,
+  setSystemNotificationEnabled,
+} from '../utils/system-notifications';
 
 interface NotificationPopoverProps {
   isOpen: boolean;
@@ -22,7 +28,26 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
   onDeleteAll,
   onNavigateUrl,
 }) => {
+  const [systemNotificationsEnabled, setSystemNotificationsEnabled] = useState<boolean>(() =>
+    isSystemNotificationEnabled()
+  );
+  const systemNotifSupported = getSystemNotificationPermission() !== 'unsupported';
+
+  const handleToggleSystemNotifications = async () => {
+    if (systemNotificationsEnabled) {
+      setSystemNotificationEnabled(false);
+      setSystemNotificationsEnabled(false);
+      return;
+    }
+    const permission = await requestSystemNotificationPermission();
+    if (permission === 'granted') {
+      setSystemNotificationEnabled(true);
+      setSystemNotificationsEnabled(true);
+    }
+  };
+
   if (!isOpen) return null;
+
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -57,6 +82,29 @@ export const NotificationPopover: React.FC<NotificationPopoverProps> = ({
         </div>
 
         <div className="flex items-center gap-1">
+          {systemNotifSupported && (
+            <button
+              onClick={handleToggleSystemNotifications}
+              data-testid="system-notifications-toggle"
+              aria-pressed={systemNotificationsEnabled}
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                systemNotificationsEnabled
+                  ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100'
+                  : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200/60'
+              }`}
+              title={
+                systemNotificationsEnabled
+                  ? 'Désactiver les notifications système'
+                  : 'Recevoir les notifications du site sur mon ordinateur'
+              }
+            >
+              {systemNotificationsEnabled ? (
+                <BellRing className="w-4 h-4" />
+              ) : (
+                <BellOff className="w-4 h-4" />
+              )}
+            </button>
+          )}
           {notifications.length > 0 && (
             <button
               onClick={() => onDeleteAll()}

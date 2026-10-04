@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { useAuth } from './AuthContext';
 import { notificationsApi } from '../api/notifications';
 import { NotificationItem } from '../types/notification';
+import { showSystemNotification } from '../utils/system-notifications';
+import { setFaviconBadgeCount } from '../utils/favicon-badge';
 
 interface NotificationContextType {
   notifications: NotificationItem[];
@@ -115,6 +117,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 }
                 return [newNotif, ...prev];
               });
+              showSystemNotification(newNotif, {
+                onOpen: (url) => {
+                  window.location.assign(url);
+                },
+              });
             } else if (data.type === 'notification_deleted' && typeof data.id === 'number') {
               setNotifications((prev) => prev.filter((n) => n.id !== data.id));
             } else if (data.type === 'notifications_cleared') {
@@ -161,6 +168,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
     };
   }, [isAuthenticated, token, user?.id, fetchNotifications]);
+
+  useEffect(() => {
+    setFaviconBadgeCount(notifications.length);
+  }, [notifications.length]);
 
   return (
     <NotificationContext.Provider
