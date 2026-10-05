@@ -18,6 +18,8 @@ import {
   MessageCircle,
   Sparkles,
   HelpCircle,
+  IndentIncrease,
+  IndentDecrease,
   Upload,
   X,
   Loader2,
@@ -365,6 +367,39 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
     } else {
       document.execCommand('formatBlock', false, tag.startsWith('<') ? tag : `<${tag}>`);
+    }
+    handleInput();
+  };
+
+  // Décale le bloc courant (p, titre, citation) vers la droite en augmentant
+  // sa marge gauche, ou vers la gauche en la réduisant (palier de 40px, min 0)
+  const handleIndent = (direction: 'right' | 'left') => {
+    if (disabled || isSourceMode) return;
+    if (editorRef.current) {
+      editorRef.current.focus();
+    }
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !editorRef.current?.contains(selection.anchorNode)) {
+      return;
+    }
+    const INDENT_STEP_PX = 40;
+    let node: Node | null = selection.anchorNode;
+    while (node && node !== editorRef.current) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as HTMLElement;
+        const tag = el.tagName.toLowerCase();
+        if (['p', 'h1', 'h2', 'h3', 'blockquote'].includes(tag)) {
+          const current = parseInt(el.style.marginLeft, 10) || 0;
+          const next = Math.max(0, current + (direction === 'right' ? INDENT_STEP_PX : -INDENT_STEP_PX));
+          if (next > 0) {
+            el.style.marginLeft = `${next}px`;
+          } else {
+            el.style.removeProperty('margin-left');
+          }
+          break;
+        }
+      }
+      node = node.parentNode;
     }
     handleInput();
   };
@@ -1573,6 +1608,29 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
               className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition cursor-pointer"
             >
               <AlignJustify className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Décalage (indentation) */}
+          <div className="flex items-center gap-0.5 pr-2 border-r border-slate-300">
+            <span className="text-[11px] font-medium text-slate-500 mr-1 hidden sm:inline">Décalage :</span>
+            <button
+              type="button"
+              onClick={() => handleIndent('right')}
+              disabled={disabled || isSourceMode}
+              title="Décaler à droite"
+              className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition cursor-pointer"
+            >
+              <IndentIncrease className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleIndent('left')}
+              disabled={disabled || isSourceMode}
+              title="Décaler à gauche"
+              className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-700 disabled:opacity-40 transition cursor-pointer"
+            >
+              <IndentDecrease className="w-4 h-4" />
             </button>
           </div>
 

@@ -242,6 +242,50 @@ test.describe('Wysiwyg - Paragraphes <p> par défaut', () => {
   });
 });
 
+test.describe('Wysiwyg - Décalage du texte (indentation)', () => {
+  let settingsPage: SettingsPage;
+  let registerPage: RegisterPage;
+
+  test.beforeEach(async ({ page }) => {
+    settingsPage = new SettingsPage(page);
+    registerPage = new RegisterPage(page);
+
+    // Créer un utilisateur unique et se connecter (l'inscription connecte automatiquement)
+    const username = `e2e_indent_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    await registerPage.navigate();
+    await registerPage.register(username, `${username}@example.com`, 'password123');
+
+    await settingsPage.navigate();
+    await settingsPage.switchToProfileTab();
+  });
+
+  test('Décaler à droite augmente la marge gauche du paragraphe', async ({ page }) => {
+    const editor = page.locator('div[contenteditable="true"]');
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await page.keyboard.type('Texte décalé');
+
+    await page.locator('button[title="Plus d\'options (alignement, taille de police, tableaux)"]').click();
+    await page.locator('button[title="Décaler à droite"]').click();
+
+    await expect(editor.locator('p').first()).toHaveCSS('margin-left', '40px');
+  });
+
+  test('Décaler à gauche annule le décalage', async ({ page }) => {
+    const editor = page.locator('div[contenteditable="true"]');
+    await expect(editor).toBeVisible();
+    await editor.click();
+    await page.keyboard.type('Texte décalé');
+
+    await page.locator('button[title="Plus d\'options (alignement, taille de police, tableaux)"]').click();
+    await page.locator('button[title="Décaler à droite"]').click();
+    await expect(editor.locator('p').first()).toHaveCSS('margin-left', '40px');
+
+    await page.locator('button[title="Décaler à gauche"]').click();
+    await expect(editor.locator('p').first()).toHaveCSS('margin-left', '0px');
+  });
+});
+
 test.describe('Wysiwyg - Masqué / Privé : conservation du formatage', () => {
   let settingsPage: SettingsPage;
   let registerPage: RegisterPage;

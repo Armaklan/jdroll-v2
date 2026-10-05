@@ -95,6 +95,12 @@
   color: inherit;
 }
 
+.wysiwyg-content p,
+.post-content-container p,
+.wysiwyg-editor-area p {
+  margin-bottom: 0.75rem;
+}
+
 .wysiwyg-content blockquote,
 .post-content-container blockquote,
 .wysiwyg-editor-area blockquote {
