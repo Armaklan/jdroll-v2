@@ -186,6 +186,16 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
   }, [focusSignal, isSourceMode]);
 
+  // Le séparateur de paragraphe par défaut du navigateur est <div> ;
+  // on force <p> pour qu'un retour à la ligne crée un nouveau paragraphe
+  useEffect(() => {
+    try {
+      document.execCommand('defaultParagraphSeparator', false, 'p');
+    } catch {
+      // Non supporté : le comportement navigateur par défaut est conservé
+    }
+  }, []);
+
   // Synchronise le contenu externe avec le contentEditable quand ce n'est pas l'utilisateur qui tape
   useEffect(() => {
     if (editorRef.current && !isSourceMode) {
@@ -197,9 +207,81 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
     }
   }, [value, isSourceMode]);
 
+  // Balises de niveau bloc acceptées à la racine de l'éditeur :
+  // tout autre contenu direct (texte, span, img, br, ...) est inline
+  // et doit être encapsulé dans un paragraphe <p>
+  const ROOT_BLOCK_TAGS = new Set([
+    'P',
+    'H1',
+    'H2',
+    'H3',
+    'BLOCKQUOTE',
+    'UL',
+    'OL',
+    'TABLE',
+    'HR',
+    'PRE',
+    'DIV',
+    'FIGURE',
+  ]);
+
+  // Encapsule les suites de noeuds inline présents directement à la racine
+  // dans des <p>, en conservant la position du curseur
+  const ensureParagraphWrapping = () => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const isInlineRootNode = (node: Node): boolean => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return !!node.textContent && node.textContent.trim().length > 0;
+      }
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        return !ROOT_BLOCK_TAGS.has((node as HTMLElement).tagName);
+      }
+      return false;
+    };
+
+    // Regroupe les noeuds inline consécutifs en suites
+    const runs: Node[][] = [];
+    let currentRun: Node[] = [];
+    editor.childNodes.forEach((node) => {
+      if (isInlineRootNode(node)) {
+        currentRun.push(node);
+      } else {
+        if (currentRun.length > 0) runs.push(currentRun);
+        currentRun = [];
+      }
+    });
+    if (currentRun.length > 0) runs.push(currentRun);
+    if (runs.length === 0) return;
+
+    // Les noeuds sont déplacés (pas copiés) : la sélection survit au
+    // déplacement, on la restaure explicitement pour garantir le curseur
+    const selection = window.getSelection();
+    const savedRange =
+      selection && selection.rangeCount > 0 && editor.contains(selection.anchorNode)
+        ? selection.getRangeAt(0).cloneRange()
+        : null;
+
+    runs.forEach((run) => {
+      const p = document.createElement('p');
+      editor.insertBefore(p, run[0]);
+      run.forEach((node) => p.appendChild(node));
+    });
+
+    if (savedRange) {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+      }
+    }
+  };
+
   const handleInput = () => {
     if (isUpdatingFromProp.current) return;
     if (editorRef.current) {
+      ensureParagraphWrapping();
       const html = editorRef.current.innerHTML;
       // Si l'éditeur ne contient qu'une balise vide <br> ou rien
       if (html === '<br>' || html === '<p><br></p>') {

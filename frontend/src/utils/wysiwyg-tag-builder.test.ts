@@ -42,6 +42,20 @@ describe('Wysiwyg tag builder (balises avancées [hide] / [private])', () => {
     it('échappe le contenu édité pour éviter une injection HTML', () => {
       assert.strictEqual(resolveTagInnerHtml('', '', 'a<b & c'), 'a&lt;b &amp; c');
     });
+
+    it('dérôle le paragraphe unique englobant la sélection (le texte vit dans un <p>)', () => {
+      assert.strictEqual(
+        resolveTagInnerHtml('Contenu secret', '<p><b>Contenu secret</b></p>', 'Contenu secret'),
+        '<b>Contenu secret</b>'
+      );
+    });
+
+    it('conserve une sélection multi-paragraphes telle quelle', () => {
+      assert.strictEqual(
+        resolveTagInnerHtml('a b', '<p>a</p><p>b</p>', 'a b'),
+        '<p>a</p><p>b</p>'
+      );
+    });
   });
 
   describe('buildAdvancedTagHtml : assemblage de la balise', () => {
