@@ -180,6 +180,148 @@ describe('sheetDefinitionSchema', () => {
   });
 });
 
+describe('sheetDefinitionSchema - positionnement libre et mise en page enrichie', () => {
+  it("accepte le layout 'free' avec hauteur de canevas, positions et fond de section", () => {
+    const result = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'page-1',
+        title: 'P',
+        sections: [{
+          id: 'sec-1',
+          layout: 'free',
+          height: 480,
+          backgroundColor: '#fef3c7',
+          position: { top: 16, left: 32 },
+          children: [
+            { id: 'comp-a', type: 'text', label: 'A', position: { top: 48, left: 64 } },
+            { id: 'sec-2', layout: 'vertical', position: { top: 120, left: 16 }, children: [] },
+          ],
+        }],
+      }],
+    });
+    assert.equal(result.success, true);
+    if (result.success) {
+      const section = result.data.pages[0].sections[0] as any;
+      assert.equal(section.layout, 'free');
+      assert.equal(section.height, 480);
+      assert.equal(section.backgroundColor, '#fef3c7');
+      assert.deepEqual(section.position, { top: 16, left: 32 });
+      assert.deepEqual(section.children[0].position, { top: 48, left: 64 });
+      assert.deepEqual(section.children[1].position, { top: 120, left: 16 });
+    }
+  });
+
+  it('accepte une page avec image de fond et taille fixe', () => {
+    const result = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'page-1',
+        title: 'P',
+        backgroundImage: '/files/editor/1/abc.png',
+        width: 800,
+        height: 600,
+        sections: [],
+      }],
+    });
+    assert.equal(result.success, true);
+    if (result.success) {
+      assert.equal(result.data.pages[0].backgroundImage, '/files/editor/1/abc.png');
+      assert.equal(result.data.pages[0].width, 800);
+      assert.equal(result.data.pages[0].height, 600);
+    }
+  });
+
+  it('accepte la largeur redimensionnée des éléments en positionnement libre', () => {
+    const result = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'page-1',
+        title: 'P',
+        sections: [{
+          id: 'sec-1',
+          layout: 'free',
+          height: 480,
+          width: 320,
+          children: [
+            { id: 'comp-a', type: 'textarea', label: 'A', width: 260, position: { top: 16, left: 16 } },
+            { id: 'sec-2', layout: 'free', width: 300, height: 200, position: { top: 120, left: 16 }, children: [] },
+          ],
+        }],
+      }],
+    });
+    assert.equal(result.success, true);
+    if (result.success) {
+      const section = result.data.pages[0].sections[0] as any;
+      assert.equal(section.width, 320);
+      assert.equal(section.children[0].width, 260);
+      assert.equal(section.children[1].width, 300);
+      assert.equal(section.children[1].height, 200);
+    }
+  });
+
+  it('rejette une largeur d’élément hors bornes', () => {
+    const badComponentWidth = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'p', title: 'P',
+        sections: [{
+          id: 's', layout: 'free',
+          children: [{ id: 'c', type: 'text', label: 'L', width: 0 }],
+        }],
+      }],
+    });
+    assert.equal(badComponentWidth.success, false);
+
+    const badSectionWidth = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'p', title: 'P',
+        sections: [{ id: 's', layout: 'free', width: -5, children: [] }],
+      }],
+    });
+    assert.equal(badSectionWidth.success, false);
+  });
+
+  it('rejette une position ou une hauteur hors bornes', () => {
+    const negativePosition = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'p', title: 'P',
+        sections: [{
+          id: 's', layout: 'free',
+          children: [{ id: 'c', type: 'text', label: 'L', position: { top: -5, left: 10 } }],
+        }],
+      }],
+    });
+    assert.equal(negativePosition.success, false);
+
+    const badHeight = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'p', title: 'P',
+        sections: [{ id: 's', layout: 'free', height: 0, children: [] }],
+      }],
+    });
+    assert.equal(badHeight.success, false);
+
+    const badBackground = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'p', title: 'P',
+        sections: [{ id: 's', layout: 'free', backgroundColor: 'jaune', children: [] }],
+      }],
+    });
+    assert.equal(badBackground.success, false);
+
+    const negativePageWidth = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{ id: 'p', title: 'P', backgroundImage: 'x.png', width: -1, sections: [] }],
+    });
+    assert.equal(negativePageWidth.success, false);
+  });
+});
+
 describe('resolveSheetMode', () => {
   it("dérive 'graphic' quand un template graphique existe et aucun mode n'est défini", () => {
     assert.equal(
@@ -364,5 +506,56 @@ describe('sheetDefinitionSchema - enfants unifiés (children) dans une section',
       }],
     });
     assert.equal(result.success, false);
+  });
+});
+
+describe('sheetDefinitionSchema - poids de répartition (sizeWeight) des enfants en flux', () => {
+  it('accepte et conserve le sizeWeight des composants et sous-sections', () => {
+    const result = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'page-1',
+        title: 'P',
+        sections: [{
+          id: 'sec-1',
+          layout: 'horizontal',
+          children: [
+            { id: 'comp-a', type: 'text', label: 'A', sizeWeight: 220 },
+            { id: 'comp-b', type: 'text', label: 'B', sizeWeight: 118.5 },
+            { id: 'sec-2', layout: 'vertical', sizeWeight: 340, children: [] },
+          ],
+        }],
+      }],
+    });
+    assert.equal(result.success, true);
+    if (result.success) {
+      const section = result.data.pages[0].sections[0] as any;
+      assert.equal(section.children[0].sizeWeight, 220);
+      assert.equal(section.children[1].sizeWeight, 118.5);
+      assert.equal(section.children[2].sizeWeight, 340);
+    }
+  });
+
+  it('rejette un sizeWeight nul ou négatif', () => {
+    const zero = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'p', title: 'P',
+        sections: [{
+          id: 's', layout: 'horizontal',
+          children: [{ id: 'c', type: 'text', label: 'L', sizeWeight: 0 }],
+        }],
+      }],
+    });
+    assert.equal(zero.success, false);
+
+    const negative = sheetDefinitionSchema.safeParse({
+      version: 1,
+      pages: [{
+        id: 'p', title: 'P',
+        sections: [{ id: 's', layout: 'vertical', sizeWeight: -3, children: [] }],
+      }],
+    });
+    assert.equal(negative.success, false);
   });
 });

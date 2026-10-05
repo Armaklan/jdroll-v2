@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import { SheetDefinition, SheetSection, SheetComponent } from '../types/campaign';
-import { SheetValues, isSheetSection } from '../utils/programmed-sheet';
+import {
+  FREE_SECTION_DEFAULT_HEIGHT,
+  SheetValues,
+  flowChildStyle,
+  freeChildStyle,
+  isSheetSection,
+  pageBackgroundStyle,
+  sectionBackgroundStyle,
+} from '../utils/programmed-sheet';
 
 interface ProgrammedSheetRendererProps {
   definition: SheetDefinition | null;
@@ -94,9 +102,10 @@ export const ProgrammedSheetRenderer: React.FC<ProgrammedSheetRendererProps> = (
 
   const renderComponent = (
     component: SheetComponent,
-    stretch = false
+    stretch = false,
+    freeChild = false
   ): React.ReactNode => {
-    if (component.type === 'label') {
+    if (component.type === 'label' && !freeChild) {
       return (
         <p className="text-sm font-semibold text-slate-700">{component.label}</p>
       );
@@ -182,6 +191,11 @@ export const ProgrammedSheetRenderer: React.FC<ProgrammedSheetRendererProps> = (
       case 'scoring':
         input = renderScoring(component);
         break;
+      case 'label':
+        input = (
+          <p className="text-sm font-semibold text-slate-700">{component.label}</p>
+        );
+        break;
       default:
         input = isReadOnly ? (
           <span className="text-sm text-slate-800">{String(value) || '—'}</span>
@@ -201,8 +215,17 @@ export const ProgrammedSheetRenderer: React.FC<ProgrammedSheetRendererProps> = (
     return (
       <div
         className={`${
-          stretch ? 'flex-1 basis-52 sm:basis-64 min-w-0 ' : ''
+          stretch && !freeChild ? 'flex-1 basis-52 sm:basis-64 min-w-0 ' : ''
+        }${
+          freeChild ? 'w-56' : ''
         }${isLabelLeft ? 'flex items-center gap-2' : 'space-y-1'}`}
+        style={
+          freeChild
+            ? freeChildStyle(component.position, component.width)
+            : component.sizeWeight !== undefined
+            ? flowChildStyle(component.sizeWeight)
+            : undefined
+        }
         data-testid={`sheet-field-${component.id}`}
       >
         {showLabel && (
@@ -229,9 +252,11 @@ export const ProgrammedSheetRenderer: React.FC<ProgrammedSheetRendererProps> = (
   const renderSection = (
     section: SheetSection,
     depth: number,
-    stretch = false
+    stretch = false,
+    freeChild = false
   ): React.ReactNode => {
     const horizontal = section.layout === 'horizontal';
+    const isFree = section.layout === 'free';
 
     const borderStyle =
       section.borderWidth !== undefined
@@ -241,37 +266,84 @@ export const ProgrammedSheetRenderer: React.FC<ProgrammedSheetRendererProps> = (
             ...(section.borderColor ? { borderColor: section.borderColor } : {}),
           }
         : undefined;
+    // Le fond configuré (inline) prime sur les fonds Tailwind par défaut ;
+    // en flux pondéré, le poids de répartition pilote le flex
+    const sectionStyle = {
+      ...borderStyle,
+      ...sectionBackgroundStyle(section.backgroundColor),
+      ...(freeChild ? freeChildStyle(section.position, section.width) : {}),
+      ...(!freeChild && section.sizeWeight !== undefined
+        ? flowChildStyle(section.sizeWeight)
+        : {}),
+    };
+    // En flux vertical pondéré, les enfants se répartissent une hauteur figée
+    const hasFlowWeights =
+      !isFree && section.children.some((child) => child.sizeWeight !== undefined);
 
     return (
       <div
         className={`rounded-2xl border p-3 sm:p-4 space-y-3 ${
           depth % 2 === 0 ? 'border-slate-200 bg-slate-50/60' : 'border-slate-100 bg-white'
-        } ${stretch ? 'flex-1 basis-72 sm:basis-96 min-w-0 self-start' : ''}`}
-        style={borderStyle}
+        } ${stretch && !freeChild ? 'flex-1 basis-72 sm:basis-96 min-w-0 self-start' : ''}`}
+        style={sectionStyle}
         data-testid={`sheet-view-section-${section.id}`}
       >
-        {section.title && (
-          <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-            {section.title}
-          </h4>
+        {isFree ? (
+          <div
+            className="relative rounded-xl border border-dashed border-slate-200"
+            style={{ height: section.height ?? FREE_SECTION_DEFAULT_HEIGHT }}
+            data-testid={`sheet-view-canvas-${section.id}`}
+          >
+            {/* Le titre est superposé en haut du canevas : toute la surface
+                de la section (bande de titre comprise) est positionnable,
+                comme dans le constructeur. */}
+            {section.title && (
+              <h4 className="absolute top-1 left-1 right-1 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                {section.title}
+              </h4>
+            )}
+            {section.children.map((child) =>
+              isSheetSection(child)
+                ? renderSection(child, depth + 1, false, true)
+                : renderComponent(child, false, true)
+            )}
+          </div>
+        ) : (
+          <>
+            {section.title && (
+              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                {section.title}
+              </h4>
+            )}
+            <div
+              className={
+                horizontal
+                  ? 'flex flex-wrap sm:flex-nowrap gap-3 items-start'
+                  : hasFlowWeights
+                  ? 'flex flex-col gap-3'
+                  : 'grid grid-cols-1 gap-3'
+              }
+              style={
+                horizontal
+                  ? section.height
+                    ? { minHeight: section.height }
+                    : undefined
+                  : hasFlowWeights
+                  ? { height: section.height }
+                  : section.height
+                  ? { minHeight: section.height }
+                  : undefined
+              }
+              data-testid={`sheet-view-children-${section.id}`}
+            >
+              {section.children.map((child) =>
+                isSheetSection(child)
+                  ? renderSection(child, depth + 1, horizontal)
+                  : renderComponent(child, horizontal)
+              )}
+            </div>
+          </>
         )}
-        {/* Flux unique : composants et sous-sections partagent le layout de la section.
-            En horizontal, les enfants s'étendent pour remplir l'espace disponible
-            et restent sur une seule ligne (ils rétrécissent au lieu de passer dessous). */}
-        <div
-          className={
-            horizontal
-              ? 'flex flex-wrap sm:flex-nowrap gap-3 items-start'
-              : 'grid grid-cols-1 gap-3'
-          }
-          data-testid={`sheet-view-children-${section.id}`}
-        >
-          {section.children.map((child) =>
-            isSheetSection(child)
-              ? renderSection(child, depth + 1, horizontal)
-              : renderComponent(child, horizontal)
-          )}
-        </div>
       </div>
     );
   };
@@ -297,7 +369,20 @@ export const ProgrammedSheetRenderer: React.FC<ProgrammedSheetRendererProps> = (
         </div>
       )}
 
-      <div className="space-y-3">
+      <div
+        className="space-y-3"
+        style={{
+          ...pageBackgroundStyle(activePage.backgroundImage),
+          ...(activePage.width && activePage.height
+            ? {
+                width: activePage.width,
+                height: activePage.height,
+                margin: '0 auto',
+              }
+            : {}),
+        }}
+        data-testid={`sheet-view-page-${activePage.id}`}
+      >
         {activePage.sections.map((section) => renderSection(section, 0))}
       </div>
     </div>

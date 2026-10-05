@@ -56,7 +56,15 @@ export interface CampaignSummary {
 
 export type SheetMode = 'technical' | 'graphic' | 'programmed';
 
-export type SheetSectionLayout = 'horizontal' | 'vertical';
+export type SheetSectionLayout = 'horizontal' | 'vertical' | 'free';
+
+/**
+ * Position d'un enfant dans une section en positionnement libre (px).
+ */
+export interface SheetElementPosition {
+  top: number;
+  left: number;
+}
 
 export type SheetComponentType =
   | 'text'
@@ -76,6 +84,16 @@ export interface SheetComponent {
   options?: string[];
   max?: number;
   labelPosition?: SheetLabelPosition;
+  /** Position dans la section parente en layout libre. */
+  position?: SheetElementPosition;
+  /** Largeur (px) redimensionnée en layout libre. */
+  width?: number;
+  /**
+   * Poids de répartition de la taille parmi les frères en layout
+   * horizontal (largeur) ou vertical (hauteur) ; taille (px) mesurée
+   * au moment de l'étirement, rendue telle quelle en flex-basis.
+   */
+  sizeWeight?: number;
 }
 
 export type SheetLabelPosition = 'above' | 'left';
@@ -86,6 +104,24 @@ export interface SheetSection {
   layout: SheetSectionLayout;
   borderWidth?: number;
   borderColor?: string;
+  /** Couleur de fond de la section ; absente = transparent. */
+  backgroundColor?: string;
+  /**
+   * Hauteur du canevas (px) en positionnement libre.
+   * Agrandie automatiquement quand un enfant est déposé plus bas.
+   * Pour une sous-section en flux dans un parent libre : hauteur minimale.
+   */
+  height?: number;
+  /** Position dans la section parente en layout libre. */
+  position?: SheetElementPosition;
+  /** Largeur (px) redimensionnée en layout libre. */
+  width?: number;
+  /**
+   * Poids de répartition de la taille parmi les frères en layout
+   * horizontal (largeur) ou vertical (hauteur) ; taille (px) rendue
+   * en flex-basis.
+   */
+  sizeWeight?: number;
   /**
    * Enfants de la section : composants et sous-sections mélangés,
    * dans un ordre libre (le layout de la section s'applique à l'ensemble).
@@ -98,6 +134,14 @@ export type SheetElement = SheetComponent | SheetSection;
 export interface SheetPage {
   id: string;
   title: string;
+  /** Image de fond de la page (URL externe ou /files/...) ; absente = aucune. */
+  backgroundImage?: string;
+  /**
+   * Taille fixe de la page (px), dérivée de l'image de fond
+   * (largeur 800px, hauteur au ratio de l'image) ; absente = page flexible.
+   */
+  width?: number;
+  height?: number;
   sections: SheetSection[];
 }
 

@@ -2,12 +2,16 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FIXED_PAGE_WIDTH,
+  FLOW_ELEMENT_MIN_SIZE,
   FREE_ELEMENT_MIN_HEIGHT,
   FREE_ELEMENT_MIN_WIDTH,
+  computeFlowStretch,
   computeFreePlacement,
   computeFreeResize,
+  defaultFlowWeight,
   duplicateSheetElement,
   fixedPageSize,
+  flowChildStyle,
   freeChildStyle,
   nextFreePosition,
   assignFreePositions,
@@ -197,10 +201,137 @@ describe('positionnement libre (layout free)', () => {
       });
       assert.equal(result.height, 400);
     });
+
+    it('ancre le placement sur l’élément tenu via le décalage de préhension', () => {
+      // L'élément est attrapé 30px sous son coin haut-gauche : le dépôt
+      // place ce coin (et non le pointeur) aux coordonnées du dépôt
+      assert.deepEqual(
+        computeFreePlacement({
+          pointerTop: 150,
+          pointerLeft: 200,
+          itemWidth: 100,
+          itemHeight: 40,
+          currentHeight: 240,
+          grabOffsetTop: 30,
+          grabOffsetLeft: 50,
+        }),
+        { top: 120, left: 150, height: 240 }
+      );
+    });
+
+    it('borne à 0 un décalage de préhension qui remonterait au-dessus du canevas', () => {
+      assert.deepEqual(
+        computeFreePlacement({
+          pointerTop: 10,
+          pointerLeft: 20,
+          itemWidth: 100,
+          itemHeight: 40,
+          currentHeight: 240,
+          grabOffsetTop: 40,
+          grabOffsetLeft: 60,
+        }),
+        { top: 0, left: 0, height: 240 }
+      );
+    });
+
+    it('agrandit la hauteur en tenant compte du décalage de préhension', () => {
+      const result = computeFreePlacement({
+        pointerTop: 300,
+        pointerLeft: 10,
+        itemWidth: 100,
+        itemHeight: 40,
+        currentHeight: 240,
+        grabOffsetTop: 100,
+      });
+      assert.equal(result.top, 200);
+      assert.equal(result.height, 200 + 40 + 16);
+    });
   });
 
-  describe('fixedPageSize', () => {
-    it('fixe la largeur à 800px et la hauteur au ratio de l’image', () => {
+  describe('computeFlowStretch', () => {
+    it('étire un enfant et réduit les autres proportionnellement (somme conservée)', () => {
+      assert.deepEqual(
+        computeFlowStretch({ sizes: [100, 100, 100], index: 1, delta: 60 }),
+        [70, 160, 70]
+      );
+    });
+
+    it('étire un enfant de taille différente en conservant les proportions des autres', () => {
+      // Total 400 ; l'enfant 1 passe de 100 à 240 : il reste 160 pour
+      // les autres (100 et 200), soit 53 et 107
+      assert.deepEqual(
+        computeFlowStretch({ sizes: [100, 100, 200], index: 1, delta: 140 }),
+        [53, 240, 107]
+      );
+    });
+
+    it('borne l’enfant étiré à la taille minimale', () => {
+      assert.deepEqual(
+        computeFlowStretch({ sizes: [100, 100, 100], index: 0, delta: -500 }),
+        [FLOW_ELEMENT_MIN_SIZE, 130, 130]
+      );
+    });
+
+    it('borne l’enfant étiré pour ne jamais écraser les autres sous leur minimum', () => {
+      assert.deepEqual(
+        computeFlowStretch({ sizes: [100, 100, 100], index: 1, delta: 500 }),
+        [FLOW_ELEMENT_MIN_SIZE, 220, FLOW_ELEMENT_MIN_SIZE]
+      );
+    });
+
+    it('laisse la taille inchangée pour un enfant unique (rien à redistribuer)', () => {
+      assert.deepEqual(
+        computeFlowStretch({ sizes: [250], index: 0, delta: 120 }),
+        [250]
+      );
+    });
+
+    it('retourne une copie des tailles pour un index hors bornes', () => {
+      assert.deepEqual(
+        computeFlowStretch({ sizes: [100, 100], index: 5, delta: 50 }),
+        [100, 100]
+      );
+    });
+  });
+
+  describe('defaultFlowWeight', () => {
+    it('retourne null quand aucun enfant n’a de poids (répartition naturelle)', () => {
+      assert.equal(
+        defaultFlowWeight([
+          { id: 'a' },
+          { id: 'b' },
+        ] as never[]),
+        null
+      );
+    });
+
+    it('retourne la moyenne des poids existants pour un enfant ajouté', () => {
+      assert.equal(
+        defaultFlowWeight([
+          { id: 'a', sizeWeight: 100 },
+          { id: 'b', sizeWeight: 200 },
+          { id: 'c' },
+        ] as never[]),
+        150
+      );
+    });
+  });
+
+  describe('flowChildStyle', () => {
+    it('répartit les tailles sur une base en pixels, croissance désactivée', () => {
+      // Le poids est la taille (px) mesurée à l'étirement : rendue en
+      // flex-basis, elle est fidèle au geste et insensible aux heuristiques
+      // de taille minimale de contenu qui faussent le flex-grow.
+      // minHeight 0 neutralise le minimum automatique des flex items.
+      assert.deepEqual(flowChildStyle(220), {
+        flexGrow: 0,
+        flexBasis: '220px',
+        minHeight: 0,
+      });
+    });
+  });
+
+  describe('fixedPageSize', () => {    it('fixe la largeur à 800px et la hauteur au ratio de l’image', () => {
       assert.deepEqual(fixedPageSize(1600, 1200), {
         width: FIXED_PAGE_WIDTH,
         height: 600,

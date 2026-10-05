@@ -4,6 +4,6 @@ migration/.env
 backend/smtp.json
 node_modules
 frontend/dist
-files/
+files/*
 old
 dump/

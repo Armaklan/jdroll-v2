@@ -3,10 +3,10 @@ import { z } from 'zod';
 /**
  * Schéma de définition d'une feuille de personnage programmée.
  * Une fiche est composée de pages, contenant des sections récursives
- * disposant d'un layout (horizontal / vertical) et de composants.
+ * disposant d'un layout (horizontal / vertical / libre) et de composants.
  */
 
-export const SHEET_SECTION_LAYOUTS = ['horizontal', 'vertical'] as const;
+export const SHEET_SECTION_LAYOUTS = ['horizontal', 'vertical', 'free'] as const;
 export type SheetSectionLayout = (typeof SHEET_SECTION_LAYOUTS)[number];
 
 export const SHEET_COMPONENT_TYPES = [
@@ -23,6 +23,18 @@ export type SheetComponentType = (typeof SHEET_COMPONENT_TYPES)[number];
 export const SHEET_LABEL_POSITIONS = ['above', 'left'] as const;
 export type SheetLabelPosition = (typeof SHEET_LABEL_POSITIONS)[number];
 
+const HEX_COLOR_REGEX =
+  /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
+/**
+ * Position d'un élément dans une section en positionnement libre (px).
+ */
+export const sheetElementPositionSchema = z.object({
+  top: z.number().int().min(0).max(10000),
+  left: z.number().int().min(0).max(10000),
+});
+export type SheetElementPosition = z.infer<typeof sheetElementPositionSchema>;
+
 export const sheetComponentSchema = z.intersection(
   z.object({
     id: z.string().min(1).max(100),
@@ -31,6 +43,15 @@ export const sheetComponentSchema = z.intersection(
     helpText: z.string().max(500).optional(),
     defaultValue: z.union([z.string().max(2000), z.number()]).optional(),
     labelPosition: z.enum(SHEET_LABEL_POSITIONS).optional(),
+    position: sheetElementPositionSchema.optional(),
+    /** Largeur (px) redimensionnée en positionnement libre. */
+    width: z.number().int().min(1).max(10000).optional(),
+    /**
+     * Poids de répartition de la taille (largeur en horizontal, hauteur
+     * en vertical) parmi les frères de la section ; taille (px) mesurée
+     * à l'étirement, rendue en flex-basis.
+     */
+    sizeWeight: z.number().positive().max(100000).optional(),
   }),
   z.union([
     z.object({
@@ -59,6 +80,12 @@ export interface SheetSection {
   layout: SheetSectionLayout;
   borderWidth?: number;
   borderColor?: string;
+  backgroundColor?: string;
+  height?: number;
+  /** Position dans la section parente en positionnement libre. */
+  position?: SheetElementPosition;
+  /** Largeur (px) redimensionnée en positionnement libre. */
+  width?: number;
   /**
    * Enfants de la section : composants et sous-sections mélangés,
    * dans un ordre libre (le layout de la section s'applique à l'ensemble).
@@ -74,8 +101,18 @@ const sheetSectionCoreSchema: z.ZodType<SheetSection> = z.lazy(() =>
     borderWidth: z.number().int().min(0).max(10).optional(),
     borderColor: z
       .string()
-      .regex(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, 'Couleur de bordure invalide (format hexadécimal attendu)')
+      .regex(HEX_COLOR_REGEX, 'Couleur de bordure invalide (format hexadécimal attendu)')
       .optional(),
+    backgroundColor: z
+      .string()
+      .regex(HEX_COLOR_REGEX, 'Couleur de fond invalide (format hexadécimal attendu)')
+      .optional(),
+    height: z.number().int().min(1).max(10000).optional(),
+    position: sheetElementPositionSchema.optional(),
+    /** Largeur (px) redimensionnée en positionnement libre. */
+    width: z.number().int().min(1).max(10000).optional(),
+    /** Poids de répartition de la taille parmi les frères (ratio). */
+    sizeWeight: z.number().positive().max(100000).optional(),
     children: z.array(
       z.union([sheetSectionCoreSchema, sheetComponentSchema])
     ),
@@ -147,6 +184,10 @@ const sheetDefinitionCoreSchema = z.object({
       z.object({
         id: z.string().min(1).max(100),
         title: z.string().max(200),
+        backgroundImage: z.string().min(1).max(2000).optional(),
+        /** Taille fixe de la page (px) définie par son image de fond. */
+        width: z.number().int().min(1).max(10000).optional(),
+        height: z.number().int().min(1).max(10000).optional(),
         sections: z.array(sheetSectionCoreSchema),
       })
     )

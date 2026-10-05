@@ -2691,6 +2691,16 @@ export const CampaignFormPage: React.FC<CampaignFormPageProps> = ({ mode: propMo
                   </p>
                 </div>
 
+                {/* Avertissement : fonctionnalité expérimentale */}
+                <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">
+                    <span className="font-bold">Fonctionnalité expérimentale.</span>{' '}
+                    La fiche programmée est encore en cours de développement : des ajustements
+                    visuels ou de comportement sont possibles, y compris après enregistrement.
+                  </p>
+                </div>
+
                 <ProgrammedSheetBuilder
                   definition={sheetDefinition}
                   onChange={setSheetDefinition}
