@@ -22,23 +22,6 @@ function escapeHtml(text: string): string {
 }
 
 /**
- * Déroule le paragraphe unique englobant le HTML d'une sélection.
- *
- * Depuis que l'éditeur encapsule le texte dans des <p>, le HTML capturé
- * d'une sélection d'un seul paragraphe contient ce <p> englobant. On le
- * retire pour que la balise BBCode ([hide], [private]) encapsule un contenu
- * inline et reste groupée dans un seul paragraphe à l'insertion.
- * Les sélections multi-paragraphes sont conservées telles quelles.
- */
-function unwrapSingleParagraph(html: string): string {
-  const match = html.match(/^<p[^>]*>([\s\S]*)<\/p>$/i);
-  if (match && !/<p[\s>]/i.test(match[1])) {
-    return match[1];
-  }
-  return html;
-}
-
-/**
  * Détermine le HTML à encapsuler dans la balise.
  *
  * - Si le contenu de la modale est inchangé par rapport au texte sélectionné
@@ -57,7 +40,7 @@ export function resolveTagInnerHtml(
     editedContent === selectedText &&
     editedContent.length > 0
   ) {
-    return unwrapSingleParagraph(selectedHtml);
+    return selectedHtml;
   }
   return escapeHtml(editedContent);
 }
