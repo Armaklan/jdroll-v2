@@ -74,7 +74,9 @@ export class CreateCharacterUseCase {
       throw new ForbiddenError('Seul le Maître du Jeu peut créer un personnage');
     }
 
-    let catId: number | null = input.catId ?? null;
+    let catId: number | null = input.catId !== undefined && input.catId !== null && input.catId > 0
+      ? input.catId
+      : null;
     if (catId !== null) {
       const categories = await this.campaignRepo.findCampaignPnjCategories(input.campagneId);
       const categoryExists = categories.some((c) => c.id === catId);

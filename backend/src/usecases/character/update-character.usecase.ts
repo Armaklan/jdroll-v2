@@ -136,14 +136,15 @@ export class UpdateCharacterUseCase {
     // Only MJ can reassign user, category or status
     if (isMj) {
       if (input.catId !== undefined) {
-        if (input.catId !== null) {
+        const catId = input.catId !== null && input.catId > 0 ? input.catId : null;
+        if (catId !== null) {
           const categories = await this.campaignRepo.findCampaignPnjCategories(existingCharacter.campagneId);
-          const categoryExists = categories.some((c) => c.id === input.catId);
+          const categoryExists = categories.some((c) => c.id === catId);
           if (!categoryExists) {
             throw new ValidationError("La catégorie spécifiée n'existe pas dans cette campagne");
           }
         }
-        updatePayload.catId = input.catId;
+        updatePayload.catId = catId;
       }
 
       if (input.assignedUserId !== undefined) {

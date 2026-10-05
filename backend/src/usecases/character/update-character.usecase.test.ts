@@ -335,4 +335,19 @@ describe('UpdateCharacterUseCase', () => {
     const updated = await repo.findCharacterById(1);
     assert.equal(updated.sheetValues, null);
   });
+
+  it('traite catId = 0 comme une catégorie nulle (personnage non classé)', async () => {
+    const repo = new MockCampaignRepository([campaign1], categories, characters);
+    const useCase = new UpdateCharacterUseCase(repo, domainEventBus, stubPermissions());
+
+    const result = await useCase.execute({
+      characterId: 2,
+      userId: 42, // GM
+      catId: 0,
+    });
+
+    assert.equal(result.catId, null);
+    const updated = await repo.findCharacterById(2);
+    assert.equal(updated?.catId, null);
+  });
 });

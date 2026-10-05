@@ -257,6 +257,22 @@ describe('CreateCharacterUseCase', () => {
     );
   });
 
+  it('traite catId = 0 comme une catégorie nulle (personnage non classé)', async () => {
+    const repo = new MockCampaignRepository([campaign1], categories);
+    const useCase = new CreateCharacterUseCase(repo, stubPermissions());
+
+    const result = await useCase.execute({
+      campagneId: 1,
+      userId: 42,
+      name: 'Vagabond',
+      catId: 0,
+    });
+
+    assert.equal(result.catId, null);
+    assert.equal(repo.characters.length, 1);
+    assert.equal(repo.characters[0].catId, null);
+  });
+
   it('should throw ValidationError if category does not belong to the campaign', async () => {
     const repo = new MockCampaignRepository([campaign1], categories);
     const useCase = new CreateCharacterUseCase(repo, stubPermissions());
