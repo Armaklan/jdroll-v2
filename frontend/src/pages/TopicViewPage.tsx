@@ -53,6 +53,7 @@ import {
   X,
   Check,
   Quote,
+  ArrowUp,
 } from 'lucide-react';
 
 interface TopicViewPageProps {
@@ -903,12 +904,24 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
     </div>
   );
 
-  const renderPaginationBar = () => (
+  const renderPaginationBar = (showScrollTop = false) => (
     <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-xs">
       {renderPaginationInfo()}
 
       {/* Contrôles de pagination */}
-      {renderPaginationControls()}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {renderPaginationControls()}
+        {showScrollTop && (
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="p-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition flex items-center gap-1 text-xs font-medium"
+            title="Remonter en haut de la page"
+          >
+            <ArrowUp className="w-4 h-4" />
+            <span className="hidden sm:inline">Haut</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 
@@ -1517,7 +1530,7 @@ export const TopicViewPage: React.FC<TopicViewPageProps> = ({
       )}
 
       {/* Barre de pagination inférieure */}
-      {renderPaginationBar()}
+      {renderPaginationBar(true)}
 
       {/* Bloc de réponse WYSIWYG / Formulaire de publication */}
       <div ref={formRef} className="pt-2 space-y-4">
