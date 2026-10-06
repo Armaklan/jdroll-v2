@@ -21,6 +21,7 @@ import { userRoutes } from './controllers/user.controller.js';
 import { featureRoutes } from './controllers/feature.controller.js';
 import { annonceRoutes } from './controllers/annonce.controller.js';
 import { uploadRoutes } from './controllers/upload.controller.js';
+import { grammarRoutes } from './controllers/grammar.controller.js';
 import { notificationListener } from './listeners/notification.listener.js';
 
 export async function buildApp() {
@@ -94,6 +95,7 @@ export async function buildApp() {
   await app.register(featureRoutes);
   await app.register(annonceRoutes);
   await app.register(uploadRoutes);
+  await app.register(grammarRoutes);
 
   return app;
 }

@@ -29,6 +29,21 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: "1"
       MP_SMTP_AUTH_ALLOW_INSECURE: "1"
 
+  # Correcteur grammatical (LanguageTool) pour le backend en local (npm run dev:backend)
+  # Le backend le contacte via LANGUAGETOOL_URL (défaut : http://localhost:8010)
+  jd-languagetool:
+    image: erikvl87/languagetool:latest
+    container_name: jdroll-languagetool
+    restart: unless-stopped
+    environment:
+      Java_Xms: "256m"
+      Java_Xmx: "1g"
+      # Préchauffe les pipelines à démarrage (évite la latence du premier appel)
+      langtool_pipelinePrewarming: "true"
+    ports:
+      - "8010:8010"
+    mem_limit: 1300m
+
   jd-phpmyadmin:
     image: phpmyadmin:latest
     container_name: jd-phpmyadmin
@@ -41,22 +56,22 @@ services:
     depends_on:
       - db
 
-  jd-import:
-    image: mysql:8.0
-    container_name: jdroll-import
-    depends_on:
-      - db
-    volumes:
-      - ./dump/espritjdr.sql:/dump.sql:ro
-    entrypoint:
-      - bash
-      - -c
-      - |
-        echo "Attente de la disponibilité de MySQL..."
-        until mysqladmin ping -h db -ujdroll -pjdroll --silent; do
-          sleep 2
-        done
-        echo "Import de espritjdr.sql..."
-        mysql -h db -ujdroll -pjdroll espritjdr < /dump.sql
-        echo "Import terminé."
-    restart: "no"
+#  jd-import:
+#    image: mysql:8.0
+#    container_name: jdroll-import
+#    depends_on:
+#      - db
+#    volumes:
+#      - ./dump/espritjdr.sql:/dump.sql:ro
+#    entrypoint:
+#      - bash
+#      - -c
+#      - |
+#        echo "Attente de la disponibilité de MySQL..."
+#        until mysqladmin ping -h db -ujdroll -pjdroll --silent; do
+#          sleep 2
+#        done
+#        echo "Import de espritjdr.sql..."
+#        mysql -h db -ujdroll -pjdroll espritjdr < /dump.sql
+#        echo "Import terminé."
+#    restart: "no"

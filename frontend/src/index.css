@@ -252,3 +252,37 @@
   max-height: 80vh;
   overflow-y: auto;
 }
+
+/*
+ * Correcteur grammatical (LanguageTool) : surlignage des erreurs
+ * par-dessus la zone d'édition du WysiwygEditor.
+ */
+.wysiwyg-grammar-box {
+  position: absolute;
+  background: rgba(217, 119, 6, 0.08);
+  border-bottom: 2px solid rgba(217, 119, 6, 0.9);
+  border-radius: 2px;
+  pointer-events: auto;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.wysiwyg-grammar-box:hover,
+.wysiwyg-grammar-box:focus-visible {
+  background: rgba(217, 119, 6, 0.18);
+  outline: none;
+}
+
+.wysiwyg-grammar-popover {
+  /* Rendu en portail vers <body> : position viewport, jamais clippé
+     par la zone de texte. z-index sous les modales (z-50). */
+  position: fixed;
+  pointer-events: auto;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
+  padding: 10px 12px;
+  max-width: 280px;
+  z-index: 40;
+}

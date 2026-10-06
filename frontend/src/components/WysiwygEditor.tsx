@@ -42,11 +42,15 @@ import {
   UserCheck,
   Map,
   Users,
+  SpellCheck,
 } from 'lucide-react';
 import { campaignsApi } from '../api/campaigns';
 import { cleanFormatting } from '../utils/wysiwyg-format-cleaner';
 import { resolveTagInnerHtml, buildAdvancedTagHtml } from '../utils/wysiwyg-tag-builder';
 import { uploadsApi } from '../api/uploads';
+import { grammarApi, GrammarMatch } from '../api/grammar';
+import { buildTextIndex, resolveMatchRange } from '../utils/grammar-text-index';
+import { WysiwygGrammarOverlay } from './WysiwygGrammarOverlay';
 
 interface WysiwygEditorProps {
   value: string;
@@ -113,6 +117,13 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
   // pour conserver le formatage du contenu encapsulé
   const selectedTextRef = useRef<string>('');
   const selectedHtmlRef = useRef<string>('');
+
+  // Correcteur grammatical (LanguageTool) : état et debounce de vérification
+  const [isGrammarEnabled, setIsGrammarEnabled] = useState<boolean>(true);
+  const [grammarMatches, setGrammarMatches] = useState<GrammarMatch[]>([]);
+  const [grammarEditorEl, setGrammarEditorEl] = useState<HTMLDivElement | null>(null);
+  const grammarDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const grammarCheckSeqRef = useRef<number>(0);
 
   // Advanced BBCode Modals states (Hide, Private, PNJ, Carte)
   const [isHideModalOpen, setIsHideModalOpen] = useState<boolean>(false);
@@ -198,6 +209,74 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
       }
     }
   }, [value, isSourceMode]);
+
+  // Vérification grammaticale debouncée : après une pause de saisie, le texte
+  // brut extrait de l'éditeur est envoyé au correcteur (proxy backend)
+  useEffect(() => {
+    if (grammarDebounceRef.current) {
+      clearTimeout(grammarDebounceRef.current);
+    }
+    if (disabled || isSourceMode || !isGrammarEnabled) {
+      setGrammarMatches([]);
+      setGrammarEditorEl(null);
+      return;
+    }
+    setGrammarEditorEl(editorRef.current);
+    const seq = ++grammarCheckSeqRef.current;
+    grammarDebounceRef.current = setTimeout(async () => {
+      const editor = editorRef.current;
+      if (!editor) return;
+      const { text } = buildTextIndex(editor);
+      if (!text.trim()) {
+        if (seq === grammarCheckSeqRef.current) setGrammarMatches([]);
+        return;
+      }
+      try {
+        const matches = await grammarApi.check(text);
+        if (seq === grammarCheckSeqRef.current) setGrammarMatches(matches);
+      } catch {
+        // Correcteur indisponible : pas de surlignage, la saisie n'est pas bloquée
+        if (seq === grammarCheckSeqRef.current) setGrammarMatches([]);
+      }
+    }, 1500);
+    return () => {
+      if (grammarDebounceRef.current) {
+        clearTimeout(grammarDebounceRef.current);
+      }
+    };
+  }, [value, isGrammarEnabled, isSourceMode, disabled]);
+
+  // Applique un remplacement proposé par le correcteur : le match (offset texte
+  // brut) est re-résolu sur le DOM courant puis remplacé dans l'éditeur
+  const handleApplyGrammarReplacement = (match: GrammarMatch, replacement: string) => {
+    if (disabled || isSourceMode) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    const index = buildTextIndex(editor);
+    const dom = resolveMatchRange(index, match.offset, match.length);
+    if (!dom) {
+      setGrammarMatches([]);
+      return;
+    }
+    const range = document.createRange();
+    range.setStart(dom.startNode as unknown as Node, dom.startOffset);
+    range.setEnd(dom.endNode as unknown as Node, dom.endOffset);
+    range.deleteContents();
+    const node = document.createTextNode(replacement);
+    range.insertNode(node);
+
+    const selection = window.getSelection();
+    if (selection) {
+      const after = document.createRange();
+      after.setStartAfter(node);
+      after.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(after);
+    }
+
+    setGrammarMatches([]);
+    handleInput();
+  };
 
   const handleInput = () => {
     if (isUpdatingFromProp.current) return;
@@ -1462,6 +1541,24 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => setIsGrammarEnabled((prev) => !prev)}
+            disabled={disabled}
+            title={isGrammarEnabled ? 'Désactiver le correcteur grammatical' : 'Activer le correcteur grammatical (surlignage en direct)'}
+            className={`relative p-1.5 rounded-lg transition cursor-pointer ${
+              isGrammarEnabled
+                ? 'bg-amber-100 text-amber-700 shadow-xs'
+                : 'hover:bg-slate-200 text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <SpellCheck className="w-4 h-4" />
+            {isGrammarEnabled && grammarMatches.length > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-amber-600 text-white text-[10px] font-bold flex items-center justify-center">
+                {grammarMatches.length > 9 ? '9+' : grammarMatches.length}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
             onClick={handleRemoveFormat}
             disabled={disabled || isSourceMode}
             title="Effacer le style / mise en forme"
@@ -1698,31 +1795,40 @@ export const WysiwygEditor: React.FC<WysiwygEditorProps> = ({
           className="w-full p-4 font-mono text-xs bg-slate-900 text-slate-100 focus:outline-none resize-y overflow-y-auto"
         />
       ) : (
-        <div
-          ref={editorRef}
-          contentEditable={!disabled}
-          onInput={() => {
-            handleInput();
-            checkCursorPosition();
-          }}
-          onBlur={handleInput}
-          onKeyUp={checkCursorPosition}
-          onMouseUp={checkCursorPosition}
-          onPaste={handlePaste}
-          onClick={(e) => {
-            checkCursorPosition();
-            const target = e.target as HTMLElement;
-            if (target.tagName === 'IMG') {
-              handleOpenEditImageModal(target as HTMLImageElement);
-            }
-          }}
-          onFocus={checkCursorPosition}
-          style={{ minHeight, maxHeight: '400px' }}
-          data-placeholder={placeholder}
-          className={`wysiwyg-content wysiwyg-editor-area p-4 text-sm sm:text-base text-slate-900 focus:outline-none overflow-y-auto leading-relaxed empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none ${
-            disabled ? 'bg-slate-50 cursor-not-allowed opacity-60' : ''
-          }`}
-        />
+        <div className="relative">
+          <div
+            ref={editorRef}
+            contentEditable={!disabled}
+            onInput={() => {
+              handleInput();
+              checkCursorPosition();
+            }}
+            onBlur={handleInput}
+            onKeyUp={checkCursorPosition}
+            onMouseUp={checkCursorPosition}
+            onPaste={handlePaste}
+            onClick={(e) => {
+              checkCursorPosition();
+              const target = e.target as HTMLElement;
+              if (target.tagName === 'IMG') {
+                handleOpenEditImageModal(target as HTMLImageElement);
+              }
+            }}
+            onFocus={checkCursorPosition}
+            style={{ minHeight, maxHeight: '400px' }}
+            data-placeholder={placeholder}
+            className={`wysiwyg-content wysiwyg-editor-area p-4 text-sm sm:text-base text-slate-900 focus:outline-none overflow-y-auto leading-relaxed empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 empty:before:pointer-events-none ${
+              disabled ? 'bg-slate-50 cursor-not-allowed opacity-60' : ''
+            }`}
+          />
+          {!disabled && (
+            <WysiwygGrammarOverlay
+              editor={grammarEditorEl}
+              matches={grammarMatches}
+              onApply={handleApplyGrammarReplacement}
+            />
+          )}
+        </div>
       )}
 
       {/* Hidden file input for drag/click */}

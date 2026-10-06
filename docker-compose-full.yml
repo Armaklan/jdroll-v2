@@ -27,6 +27,20 @@ services:
       retries: 10
       start_period: 15s
 
+  # Correcteur grammatical (LanguageTool) utilisé par le backend (/api/grammar/check)
+  jd-languagetool:
+    container_name: jdroll-languagetool
+    image: erikvl87/languagetool:latest
+    restart: unless-stopped
+    environment:
+      Java_Xms: "256m"
+      Java_Xmx: "1g"
+      # Préchauffe les pipelines à démarrage (évite la latence du premier appel)
+      langtool_pipelinePrewarming: "true"
+    expose:
+      - "8010"
+    mem_limit: 1300m
+
   jd-backend:
     container_name: jdroll-backend
     restart: unless-stopped
@@ -44,12 +58,15 @@ services:
       DB_PASSWORD: jdroll
       DB_NAME: jdroll
       FILES_DIR: /app/files
+      LANGUAGETOOL_URL: http://jd-languagetool:8010
     volumes:
       - uploads_data:/app/files
       - ./backend/smtp.json:/app/smtp.json:ro
     depends_on:
       db:
         condition: service_healthy
+      jd-languagetool:
+        condition: service_started
     expose:
       - "3001"
 

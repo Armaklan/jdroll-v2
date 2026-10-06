@@ -17,4 +17,5 @@ export const config = {
     charset: 'utf8mb4',
     dateStrings: true,
   },
+  languageToolUrl: process.env.LANGUAGETOOL_URL || 'http://localhost:8010',
 };
